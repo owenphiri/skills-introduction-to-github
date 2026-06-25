@@ -124,7 +124,9 @@ const awareness = [
 const aw = db.prepare('INSERT INTO awareness (language, category, title, body) VALUES (?, ?, ?, ?)');
 for (const a of awareness) aw.run(...a);
 
-console.log('Seed complete.');
-console.log(`  School: Chongwe Secondary (Platinum package)`);
-console.log(`  Students: ${studentIds.length}`);
-console.log('  Logins (password = "password"): admin, teacher, counselor, parent, district, community');
+if (process.env.NODE_ENV !== 'test') {
+  console.log('Seed complete.');
+  console.log(`  School: Chongwe Secondary (Platinum package)`);
+  console.log(`  Students: ${studentIds.length}`);
+  console.log('  Logins (password = "password"): admin, teacher, counselor, parent, district, community');
+}
