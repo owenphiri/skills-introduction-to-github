@@ -20,8 +20,8 @@ const providers = {
   },
 
   /**
-   * Skeleton HTTP provider. Wire this to the real endpoint + payload format of
-   * your aggregator. Left intentionally generic.
+   * Generic JSON HTTP gateway. Wire to a Zamtel / MTN / Airtel bulk-SMS bus by
+   * setting SMS_API_URL + SMS_API_KEY. Adjust the payload to the vendor's spec.
    */
   async http(message) {
     if (!config.messaging.apiUrl) {
@@ -46,8 +46,71 @@ const providers = {
     } catch (err) {
       return { ok: false, ref: null, status: 'failed', error: err.message };
     }
+  },
+
+  /**
+   * Africa's Talking SMS adapter (a common aggregator with Zambian coverage).
+   * Returns the provider message id as `ref` so delivery-report webhooks can
+   * later reconcile the final status.
+   * Docs: https://developers.africastalking.com/docs/sms/sending/bulk
+   */
+  async africastalking(message) {
+    const { atUsername, atApiKey, atApiUrl, senderId } = config.messaging;
+    if (!atUsername || !atApiKey) {
+      return { ok: false, ref: null, status: 'failed', error: 'AT_USERNAME / AT_API_KEY not set' };
+    }
+    try {
+      const form = new URLSearchParams({
+        username: atUsername,
+        to: message.recipient_phone,
+        message: message.body
+      });
+      if (senderId) form.set('from', senderId);
+      const res = await fetch(atApiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Accept: 'application/json',
+          apiKey: atApiKey
+        },
+        body: form.toString()
+      });
+      const data = await res.json().catch(() => ({}));
+      const recipient = data?.SMSMessageData?.Recipients?.[0];
+      // AT statusCode 100/101/102 = queued/sent successfully.
+      const ok = res.ok && recipient && [100, 101, 102].includes(recipient.statusCode);
+      return {
+        ok,
+        ref: recipient?.messageId || null,
+        status: ok ? 'sent' : 'failed',
+        error: ok ? undefined : (recipient?.status || `HTTP ${res.status}`)
+      };
+    } catch (err) {
+      return { ok: false, ref: null, status: 'failed', error: err.message };
+    }
   }
 };
+
+/**
+ * Apply an inbound delivery report (from the aggregator's webhook) to the
+ * outbox. Matches on the provider reference (message id). Africa's Talking
+ * delivery statuses: Success, Sent, Submitted, Buffered, Rejected, Failed.
+ * @returns {boolean} whether a matching message was updated.
+ */
+function applyDeliveryReport({ providerRef, status }) {
+  if (!providerRef) return false;
+  const map = {
+    Success: 'delivered', Delivered: 'delivered',
+    Sent: 'sent', Submitted: 'sent', Buffered: 'sent',
+    Rejected: 'failed', Failed: 'failed'
+  };
+  const mapped = map[status] || null;
+  if (!mapped) return false;
+  const row = db.prepare('SELECT id FROM messages WHERE provider_ref = ?').get(providerRef);
+  if (!row) return false;
+  db.prepare('UPDATE messages SET delivery_status = ? WHERE id = ?').run(mapped, row.id);
+  return true;
+}
 
 /**
  * Queue + dispatch a message. Always records to the outbox first (audit trail),
@@ -75,4 +138,4 @@ async function send({ studentId = null, phone, channel = 'sms', category, body, 
   return db.prepare('SELECT * FROM messages WHERE id = ?').get(id);
 }
 
-module.exports = { send };
+module.exports = { send, applyDeliveryReport };

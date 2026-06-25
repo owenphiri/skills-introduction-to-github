@@ -30,8 +30,9 @@ children at risk.
 ## 3. Messaging at national scale
 - [ ] Contract with a Zambian aggregator / telcos (Zamtel, MTN, Airtel) or
       Africa's Talking; register the `SAFEGIRL` sender ID.
-- [ ] Implement the production adapter in `server/messaging.js` (HTTP skeleton present).
-- [ ] Delivery-receipt webhooks → update `messages.delivery_status`.
+- [x] Production SMS adapter implemented (Africa's Talking + generic HTTP);
+      flip `MESSAGING_PROVIDER` + credentials to go live. See `docs/GO-LIVE.md`.
+- [x] Delivery-receipt webhook (`/api/webhooks/sms/delivery`) updates `messages.delivery_status`.
 - [ ] WhatsApp Business API approval for the awareness/results templates.
 - [x] Native-speaker **review workflow** built (templates carry draft → pending →
       approved/rejected status; only approved copy is sent, else English fallback).
@@ -52,8 +53,8 @@ children at risk.
       (the SQL schema is already standard; the swap is isolated to `db.js`).
 - [x] Multi-school / district hierarchy with enforced per-user data scoping
       (admin → district → school) and a District Education Officer dashboard.
-- [ ] Package tiers (Bronze/Silver/Gold/Platinum) enforced as feature flags
-      (the tiers are stored per school; gating logic still to come).
+- [x] Package tiers (Bronze/Silver/Gold/Platinum) enforced as feature flags,
+      server-side (402) and in the UI.
 - [ ] GIS mapping of vulnerable learners (GPS fields already captured).
 - [ ] Replace the heuristic risk model with a model **trained on Zambian
       outcome data** — while keeping it explainable.

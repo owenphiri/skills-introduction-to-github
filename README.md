@@ -42,6 +42,9 @@ Designed to align with the Government of Zambia's **Keeping Girls in School
 | Term-over-term **academic analytics** (pass rates, trends, decliners) | ✅ |
 | **Multi-school / district hierarchy** with enforced data scoping | ✅ |
 | District Education Officer **per-school dashboard** | ✅ |
+| **Package-tier feature gating** (Bronze/Silver/Gold/Platinum) | ✅ |
+| **Real SMS adapter** (Africa's Talking) + delivery-report webhooks | ✅ |
+| **Counseling scheduling** with automatic SMS follow-up reminders | ✅ |
 
 ---
 
@@ -119,7 +122,19 @@ Design choices that matter for a government system:
 - **Zero-dependency datastore** — runs on a rural school laptop or a national
   data centre with the same code.
 
-See [`docs/API.md`](docs/API.md) for the REST endpoints.
+See [`docs/API.md`](docs/API.md) for the REST endpoints and
+[`docs/GO-LIVE.md`](docs/GO-LIVE.md) for switching on real SMS connectivity.
+
+### Package tiers (commercial model)
+Each school has a `package` that gates features both server-side (HTTP `402` when
+a school's tier is too low) and in the UI (locked tabs are hidden):
+
+| Tier | Adds |
+|---|---|
+| **Bronze** | Attendance, SMS alerts, parent portal |
+| **Silver** | + Academic reports & analytics, CSV exports |
+| **Gold** | + AI risk engine, counseling module, mobile app |
+| **Platinum** | + GIS mapping, district dashboard, biometric (planned) |
 
 ---
 

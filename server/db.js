@@ -189,5 +189,8 @@ function addColumnIfMissing(table, column, definition) {
 addColumnIfMissing('students', 'guardian_user_id', 'INTEGER REFERENCES users(id)');
 // District scope for District Education Officers (which district they oversee).
 addColumnIfMissing('users', 'district', 'TEXT');
+// Counseling reminder tracking (so a session/follow-up is only reminded once).
+addColumnIfMissing('counseling', 'reminded_scheduled', 'INTEGER NOT NULL DEFAULT 0');
+addColumnIfMissing('counseling', 'reminded_followup', 'INTEGER NOT NULL DEFAULT 0');
 
 module.exports = db;

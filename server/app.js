@@ -16,11 +16,14 @@ const riskEngine = require('./riskEngine');
 const templates = require('./templates');
 const security = require('./security');
 const scope = require('./scope');
+const features = require('./features');
+const reminders = require('./reminders');
 
 const app = express();
 app.set('trust proxy', true); // correct req.ip behind a load balancer / reverse proxy
 app.use(security.securityHeaders);
 app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: false })); // aggregator delivery webhooks post form data
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // Throttle authentication attempts per IP to blunt credential-stuffing.
@@ -49,7 +52,11 @@ app.post('/api/auth/login', loginLimiter, wrap((req, res) => {
   security.audit(req, 'login.success', `user:${user.id}`);
   res.json({
     token,
-    user: { id: user.id, full_name: user.full_name, role: user.role, username: user.username }
+    user: {
+      id: user.id, full_name: user.full_name, role: user.role, username: user.username,
+      package: features.schoolPackage(user.school_id),
+      features: features.featuresForUser(user)
+    }
   });
 }));
 
@@ -58,12 +65,18 @@ app.post('/api/auth/logout', auth.authenticate, wrap((req, res) => {
   res.json({ ok: true });
 }));
 
-app.get('/api/auth/me', auth.authenticate, wrap((req, res) => res.json({ user: req.user })));
+app.get('/api/auth/me', auth.authenticate, wrap((req, res) => res.json({
+  user: {
+    ...req.user,
+    package: features.schoolPackage(req.user.school_id),
+    features: features.featuresForUser(req.user)
+  }
+})));
 
 /* ----------------------------------------------------------------- USERS -- */
 
 app.post('/api/users', auth.authenticate, auth.requireRole('admin'), wrap((req, res) => {
-  const { full_name, username, password, role, phone } = req.body || {};
+  const { full_name, username, password, role, phone, school_id, district } = req.body || {};
   if (!full_name || !username || !password || !role) {
     return res.status(400).json({ error: 'full_name, username, password and role are required' });
   }
@@ -71,8 +84,8 @@ app.post('/api/users', auth.authenticate, auth.requireRole('admin'), wrap((req, 
   if (pwProblem) return res.status(400).json({ error: pwProblem });
   try {
     const info = db.prepare(
-      'INSERT INTO users (full_name, username, password_hash, role, phone) VALUES (?, ?, ?, ?, ?)'
-    ).run(full_name, username, auth.hashPassword(password), role, phone || null);
+      'INSERT INTO users (full_name, username, password_hash, role, phone, school_id, district) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    ).run(full_name, username, auth.hashPassword(password), role, phone || null, school_id || null, district || null);
     security.audit(req, 'user.create', `user:${info.lastInsertRowid}`, `role=${role}`);
     res.status(201).json({ id: info.lastInsertRowid });
   } catch (e) {
@@ -239,7 +252,8 @@ app.post('/api/performance', auth.authenticate, auth.requireRole('admin', 'teach
 
 /* ------------------------------------------------------------ COUNSELING -- */
 
-app.post('/api/counseling', auth.authenticate, auth.requireRole('admin', 'counselor', 'teacher'), wrap((req, res) => {
+app.post('/api/counseling', auth.authenticate, auth.requireRole('admin', 'counselor', 'teacher'),
+  features.requireFeature('counseling'), wrap((req, res) => {
   const { student_id, type, notes, scheduled_date, follow_up_date, status } = req.body || {};
   if (!student_id || !type) return res.status(400).json({ error: 'student_id and type are required' });
   const info = db.prepare(`
@@ -249,20 +263,32 @@ app.post('/api/counseling', auth.authenticate, auth.requireRole('admin', 'counse
   res.status(201).json(db.prepare('SELECT * FROM counseling WHERE id = ?').get(info.lastInsertRowid));
 }));
 
-app.put('/api/counseling/:id', auth.authenticate, auth.requireRole('admin', 'counselor'), wrap((req, res) => {
+app.put('/api/counseling/:id', auth.authenticate, auth.requireRole('admin', 'counselor'),
+  features.requireFeature('counseling'), wrap((req, res) => {
   const { status, notes, follow_up_date } = req.body || {};
   db.prepare('UPDATE counseling SET status = COALESCE(?, status), notes = COALESCE(?, notes), follow_up_date = COALESCE(?, follow_up_date) WHERE id = ?')
     .run(status || null, notes || null, follow_up_date || null, req.params.id);
   res.json(db.prepare('SELECT * FROM counseling WHERE id = ?').get(req.params.id));
 }));
 
-app.get('/api/counseling', auth.authenticate, auth.requireRole('admin', 'counselor', 'teacher'), wrap((req, res) => {
+app.get('/api/counseling', auth.authenticate, auth.requireRole('admin', 'counselor', 'teacher'),
+  features.requireFeature('counseling'), wrap((req, res) => {
+  const sc = scope.schoolClause(req.user, 's.school_id');
   res.json(db.prepare(`
     SELECT c.*, s.full_name AS student_name, s.grade
     FROM counseling c JOIN students s ON s.id = c.student_id
-    ORDER BY c.created_at DESC LIMIT 200
-  `).all());
+    WHERE 1=1${sc.clause}
+    ORDER BY (c.scheduled_date IS NULL), c.scheduled_date DESC, c.created_at DESC LIMIT 200
+  `).all(...sc.params));
 }));
+
+/** Manually trigger the counseling reminder dispatcher (also runs on a timer). */
+app.post('/api/counseling/run-reminders', auth.authenticate, auth.requireRole('admin', 'counselor'),
+  features.requireFeature('counseling'), wrap(async (req, res) => {
+    const result = await reminders.runReminders({ language: req.body?.language || 'en' });
+    security.audit(req, 'counseling.reminders', null, `scheduled=${result.scheduled} followup=${result.followup}`);
+    res.json(result);
+  }));
 
 /* ------------------------------------------------------------- MESSAGING -- */
 
@@ -271,8 +297,13 @@ app.post('/api/messages/broadcast', auth.authenticate,
   auth.requireRole('admin', 'counselor', 'district', 'community'), wrap(async (req, res) => {
     const { category = 'awareness', body, language = 'en', grade, channel = 'sms' } = req.body || {};
     if (!body) return res.status(400).json({ error: 'body is required' });
-    let sql = "SELECT id, parent_phone FROM students WHERE active = 1 AND parent_phone IS NOT NULL AND parent_phone <> ''";
-    const params = [];
+    // Community leaders run awareness campaigns network-wide; school staff are
+    // scoped to their own school; district officers to their district.
+    const sc = req.user.role === 'community'
+      ? { clause: '', params: [] }
+      : scope.schoolClause(req.user, 'school_id');
+    let sql = "SELECT id, parent_phone FROM students WHERE active = 1 AND parent_phone IS NOT NULL AND parent_phone <> ''" + sc.clause;
+    const params = [...sc.params];
     if (grade) { sql += ' AND grade = ?'; params.push(grade); }
     const recipients = db.prepare(sql).all(...params);
     let sent = 0;
@@ -360,7 +391,7 @@ app.get('/api/awareness', auth.authenticate, wrap((req, res) => {
 
 /* ------------------------------------------------------- RISK & ANALYTICS -- */
 
-app.get('/api/risk/:studentId', auth.authenticate, wrap((req, res) => {
+app.get('/api/risk/:studentId', auth.authenticate, features.requireFeature('ai_risk'), wrap((req, res) => {
   const student = db.prepare('SELECT school_id FROM students WHERE id = ?').get(req.params.studentId);
   if (!student) return res.status(404).json({ error: 'Student not found' });
   const allowed = scope.allowedSchoolIds(req.user);
@@ -370,7 +401,7 @@ app.get('/api/risk/:studentId', auth.authenticate, wrap((req, res) => {
   res.json(riskEngine.assess(Number(req.params.studentId)));
 }));
 
-app.get('/api/risk', auth.authenticate, wrap((req, res) =>
+app.get('/api/risk', auth.authenticate, features.requireFeature('ai_risk'), wrap((req, res) =>
   res.json(riskEngine.assessAll({
     minLevel: req.query.minLevel || 'medium',
     schoolIds: scope.allowedSchoolIds(req.user)
@@ -480,7 +511,7 @@ function sendCSV(res, filename, headers, rows) {
 
 /** At-risk learners report (CSV) — for District Education Office returns. */
 app.get('/api/reports/at-risk.csv', auth.authenticate,
-  auth.requireRole('admin', 'counselor', 'district'), wrap((req, res) => {
+  auth.requireRole('admin', 'counselor', 'district'), features.requireFeature('analytics'), wrap((req, res) => {
     const list = riskEngine.assessAll({
       minLevel: req.query.minLevel || 'medium', schoolIds: scope.allowedSchoolIds(req.user)
     });
@@ -495,7 +526,7 @@ app.get('/api/reports/at-risk.csv', auth.authenticate,
 
 /** Attendance summary per learner over a window (CSV). */
 app.get('/api/reports/attendance.csv', auth.authenticate,
-  auth.requireRole('admin', 'teacher', 'district'), wrap((req, res) => {
+  auth.requireRole('admin', 'teacher', 'district'), features.requireFeature('analytics'), wrap((req, res) => {
     const days = Math.min(180, Number(req.query.days) || 30);
     const since = new Date(); since.setDate(since.getDate() - days);
     const sinceISO = since.toISOString().slice(0, 10);
@@ -544,7 +575,7 @@ app.get('/api/analytics/attendance-trend', auth.authenticate, wrap((req, res) =>
 
 /** Geo-located at-risk learners for GIS mapping (only those with coordinates). */
 app.get('/api/analytics/gis', auth.authenticate,
-  auth.requireRole('admin', 'counselor', 'district'), wrap((req, res) => {
+  auth.requireRole('admin', 'counselor', 'district'), features.requireFeature('gis'), wrap((req, res) => {
     const list = riskEngine.assessAll({ minLevel: 'low', schoolIds: scope.allowedSchoolIds(req.user) });
     res.json(list
       .map(a => {
@@ -559,7 +590,7 @@ app.get('/api/analytics/gis', auth.authenticate,
  * per-subject trend lines, top/low performers and the steepest decliners.
  */
 app.get('/api/analytics/academic', auth.authenticate,
-  auth.requireRole('admin', 'teacher', 'counselor', 'district'), wrap((req, res) => {
+  auth.requireRole('admin', 'teacher', 'counselor', 'district'), features.requireFeature('academic_reports'), wrap((req, res) => {
     const sc = scope.schoolClause(req.user, 's.school_id');
     const J = 'performance p JOIN students s ON s.id = p.student_id';
     const terms = db.prepare(`SELECT DISTINCT p.term FROM ${J} WHERE 1=1${sc.clause} ORDER BY p.term`)
@@ -671,6 +702,28 @@ app.get('/api/analytics/by-school', auth.authenticate,
     res.json(rows);
   }));
 
+/* --------------------------------------------------------------- WEBHOOKS -- */
+
+/**
+ * Inbound SMS delivery-report webhook (called by the aggregator, e.g. Africa's
+ * Talking). Public endpoint — protected by a shared secret when configured.
+ * Updates the outbox so the dashboard shows true delivered/failed status.
+ */
+app.post('/api/webhooks/sms/delivery', wrap((req, res) => {
+  if (config.messaging.webhookSecret) {
+    const provided = req.get('X-Webhook-Secret') || req.query.token;
+    if (provided !== config.messaging.webhookSecret) {
+      return res.status(401).json({ error: 'Invalid webhook secret' });
+    }
+  }
+  const b = req.body || {};
+  const updated = messaging.applyDeliveryReport({
+    providerRef: b.id || b.messageId || b.provider_ref,
+    status: b.status
+  });
+  res.json({ ok: true, updated });
+}));
+
 /* ----------------------------------------------------------------- MISC -- */
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', service: 'safegirl-edutrack', time: new Date().toISOString() }));
@@ -683,6 +736,13 @@ if (require.main === module) {
     console.log(`SafeGirl EduTrack running at http://${config.host}:${config.port}`);
     console.log(`Messaging provider: ${config.messaging.provider}`);
   });
+  // Counseling reminder dispatcher — runs on startup and on a timer.
+  reminders.runReminders().then(r => {
+    if (r.scheduled + r.followup > 0) console.log(`Reminders dispatched: ${JSON.stringify(r)}`);
+  }).catch(err => console.error('reminder run failed:', err.message));
+  setInterval(() => {
+    reminders.runReminders().catch(err => console.error('reminder run failed:', err.message));
+  }, config.reminderIntervalMs).unref();
 }
 
 module.exports = app;

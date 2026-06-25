@@ -41,9 +41,23 @@ Base URL: `/api`. All endpoints except `/auth/login` and `/health` require a
 ## Counseling & welfare
 | Method | Path | Roles | Description |
 |---|---|---|---|
-| POST | `/counseling` | admin, counselor, teacher | Log session/home_visit/parent_meeting/welfare_case/referral |
-| PUT | `/counseling/:id` | admin, counselor | Update status/notes/follow-up |
-| GET | `/counseling` | admin, counselor, teacher | Recent cases |
+| POST | `/counseling` | admin, counselor, teacher | Log/schedule a case (gold) |
+| PUT | `/counseling/:id` | admin, counselor | Update status/notes/follow-up (gold) |
+| GET | `/counseling` | admin, counselor, teacher | Cases in scope, scheduled first (gold) |
+| POST | `/counseling/run-reminders` | admin, counselor | Dispatch due session/follow-up SMS reminders |
+
+Sessions carry `scheduled_date` and `follow_up_date`; the reminder dispatcher
+(hourly + on startup) sends one SMS per due date, idempotently.
+
+## Webhooks
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| POST | `/webhooks/sms/delivery` | shared secret | Aggregator delivery report → updates outbox status |
+
+## Feature gating
+Feature-gated endpoints (counseling, AI risk, GIS, analytics/reports, academic)
+return **`402 Payment Required`** with `{requiredTier, currentTier}` when the
+caller's school is on too low a package. Admins and district officers bypass gating.
 
 ## Messaging
 | Method | Path | Roles | Description |

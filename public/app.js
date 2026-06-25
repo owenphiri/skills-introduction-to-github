@@ -52,10 +52,17 @@ const ROLE_NAV = {
   community: ['dashboard', 'awareness', 'messages'],
   parent:    ['children', 'awareness']
 };
+// Nav tab → the package feature it requires (others are ungated).
+const NAV_FEATURE = {
+  risk: 'ai_risk', academics: 'academic_reports', counseling: 'counseling',
+  map: 'gis', reports: 'analytics'
+};
+function hasFeature(f) { return !f || (State.user.features || []).includes(f); }
 const VIEWS = {};
 
 function buildNav() {
-  const tabs = ROLE_NAV[State.user.role] || ['dashboard'];
+  const tabs = (ROLE_NAV[State.user.role] || ['dashboard'])
+    .filter(t => hasFeature(NAV_FEATURE[t]));
   $('#nav').innerHTML = tabs.map(t =>
     `<a href="#${t}" data-tab="${t}">${cap(t)}</a>`).join('');
   $('#nav').querySelectorAll('a').forEach(a =>
@@ -76,7 +83,10 @@ window.addEventListener('hashchange', route);
 async function enterApp() {
   if (!State.user) { const me = await api('/auth/me'); State.user = me.user; }
   $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
-  $('#userLabel').textContent = `${State.user.full_name} · ${cap(State.user.role)}`;
+  const pkg = State.user.package;
+  const pkgBadge = (pkg && ['teacher', 'counselor'].includes(State.user.role))
+    ? ` <span class="badge gray" title="School package">${pkg}</span>` : '';
+  $('#userLabel').innerHTML = `${esc(State.user.full_name)} · ${cap(State.user.role)}${pkgBadge}`;
   buildNav();
   updateOfflineBadge();
   flushQueue();
@@ -106,12 +116,17 @@ VIEWS.dashboard = async function () {
     </div>
     <h3 class="section-title">Attendance trend (last 14 days)</h3>
     <div class="card" id="trendCard">Loading…</div>
-    <h3 class="section-title">Priority: learners needing intervention</h3>
-    <div id="riskMini"></div>
+    ${hasFeature('ai_risk') ? `
+      <h3 class="section-title">Priority: learners needing intervention</h3>
+      <div id="riskMini"></div>`
+      : `<div class="card" style="margin-top:18px;border-style:dashed">
+           <h3>🔒 AI Early-Warning (Gold package)</h3>
+           <p class="muted">Upgrade to the Gold package to unlock the Girl Child Vulnerability
+           Score and automatic intervention recommendations.</p></div>`}
   `);
   const trend = await api('/analytics/attendance-trend?days=14');
   $('#trendCard').innerHTML = barChart(trend);
-  renderRiskTable('#riskMini', await api('/risk?minLevel=high'), true);
+  if (hasFeature('ai_risk')) renderRiskTable('#riskMini', await api('/risk?minLevel=high'), true);
 };
 
 /* Dependency-free SVG bar chart of daily attendance rate. */
@@ -369,16 +384,60 @@ function updateOfflineBadge() {
 window.addEventListener('online', flushQueue);
 
 VIEWS.counseling = async function () {
-  const list = await api('/counseling');
+  const [list, students] = await Promise.all([api('/counseling'), api('/students')]);
+  const today = new Date().toISOString().slice(0, 10);
+  const upcoming = list.filter(c => c.scheduled_date && c.scheduled_date >= today
+    && ['open', 'in_progress'].includes(c.status));
   setView(`
     <h2>Counseling &amp; Welfare</h2>
-    <p class="sub">Guidance sessions, home visits, parent meetings &amp; welfare cases.</p>
-    ${renderTable(['Date','Learner','Grade','Type','Status','Notes'], list.map(c => [
-      c.created_at.slice(0,10), esc(c.student_name), c.grade, c.type,
-      `<span class="badge ${c.status==='resolved'?'low':c.status==='escalated'?'high':'medium'}">${c.status}</span>`,
-      esc(c.notes||'')
+    <p class="sub">Schedule sessions, log welfare cases, and auto-remind guardians by SMS.</p>
+    <div class="card" style="margin-bottom:16px">
+      <h3>Schedule a session / log a case</h3>
+      <div class="row">
+        <select id="cStudent" class="col">${students.map(s => `<option value="${s.id}">${esc(s.full_name)} (${s.grade})</option>`).join('')}</select>
+        <select id="cType" class="col">
+          <option value="session">Counseling session</option>
+          <option value="home_visit">Home visit</option>
+          <option value="parent_meeting">Parent meeting</option>
+          <option value="welfare_case">Welfare case</option>
+          <option value="referral">Referral</option>
+        </select>
+      </div>
+      <div class="row">
+        <label class="col pill">Scheduled date <input id="cSched" type="date" /></label>
+        <label class="col pill">Follow-up date <input id="cFollow" type="date" /></label>
+      </div>
+      <textarea id="cNotes" rows="2" placeholder="Notes…"></textarea>
+      <button class="sm" data-action="counsel-save">Save</button>
+      <button class="sm ghost-red" data-action="run-reminders" style="float:right">Send due reminders now</button>
+    </div>
+    ${upcoming.length ? `<h3 class="section-title">📅 Upcoming sessions</h3>
+      ${renderTable(['Scheduled', 'Learner', 'Type', 'Follow-up', 'Reminded'], upcoming.map(c => [
+        c.scheduled_date, esc(c.student_name), c.type, c.follow_up_date || '—',
+        c.reminded_scheduled ? '<span class="badge low">sent</span>' : '<span class="badge gray">pending</span>'
+      ]))}` : ''}
+    <h3 class="section-title">All cases</h3>
+    ${renderTable(['Logged', 'Scheduled', 'Learner', 'Grade', 'Type', 'Status', 'Notes'], list.map(c => [
+      c.created_at.slice(0, 10), c.scheduled_date || '—', esc(c.student_name), c.grade, c.type,
+      `<span class="badge ${c.status === 'resolved' ? 'low' : c.status === 'escalated' ? 'high' : 'medium'}">${c.status}</span>`,
+      esc(c.notes || '')
     ]))}
   `);
+};
+
+window.saveCounseling = async function () {
+  const body = {
+    student_id: Number($('#cStudent').value), type: $('#cType').value,
+    scheduled_date: $('#cSched').value || null, follow_up_date: $('#cFollow').value || null,
+    notes: $('#cNotes').value || null
+  };
+  try { await api('/counseling', { method: 'POST', body }); flash('Saved.'); VIEWS.counseling(); }
+  catch (e) { flash('Error: ' + e.message); }
+};
+window.runReminders = async function () {
+  const r = await api('/counseling/run-reminders', { method: 'POST', body: {} });
+  flash(`Reminders sent: ${r.scheduled} scheduled, ${r.followup} follow-up.`);
+  VIEWS.counseling();
 };
 
 VIEWS.awareness = async function () {
@@ -670,6 +729,8 @@ document.addEventListener('click', e => {
   else if (action === 'tpl-approve') { e.preventDefault(); reviewTemplate(Number(id), 'approved'); }
   else if (action === 'tpl-reject') { e.preventDefault(); reviewTemplate(Number(id), 'rejected'); }
   else if (action === 'add-school') { e.preventDefault(); addSchool(); }
+  else if (action === 'counsel-save') { e.preventDefault(); saveCounseling(); }
+  else if (action === 'run-reminders') { e.preventDefault(); runReminders(); }
 });
 
 /* --------------------------------------------------------- BOOTSTRAP ---- */
