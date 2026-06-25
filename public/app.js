@@ -76,6 +76,8 @@ async function enterApp() {
   $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
   $('#userLabel').textContent = `${State.user.full_name} · ${cap(State.user.role)}`;
   buildNav();
+  updateOfflineBadge();
+  flushQueue();
   if (!location.hash) location.hash = 'dashboard';
   route();
 }
@@ -145,7 +147,7 @@ function scatterMap(pts) {
   const dots = pts.map(p => `
     <circle cx="${sx(p.gps_lng).toFixed(1)}" cy="${sy(p.gps_lat).toFixed(1)}" r="${p.level==='high'?9:6}"
       fill="${color(p.level)}" fill-opacity="0.75" stroke="#fff" stroke-width="1"
-      style="cursor:pointer" onclick="openStudent(${p.studentId})">
+      style="cursor:pointer" data-action="student" data-id="${p.studentId}">
       <title>${esc(p.student.full_name)} — ${p.level} (${p.score}) · ${esc(p.student.village||'')}</title>
     </circle>`).join('');
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="background:#eef5f0;border-radius:8px">${dots}</svg>
@@ -162,12 +164,12 @@ VIEWS.reports = async function () {
       <div class="card">
         <h3>At-risk learners</h3>
         <p class="muted">All medium &amp; high-risk learners with scores and recommended actions.</p>
-        <button class="sm" onclick="downloadReport('/reports/at-risk.csv','at-risk-learners.csv')">Download CSV</button>
+        <button class="sm" data-action="report" data-path="/reports/at-risk.csv" data-file="at-risk-learners.csv">Download CSV</button>
       </div>
       <div class="card">
         <h3>Attendance summary (30 days)</h3>
         <p class="muted">Per-learner present/absent/late counts and attendance rate.</p>
-        <button class="sm" onclick="downloadReport('/reports/attendance.csv?days=30','attendance-30d.csv')">Download CSV</button>
+        <button class="sm" data-action="report" data-path="/reports/attendance.csv?days=30" data-file="attendance-30d.csv">Download CSV</button>
       </div>
     </div>
   `);
@@ -200,7 +202,7 @@ VIEWS.students = async function () {
     $('#studentList').innerHTML = renderTable(
       ['Name', 'Grade', 'Sex', 'Village', 'Guardian phone', 'Status'],
       list.map(st => [
-        `<a href="#student/${st.id}" onclick="openStudent(${st.id});return false;">${esc(st.full_name)}</a>`,
+        `<a href="#" data-action="student" data-id="${st.id}">${esc(st.full_name)}</a>`,
         st.grade, st.gender, esc(st.village || '—'), esc(st.parent_phone || '—'),
         st.vulnerability_status !== 'none'
           ? `<span class="badge medium">${st.vulnerability_status}</span>`
@@ -218,7 +220,7 @@ window.openStudent = async function (id) {
   const r = d.risk;
   const att = d.attendance.slice(0, 12).reverse();
   setView(`
-    <p><a href="#students" onclick="VIEWS.students();return false;">&larr; Back to register</a></p>
+    <p><a href="#students" data-action="students">&larr; Back to register</a></p>
     <h2>${esc(d.student.full_name)} <span class="badge ${r.level}">${r.level.toUpperCase()} RISK · ${r.score}</span></h2>
     <p class="sub">Grade ${d.student.grade} · ${d.student.gender === 'F' ? 'Female' : 'Male'} · ${esc(d.student.village || '')}</p>
     <div class="row">
@@ -232,7 +234,7 @@ window.openStudent = async function (id) {
           : '<p class="muted">None — routine monitoring.</p>'}
         <h4>Recommended interventions</h4>
         <ul class="recs">${r.recommendations.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
-        ${can('admin','teacher','counselor') ? `<button class="sm" onclick="logCounseling(${id})">+ Log counseling / welfare action</button>` : ''}
+        ${can('admin','teacher','counselor') ? `<button class="sm" data-action="counsel" data-id="${id}">+ Log counseling / welfare action</button>` : ''}
       </div>
       <div class="col card">
         <h3>Recent attendance</h3>
@@ -277,13 +279,49 @@ VIEWS.attendance = async function () {
   $('#saveAtt').addEventListener('click', async () => {
     const records = [...document.querySelectorAll('select[data-sid]')]
       .map(s => ({ student_id: Number(s.dataset.sid), status: s.value }));
-    const r = await api('/attendance/bulk', {
-      method: 'POST',
-      body: { date: $('#attDate').value, records, notify: $('#notify').checked }
-    });
-    flash(`Register saved for ${r.count} learners — parents notified.`);
+    const payload = { date: $('#attDate').value, records, notify: $('#notify').checked };
+    try {
+      if (!navigator.onLine) throw new Error('offline');
+      const r = await api('/attendance/bulk', { method: 'POST', body: payload });
+      flash(`Register saved for ${r.count} learners — parents notified.`);
+    } catch (err) {
+      queueAttendance(payload);
+      flash('📴 Saved offline — will sync automatically when back online.');
+    }
   });
 };
+
+/* -------------------------------------------------- OFFLINE SYNC QUEUE --- */
+const QKEY = 'sg_att_queue';
+function queueAttendance(payload) {
+  const q = JSON.parse(localStorage.getItem(QKEY) || '[]');
+  q.push(payload); localStorage.setItem(QKEY, JSON.stringify(q));
+  updateOfflineBadge();
+}
+async function flushQueue() {
+  if (!State.token || !navigator.onLine) return;
+  let q = JSON.parse(localStorage.getItem(QKEY) || '[]');
+  if (!q.length) return;
+  const remaining = [];
+  for (const payload of q) {
+    try { await api('/attendance/bulk', { method: 'POST', body: payload }); }
+    catch { remaining.push(payload); }
+  }
+  localStorage.setItem(QKEY, JSON.stringify(remaining));
+  updateOfflineBadge();
+  if (q.length && !remaining.length) flash(`✅ Synced ${q.length} offline register(s).`);
+}
+function updateOfflineBadge() {
+  const n = JSON.parse(localStorage.getItem(QKEY) || '[]').length;
+  let el = document.getElementById('offlineBadge');
+  if (!el) {
+    el = document.createElement('span'); el.id = 'offlineBadge';
+    el.style.cssText = 'margin-left:8px;font-size:.78rem';
+    (document.querySelector('.user-box') || document.body).prepend(el);
+  }
+  el.innerHTML = n ? `<span class="badge medium">${n} pending sync</span>` : '';
+}
+window.addEventListener('online', flushQueue);
 
 VIEWS.counseling = async function () {
   const list = await api('/counseling');
@@ -360,7 +398,7 @@ VIEWS.audit = async function () {
 /* ----------------------------------------------------------- FORMS ------ */
 async function addStudentForm() {
   setView(`
-    <p><a href="#students" onclick="VIEWS.students();return false;">&larr; Back</a></p>
+    <p><a href="#students" data-action="students">&larr; Back</a></p>
     <h2>Register student</h2>
     <div class="card" style="max-width:520px">
       <input id="f_name" placeholder="Full name *" />
@@ -405,7 +443,7 @@ function renderRiskTable(sel, list, mini) {
   $(sel).innerHTML = renderTable(
     ['Learner', 'Grade', 'Score', 'Level', mini ? 'Top factor' : 'Recommended action'],
     list.map(a => [
-      `<a href="#" onclick="openStudent(${a.studentId});return false;">${esc(a.student.full_name)}</a>`,
+      `<a href="#" data-action="student" data-id="${a.studentId}">${esc(a.student.full_name)}</a>`,
       a.student.grade,
       `${a.score}`,
       `<span class="badge ${a.level}">${a.level.toUpperCase()}</span>`,
@@ -433,5 +471,20 @@ function flash(msg) {
   setTimeout(() => el.classList.remove('show'), 2600);
 }
 
+/* ------------------------------------------------- EVENT DELEGATION ----- */
+/* No inline handlers — keeps the Content-Security-Policy strict (script-src 'self'). */
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-action]');
+  if (!el) return;
+  const { action, id, path, file } = el.dataset;
+  if (action === 'student') { e.preventDefault(); openStudent(Number(id)); }
+  else if (action === 'students') { e.preventDefault(); VIEWS.students(); }
+  else if (action === 'counsel') { e.preventDefault(); logCounseling(Number(id)); }
+  else if (action === 'report') { e.preventDefault(); downloadReport(path, file); }
+});
+
 /* --------------------------------------------------------- BOOTSTRAP ---- */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+}
 if (State.token) enterApp().catch(() => logout());

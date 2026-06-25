@@ -8,7 +8,8 @@
     "start": "node --experimental-sqlite server/app.js",
     "seed": "node --experimental-sqlite server/seed.js",
     "dev": "node --experimental-sqlite --watch server/app.js",
-    "test": "node --experimental-sqlite --test --test-reporter=spec \"test/*.test.js\""
+    "test": "node --experimental-sqlite --test --test-reporter=spec \"test/*.test.js\"",
+    "icons": "node scripts/genicons.js"
   },
   "engines": {
     "node": ">=22.5.0"

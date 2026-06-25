@@ -33,6 +33,28 @@ Designed to align with the Government of Zambia's **Keeping Girls in School
 | Multilingual awareness centre (English, Bemba, Nyanja, Tonga, Lozi) | ✅ |
 | Analytics dashboard (attendance rate, at-risk counts, interventions, reach) | ✅ |
 | Web dashboard (responsive, role-aware) | ✅ |
+| CSV report exports (at-risk, attendance) for District Office / M&E | ✅ |
+| Attendance-trend chart + GIS map of vulnerable learners | ✅ |
+| Audit trail of sensitive actions | ✅ |
+| **Installable mobile app (PWA) with offline attendance** | ✅ |
+
+---
+
+## Mobile app (Android / PWA)
+
+The dashboard is a **Progressive Web App** — on an Android phone, open the site
+in Chrome and choose **"Add to Home screen"** to install it like a native app
+(own icon, full-screen, splash). It then works **offline**:
+
+- The app shell is cached by a service worker, so it opens with no connection.
+- Teachers can **mark a register offline**; it is queued in the browser and
+  **syncs automatically** when connectivity returns (a "pending sync" badge
+  shows the backlog).
+
+This is the field-realistic mobile solution for rural schools with intermittent
+networks. A separate native build (React Native) is on the roadmap for features
+that need device hardware (biometric/QR check-in). Regenerate icons with
+`npm run icons`.
 
 ---
 

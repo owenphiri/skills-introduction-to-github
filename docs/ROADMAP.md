@@ -36,10 +36,12 @@ children at risk.
 - [ ] Native-speaker review & MoE approval of all Bemba/Nyanja/Tonga/Lozi copy.
 
 ## 4. Android & offline
-- [ ] Android app for teachers (mark attendance offline) and parents (view
-      attendance/results) — React Native or Flutter against this same API.
-- [ ] Offline-first sync (queue attendance locally, reconcile when online) for
-      rural connectivity.
+- [x] Installable mobile app via **PWA** (manifest + service worker + icons) —
+      "Add to Home screen" on Android.
+- [x] **Offline-first attendance**: registers queue locally and sync when the
+      connection returns.
+- [ ] Native React Native / Flutter build for parents (push notifications) and
+      device-hardware features.
 - [ ] Optional QR-code / biometric / face check-in (Platinum package).
 
 ## 5. Scale & data model
