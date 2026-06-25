@@ -45,10 +45,10 @@ function logout() {
 
 /* -------------------------------------------------------------- NAV ------ */
 const ROLE_NAV = {
-  admin:     ['dashboard', 'students', 'risk', 'attendance', 'counseling', 'awareness', 'messages', 'audit'],
+  admin:     ['dashboard', 'students', 'risk', 'map', 'attendance', 'counseling', 'awareness', 'messages', 'reports', 'audit'],
   teacher:   ['dashboard', 'students', 'attendance', 'risk', 'counseling'],
-  counselor: ['dashboard', 'risk', 'counseling', 'students', 'awareness'],
-  district:  ['dashboard', 'risk', 'awareness', 'messages'],
+  counselor: ['dashboard', 'risk', 'map', 'counseling', 'students', 'awareness'],
+  district:  ['dashboard', 'risk', 'map', 'awareness', 'messages', 'reports'],
   community: ['dashboard', 'awareness', 'messages'],
   parent:    ['dashboard', 'awareness']
 };
@@ -97,10 +97,92 @@ VIEWS.dashboard = async function () {
       ${stat('green', s.resolvedInterventions, 'Cases resolved')}
       ${stat('green', s.messagesSent, 'Messages to parents')}
     </div>
+    <h3 class="section-title">Attendance trend (last 14 days)</h3>
+    <div class="card" id="trendCard">Loading…</div>
     <h3 class="section-title">Priority: learners needing intervention</h3>
     <div id="riskMini"></div>
   `);
+  const trend = await api('/analytics/attendance-trend?days=14');
+  $('#trendCard').innerHTML = barChart(trend);
   renderRiskTable('#riskMini', await api('/risk?minLevel=high'), true);
+};
+
+/* Dependency-free SVG bar chart of daily attendance rate. */
+function barChart(points) {
+  const data = points.filter(p => p.rate != null);
+  if (!data.length) return '<p class="muted">No attendance recorded yet.</p>';
+  const W = 640, H = 160, pad = 24, bw = (W - pad * 2) / data.length;
+  const bars = data.map((p, i) => {
+    const h = (p.rate / 100) * (H - pad * 2);
+    const x = pad + i * bw, y = H - pad - h;
+    const color = p.rate >= 85 ? 'var(--green)' : p.rate >= 70 ? 'var(--amber)' : 'var(--red)';
+    return `<rect x="${x + 2}" y="${y}" width="${bw - 4}" height="${h}" rx="3" fill="${color}">
+      <title>${p.date}: ${p.rate}%</title></rect>
+      <text x="${x + bw / 2}" y="${H - 8}" font-size="9" text-anchor="middle" fill="#6b7a87">${p.date.slice(5)}</text>`;
+  }).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Attendance trend">
+    <line x1="${pad}" y1="${H - pad}" x2="${W - pad}" y2="${H - pad}" stroke="#e3e9e7"/>
+    <line x1="${pad}" y1="${pad}" x2="${pad}" y2="${H - pad}" stroke="#e3e9e7"/>
+    ${bars}</svg>`;
+}
+
+VIEWS.map = async function () {
+  setView('<h2>GIS — Vulnerable Learner Map</h2><p class="sub">Geo-located by village, coloured by risk level.</p><div class="card" id="mapCard">Loading…</div>');
+  const pts = await api('/analytics/gis');
+  $('#mapCard').innerHTML = scatterMap(pts);
+};
+
+/* Lightweight SVG scatter "map" (no external tiles — works fully offline). */
+function scatterMap(pts) {
+  if (!pts.length) return '<p class="muted">No geo-located learners yet.</p>';
+  const lats = pts.map(p => p.gps_lat), lngs = pts.map(p => p.gps_lng);
+  const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+  const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
+  const W = 640, H = 380, pad = 30;
+  const sx = v => pad + ((v - minLng) / ((maxLng - minLng) || 1)) * (W - pad * 2);
+  const sy = v => H - pad - ((v - minLat) / ((maxLat - minLat) || 1)) * (H - pad * 2);
+  const color = l => l === 'high' ? 'var(--red)' : l === 'medium' ? 'var(--amber)' : 'var(--green)';
+  const dots = pts.map(p => `
+    <circle cx="${sx(p.gps_lng).toFixed(1)}" cy="${sy(p.gps_lat).toFixed(1)}" r="${p.level==='high'?9:6}"
+      fill="${color(p.level)}" fill-opacity="0.75" stroke="#fff" stroke-width="1"
+      style="cursor:pointer" onclick="openStudent(${p.studentId})">
+      <title>${esc(p.student.full_name)} — ${p.level} (${p.score}) · ${esc(p.student.village||'')}</title>
+    </circle>`).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="background:#eef5f0;border-radius:8px">${dots}</svg>
+    <p class="pill" style="margin-top:8px">
+      <span class="badge high">High</span> <span class="badge medium">Medium</span> <span class="badge low">Low</span>
+      · click a learner to open their profile</p>`;
+}
+
+VIEWS.reports = async function () {
+  setView(`
+    <h2>Reports &amp; Exports</h2>
+    <p class="sub">Download CSV returns for District Education Office &amp; M&amp;E.</p>
+    <div class="grid">
+      <div class="card">
+        <h3>At-risk learners</h3>
+        <p class="muted">All medium &amp; high-risk learners with scores and recommended actions.</p>
+        <button class="sm" onclick="downloadReport('/reports/at-risk.csv','at-risk-learners.csv')">Download CSV</button>
+      </div>
+      <div class="card">
+        <h3>Attendance summary (30 days)</h3>
+        <p class="muted">Per-learner present/absent/late counts and attendance rate.</p>
+        <button class="sm" onclick="downloadReport('/reports/attendance.csv?days=30','attendance-30d.csv')">Download CSV</button>
+      </div>
+    </div>
+  `);
+};
+
+/* Authenticated file download (fetch with bearer token → blob). */
+window.downloadReport = async function (path, filename) {
+  const res = await fetch('/api' + path, { headers: { Authorization: 'Bearer ' + State.token } });
+  if (!res.ok) { flash('Report failed: ' + res.status); return; }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+  flash('Report downloaded.');
 };
 
 VIEWS.students = async function () {

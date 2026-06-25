@@ -61,6 +61,20 @@ const studentIds = students.map(([full_name, gender, grade, vuln, phone, village
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
     .run(full_name, gender, grade, vuln, 'Guardian', phone, village, schoolId).lastInsertRowid);
 
+// Geo-locate learners around Chongwe district (for GIS mapping). Coordinates
+// are scattered near each village so the map shows a realistic spread.
+const villageGeo = {
+  Chongwe: [-15.329, 28.682],
+  Kanakantapa: [-15.281, 28.910],
+  Rufunsa: [-15.060, 29.640]
+};
+studentIds.forEach((sid, i) => {
+  const village = students[i][5];
+  const [lat, lng] = villageGeo[village] || villageGeo.Chongwe;
+  db.prepare('UPDATE students SET gps_lat = ?, gps_lng = ? WHERE id = ?')
+    .run(lat + (Math.random() - 0.5) * 0.05, lng + (Math.random() - 0.5) * 0.05, sid);
+});
+
 // Attendance over the last 30 weekdays. Mary (idx 0) has a deteriorating
 // pattern; Grace (idx 1) has Monday/Friday absences; the rest mostly attend.
 const markAtt = db.prepare(`INSERT INTO attendance (student_id, date, status, marked_by)

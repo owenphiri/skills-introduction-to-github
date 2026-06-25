@@ -328,11 +328,94 @@ app.get('/api/analytics/summary', auth.authenticate, wrap((req, res) => {
   });
 }));
 
-/* ----------------------------------------------------------------- AUDIT -- */
+/* --------------------------------------------------------------- REPORTS -- */
+
+/** Minimal RFC-4180 CSV serialiser. */
+function toCSV(headers, rows) {
+  const esc = v => {
+    const s = v == null ? '' : String(v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  return [headers.join(','), ...rows.map(r => r.map(esc).join(','))].join('\r\n');
+}
+
+function sendCSV(res, filename, headers, rows) {
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.send(toCSV(headers, rows));
+}
+
+/** At-risk learners report (CSV) — for District Education Office returns. */
+app.get('/api/reports/at-risk.csv', auth.authenticate,
+  auth.requireRole('admin', 'counselor', 'district'), wrap((req, res) => {
+    const list = riskEngine.assessAll({ minLevel: req.query.minLevel || 'medium' });
+    sendCSV(res, 'at-risk-learners.csv',
+      ['Name', 'Grade', 'Sex', 'Village', 'Score', 'Level', 'AttendanceRate%', 'TopFactor', 'PrimaryAction'],
+      list.map(a => [
+        a.student.full_name, a.student.grade, a.student.gender, a.student.village,
+        a.score, a.level, a.metrics.attendanceRate,
+        a.factors[0]?.label || '', a.recommendations[0] || ''
+      ]));
+  }));
+
+/** Attendance summary per learner over a window (CSV). */
+app.get('/api/reports/attendance.csv', auth.authenticate,
+  auth.requireRole('admin', 'teacher', 'district'), wrap((req, res) => {
+    const days = Math.min(180, Number(req.query.days) || 30);
+    const since = new Date(); since.setDate(since.getDate() - days);
+    const sinceISO = since.toISOString().slice(0, 10);
+    const rows = db.prepare(`
+      SELECT s.full_name, s.grade,
+        SUM(a.status = 'present') AS present,
+        SUM(a.status = 'absent')  AS absent,
+        SUM(a.status = 'late')    AS late,
+        COUNT(a.id)               AS total
+      FROM students s LEFT JOIN attendance a
+        ON a.student_id = s.id AND a.date >= ?
+      WHERE s.active = 1
+      GROUP BY s.id ORDER BY s.grade, s.full_name
+    `).all(sinceISO);
+    sendCSV(res, `attendance-${days}d.csv`,
+      ['Name', 'Grade', 'Present', 'Absent', 'Late', 'Total', 'Rate%'],
+      rows.map(r => [r.full_name, r.grade, r.present, r.absent, r.late, r.total,
+        r.total ? Math.round((r.present + 0.5 * r.late) / r.total * 100) : '']));
+  }));
+
+/* --------------------------------------------------------------- AUDIT -- */
 
 app.get('/api/audit', auth.authenticate, auth.requireRole('admin'), wrap((req, res) => {
   res.json(db.prepare('SELECT * FROM audit_log ORDER BY id DESC LIMIT 200').all());
 }));
+
+/** Daily attendance-rate trend for the dashboard chart. */
+app.get('/api/analytics/attendance-trend', auth.authenticate, wrap((req, res) => {
+  const days = Math.min(60, Number(req.query.days) || 14);
+  const rows = db.prepare(`
+    SELECT date,
+      SUM(status = 'present') AS present,
+      SUM(status = 'late')    AS late,
+      COUNT(*)                AS total
+    FROM attendance
+    WHERE date >= date('now', ?)
+    GROUP BY date ORDER BY date
+  `).all(`-${days} days`);
+  res.json(rows.map(r => ({
+    date: r.date,
+    rate: r.total ? Math.round((r.present + 0.5 * r.late) / r.total * 100) : null
+  })));
+}));
+
+/** Geo-located at-risk learners for GIS mapping (only those with coordinates). */
+app.get('/api/analytics/gis', auth.authenticate,
+  auth.requireRole('admin', 'counselor', 'district'), wrap((req, res) => {
+    const list = riskEngine.assessAll({ minLevel: 'low' });
+    res.json(list
+      .map(a => {
+        const s = db.prepare('SELECT gps_lat, gps_lng FROM students WHERE id = ?').get(a.studentId);
+        return { ...a, gps_lat: s.gps_lat, gps_lng: s.gps_lng };
+      })
+      .filter(a => a.gps_lat != null && a.gps_lng != null));
+  }));
 
 /* ----------------------------------------------------------------- MISC -- */
 
