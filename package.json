@@ -1,0 +1,19 @@
+{
+  "name": "safegirl-edutrack",
+  "version": "0.1.0",
+  "description": "SafeGirl EduTrack System (SEWSMS) — School Early Warning & Student Welfare Management System aligned to Zambia's Keeping Girls in School (KGS) programme.",
+  "type": "commonjs",
+  "main": "server/app.js",
+  "scripts": {
+    "start": "node --experimental-sqlite server/app.js",
+    "seed": "node --experimental-sqlite server/seed.js",
+    "dev": "node --experimental-sqlite --watch server/app.js"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  },
+  "license": "MIT"
+}

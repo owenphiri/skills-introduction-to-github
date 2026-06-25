@@ -1,0 +1,151 @@
+'use strict';
+
+/**
+ * Database layer for SafeGirl EduTrack.
+ *
+ * Uses Node's built-in `node:sqlite` (no native build step, no external DB
+ * server) so the system runs anywhere Node 22.5+ is available — from a rural
+ * school laptop in offline mode to a national data centre. The schema is the
+ * same; only the deployment target changes.
+ */
+const fs = require('fs');
+const path = require('path');
+const { DatabaseSync } = require('node:sqlite');
+const config = require('./config');
+
+// Ensure the data directory exists.
+fs.mkdirSync(path.dirname(config.dbFile), { recursive: true });
+
+const db = new DatabaseSync(config.dbFile);
+db.exec('PRAGMA journal_mode = WAL;');
+db.exec('PRAGMA foreign_keys = ON;');
+
+/**
+ * Schema. Designed around the SEWSMS modules:
+ * users, students, attendance, performance, counseling, messages (outbox),
+ * awareness content, and audit sessions.
+ */
+function migrate() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      full_name     TEXT NOT NULL,
+      username      TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      role          TEXT NOT NULL CHECK (role IN
+                      ('admin','teacher','counselor','parent','district','community')),
+      phone         TEXT,
+      school_id     INTEGER,
+      created_at    TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS schools (
+      id        INTEGER PRIMARY KEY AUTOINCREMENT,
+      name      TEXT NOT NULL,
+      district  TEXT NOT NULL,
+      province  TEXT,
+      package   TEXT NOT NULL DEFAULT 'bronze'
+                  CHECK (package IN ('bronze','silver','gold','platinum'))
+    );
+
+    CREATE TABLE IF NOT EXISTS students (
+      id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+      full_name           TEXT NOT NULL,
+      nrc                 TEXT,                 -- NRC / Birth Certificate No.
+      grade               TEXT NOT NULL,
+      gender              TEXT NOT NULL CHECK (gender IN ('F','M')),
+      date_of_birth       TEXT,
+      parent_name         TEXT,
+      parent_phone        TEXT,
+      village             TEXT,
+      gps_lat             REAL,
+      gps_lng             REAL,
+      vulnerability_status TEXT DEFAULT 'none'  -- none | orphan | low_income | disability | other
+                  ,
+      health_info         TEXT,
+      emergency_contact   TEXT,
+      school_id           INTEGER REFERENCES schools(id),
+      active              INTEGER NOT NULL DEFAULT 1,
+      created_at          TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS attendance (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      student_id  INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+      date        TEXT NOT NULL,               -- YYYY-MM-DD
+      status      TEXT NOT NULL CHECK (status IN ('present','absent','late')),
+      marked_by   INTEGER REFERENCES users(id),
+      note        TEXT,
+      created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE (student_id, date)
+    );
+    CREATE INDEX IF NOT EXISTS idx_attendance_student_date
+      ON attendance(student_id, date);
+
+    CREATE TABLE IF NOT EXISTS performance (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      student_id  INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+      term        TEXT NOT NULL,               -- e.g. "2026-T1" or "2026-06"
+      subject     TEXT NOT NULL,
+      score       REAL NOT NULL CHECK (score >= 0 AND score <= 100),
+      recorded_by INTEGER REFERENCES users(id),
+      created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_performance_student
+      ON performance(student_id);
+
+    CREATE TABLE IF NOT EXISTS counseling (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      student_id    INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+      type          TEXT NOT NULL CHECK (type IN
+                      ('session','home_visit','parent_meeting','welfare_case','referral')),
+      notes         TEXT,
+      counselor_id  INTEGER REFERENCES users(id),
+      scheduled_date TEXT,
+      status        TEXT NOT NULL DEFAULT 'open'
+                      CHECK (status IN ('open','in_progress','resolved','escalated')),
+      follow_up_date TEXT,
+      created_at    TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_counseling_student
+      ON counseling(student_id);
+
+    -- Messaging outbox. Every SMS / WhatsApp is recorded for audit and for the
+    -- analytics "community engagement" metrics. delivery_status is updated by
+    -- the gateway adapter.
+    CREATE TABLE IF NOT EXISTS messages (
+      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      student_id      INTEGER REFERENCES students(id) ON DELETE SET NULL,
+      recipient_phone TEXT NOT NULL,
+      channel         TEXT NOT NULL CHECK (channel IN ('sms','whatsapp')),
+      category        TEXT NOT NULL,           -- attendance | results | counseling | awareness | system
+      body            TEXT NOT NULL,
+      language        TEXT NOT NULL DEFAULT 'en',
+      delivery_status TEXT NOT NULL DEFAULT 'queued'
+                        CHECK (delivery_status IN ('queued','sent','delivered','failed')),
+      provider_ref    TEXT,
+      created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_messages_category ON messages(category);
+
+    -- Multilingual awareness library (English, Bemba, Nyanja, Tonga, Lozi).
+    CREATE TABLE IF NOT EXISTS awareness (
+      id        INTEGER PRIMARY KEY AUTOINCREMENT,
+      language  TEXT NOT NULL,
+      category  TEXT NOT NULL,
+      title     TEXT NOT NULL,
+      body      TEXT NOT NULL
+    );
+
+    -- Auth sessions (opaque bearer tokens).
+    CREATE TABLE IF NOT EXISTS sessions (
+      token      TEXT PRIMARY KEY,
+      user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      expires_at INTEGER NOT NULL
+    );
+  `);
+}
+
+migrate();
+
+module.exports = db;

@@ -1,0 +1,65 @@
+# Roadmap — from MVP to Government-Ready
+
+This repository delivers a **working MVP foundation**. Selling a child-welfare
+system to the Government of Zambia responsibly requires the work below. This is
+deliberately honest: the gap between "runnable demo" and "national production
+system handling minors' data" is real, and pretending otherwise would put
+children at risk.
+
+## 1. Legal, safeguarding & compliance (must precede any real data)
+- [ ] **Data Protection Act No. 3 of 2021** compliance — registration with the
+      Data Protection Commissioner, lawful basis, DPIA for processing minors.
+- [ ] Ministry of Education (MoE) safeguarding policy alignment & sign-off.
+- [ ] Informed **guardian consent** workflow + child assent where appropriate.
+- [ ] Data-retention & deletion policy; right-to-erasure handling.
+- [ ] Role-based **access logging / audit trail** (partially scaffolded via sessions).
+- [ ] Independent **security penetration test** before go-live.
+
+## 2. Security hardening
+- [ ] Encryption at rest (DB volume) and in transit (TLS everywhere).
+- [ ] Move from opaque bearer tokens to short-lived tokens + refresh + device binding.
+- [ ] Rate limiting, brute-force lockout, password policy, optional 2FA for staff.
+- [ ] Secrets management (no credentials in env files in production).
+- [ ] Backups + disaster recovery runbook.
+
+## 3. Messaging at national scale
+- [ ] Contract with a Zambian aggregator / telcos (Zamtel, MTN, Airtel) or
+      Africa's Talking; register the `SAFEGIRL` sender ID.
+- [ ] Implement the production adapter in `server/messaging.js` (HTTP skeleton present).
+- [ ] Delivery-receipt webhooks → update `messages.delivery_status`.
+- [ ] WhatsApp Business API approval for the awareness/results templates.
+- [ ] Native-speaker review & MoE approval of all Bemba/Nyanja/Tonga/Lozi copy.
+
+## 4. Android & offline
+- [ ] Android app for teachers (mark attendance offline) and parents (view
+      attendance/results) — React Native or Flutter against this same API.
+- [ ] Offline-first sync (queue attendance locally, reconcile when online) for
+      rural connectivity.
+- [ ] Optional QR-code / biometric / face check-in (Platinum package).
+
+## 5. Scale & data model
+- [ ] Migrate from `node:sqlite` to **PostgreSQL** for multi-school concurrency
+      (the SQL schema is already standard; the swap is isolated to `db.js`).
+- [ ] Multi-tenancy (district → school → class hierarchy) and the packaging
+      tiers (Bronze/Silver/Gold/Platinum) enforced as feature flags.
+- [ ] GIS mapping of vulnerable learners (GPS fields already captured).
+- [ ] Replace the heuristic risk model with a model **trained on Zambian
+      outcome data** — while keeping it explainable.
+
+## 6. Operations
+- [ ] Containerisation (Docker) + CI/CD + monitoring/alerting.
+- [ ] Hosting decision: Smart Zambia / government data centre vs. cloud region.
+- [ ] District Education Officer + national M&E dashboards and report exports (PDF/Excel).
+- [ ] Training materials and a support desk.
+
+## 7. Commercial
+- [ ] Pricing model per package tier; procurement via government tender process.
+- [ ] Pilot in 1–3 schools, measure impact (attendance ↑, dropouts ↓), publish results.
+
+---
+
+### What's intentionally NOT claimed yet
+Biometric/face recognition, the native Android app, GIS visualisation, and a
+trained ML model are **designed for but not implemented** here. The data model
+and API already accommodate them (GPS fields, package tiers, explainable score),
+so they are additive, not rewrites.

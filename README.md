@@ -1,16 +1,123 @@
-# Introduction to GitHub
+# 🎓 SafeGirl EduTrack System (SEWSMS)
 
-<img src="https://octodex.github.com/images/Professortocat_v2.png" align="right" height="200px" />
+**Protecting Girls · Promoting Education · Building Futures**
 
-Hey owenphiri!
+A **School Early Warning & Student Welfare Management System** that tracks
+attendance, predicts dropout/early-pregnancy/early-marriage risk for girls, and
+strengthens communication between schools, parents, counselors and District
+Education Offices.
 
-Mona here. I'm done preparing your exercise. Hope you enjoy! 💚
+Designed to align with the Government of Zambia's **Keeping Girls in School
+(KGS / GEWEL)** programme.
 
-Remember, it's self-paced so feel free to take a break! ☕️
-
-[![](https://img.shields.io/badge/Go%20to%20Exercise-%E2%86%92-1f883d?style=for-the-badge&logo=github&labelColor=197935)](https://github.com/owenphiri/skills-introduction-to-github/issues/1)
+> **Status: working MVP foundation.** This repository is a runnable, end-to-end
+> system covering the core modules. It is the technical foundation for a
+> national rollout — see [`docs/ROADMAP.md`](docs/ROADMAP.md) for what a
+> production, government-ready deployment additionally requires (data-protection
+> compliance, telco SMS contracts, security audit, Android app, hosting).
 
 ---
 
-&copy; 2025 GitHub &bull; [Code of Conduct](https://www.contributor-covenant.org/version/2/1/code_of_conduct/code_of_conduct.md) &bull; [MIT License](https://gh.io/mit)
+## What works today
 
+| Module | Status |
+|---|---|
+| Role-based login (admin, teacher, counselor, parent, district, community) | ✅ |
+| Student registration (NRC, guardian, village, vulnerability status, GPS fields) | ✅ |
+| Smart attendance + **automatic parent SMS** (present / absent) | ✅ |
+| Attendance risk detection (consecutive / monthly / Mon–Fri patterns) | ✅ |
+| **Girl Child Vulnerability Score** — explainable AI early-warning engine | ✅ |
+| Academic performance entry + monthly average SMS | ✅ |
+| Counseling & welfare case tracking | ✅ |
+| SMS / WhatsApp gateway (pluggable; mock provider built in) | ✅ |
+| Multilingual awareness centre (English, Bemba, Nyanja, Tonga, Lozi) | ✅ |
+| Analytics dashboard (attendance rate, at-risk counts, interventions, reach) | ✅ |
+| Web dashboard (responsive, role-aware) | ✅ |
+
+---
+
+## Quick start
+
+Requires **Node.js ≥ 22.5** (uses the built-in `node:sqlite` — no database
+server, no native build step).
+
+```bash
+npm install      # installs Express only
+npm run seed     # creates a demo school, class, attendance, exams, cases
+npm start        # http://localhost:3000
+```
+
+Open **http://localhost:3000** and log in. Demo accounts (password: `password`):
+
+| Username | Role | See |
+|---|---|---|
+| `admin` | School Administrator | everything |
+| `teacher` | Teacher | register, attendance, risk |
+| `counselor` | Guidance & Counseling | risk, welfare cases |
+| `district` | District Education Officer | analytics, broadcasts |
+| `community` | Community Leader | awareness, broadcasts |
+
+The seeded learner **Mary Phiri** is deliberately set up with a deteriorating
+attendance + grades pattern so the early-warning engine flags her as
+**HIGH RISK** — open her profile to see the explained score and recommended
+interventions.
+
+---
+
+## Architecture
+
+```
+server/
+  config.js      Env-driven configuration (DB path, SMS provider, risk thresholds)
+  db.js          node:sqlite schema + migrations
+  auth.js        scrypt password hashing + revocable bearer sessions + RBAC
+  riskEngine.js  Explainable Girl Child Vulnerability Score
+  messaging.js   SMS/WhatsApp gateway abstraction (mock + HTTP adapter skeleton)
+  templates.js   Multilingual parent-notification templates
+  seed.js        Demonstration data
+  app.js         Express REST API + static dashboard host
+public/          Zero-build single-page dashboard (HTML/CSS/vanilla JS)
+docs/            Roadmap, API reference & deployment notes
+```
+
+Design choices that matter for a government system:
+
+- **Explainable risk model**, not a black box — every point of a child's score
+  is traced to a named factor, so flags are defensible to teachers, parents and
+  auditors.
+- **Revocable sessions** — a compromised account touching sensitive girl-child
+  welfare data can be killed instantly.
+- **Pluggable messaging** — swap the mock gateway for a real Zambian aggregator
+  (Zamtel / MTN / Airtel / Africa's Talking) via one environment variable.
+- **Zero-dependency datastore** — runs on a rural school laptop or a national
+  data centre with the same code.
+
+See [`docs/API.md`](docs/API.md) for the REST endpoints.
+
+---
+
+## Configuration
+
+All via environment variables (see `server/config.js`):
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `PORT` | `3000` | HTTP port |
+| `SEWSMS_DB` | `data/sewsms.db` | Database file path |
+| `MESSAGING_PROVIDER` | `mock` | `mock` or `http` |
+| `SMS_API_URL` / `SMS_API_KEY` / `SMS_SENDER_ID` | — | Real SMS gateway |
+| `RISK_MEDIUM` / `RISK_HIGH` | `30` / `60` | Risk band thresholds |
+
+---
+
+## Safeguarding & data protection
+
+This system handles sensitive data about minors. Before any real-world use it
+**must** be operated under the Zambia **Data Protection Act No. 3 of 2021**,
+with Ministry of Education safeguarding policies, informed guardian consent,
+encryption at rest, access logging and a defined data-retention policy. The
+roadmap details the compliance work required.
+
+---
+
+&copy; 2026 · MIT License · Built for child protection in Zambian schools.
