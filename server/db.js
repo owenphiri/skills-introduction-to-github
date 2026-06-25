@@ -33,7 +33,7 @@ function migrate() {
       username      TEXT NOT NULL UNIQUE,
       password_hash TEXT NOT NULL,
       role          TEXT NOT NULL CHECK (role IN
-                      ('admin','teacher','counselor','parent','district','community')),
+                      ('admin','teacher','counselor','parent','district','community','reviewer')),
       phone         TEXT,
       school_id     INTEGER,
       created_at    TEXT NOT NULL DEFAULT (datetime('now'))
@@ -144,6 +144,22 @@ function migrate() {
       expires_at INTEGER NOT NULL
     );
 
+    -- Message templates with a native-speaker review workflow. Only 'approved'
+    -- translations are ever sent to guardians; un-reviewed languages fall back
+    -- to approved English so a learner's family is never sent unchecked copy.
+    CREATE TABLE IF NOT EXISTS message_templates (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      key         TEXT NOT NULL,        -- present | absent | results | counseling
+      language    TEXT NOT NULL,        -- en | bem | nya | toi | loz
+      body        TEXT NOT NULL,        -- with {name} {avg} {date} placeholders
+      status      TEXT NOT NULL DEFAULT 'draft'
+                    CHECK (status IN ('draft','pending_review','approved','rejected')),
+      reviewer_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      review_note TEXT,
+      updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE (key, language)
+    );
+
     -- Tamper-evident audit trail. Access to minors' welfare data must be
     -- traceable (safeguarding + Data Protection Act requirement).
     CREATE TABLE IF NOT EXISTS audit_log (
@@ -161,5 +177,15 @@ function migrate() {
 }
 
 migrate();
+
+/** Idempotent column additions for databases created by earlier versions. */
+function addColumnIfMissing(table, column, definition) {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all().map(c => c.name);
+  if (!cols.includes(column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
+}
+// Link a guardian (parent user) to a learner for the read-only parent portal.
+addColumnIfMissing('students', 'guardian_user_id', 'INTEGER REFERENCES users(id)');
 
 module.exports = db;

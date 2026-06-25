@@ -33,7 +33,10 @@ children at risk.
 - [ ] Implement the production adapter in `server/messaging.js` (HTTP skeleton present).
 - [ ] Delivery-receipt webhooks → update `messages.delivery_status`.
 - [ ] WhatsApp Business API approval for the awareness/results templates.
-- [ ] Native-speaker review & MoE approval of all Bemba/Nyanja/Tonga/Lozi copy.
+- [x] Native-speaker **review workflow** built (templates carry draft → pending →
+      approved/rejected status; only approved copy is sent, else English fallback).
+- [ ] Actual native-speaker + MoE sign-off of all Bemba/Nyanja/Tonga/Lozi copy
+      through that workflow before national rollout.
 
 ## 4. Android & offline
 - [x] Installable mobile app via **PWA** (manifest + service worker + icons) —

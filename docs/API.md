@@ -56,12 +56,35 @@ Base URL: `/api`. All endpoints except `/auth/login` and `/health` require a
 |---|---|---|---|
 | GET | `/awareness?language=` | any | Multilingual content library |
 
+## Message templates (native-speaker review workflow)
+| Method | Path | Roles | Description |
+|---|---|---|---|
+| GET | `/templates` | admin, counselor, reviewer | All templates with review status |
+| GET | `/templates/pending` | admin, counselor, reviewer | Items awaiting review |
+| PUT | `/templates/:id` | admin, counselor, reviewer | Edit wording → resets to `pending_review` |
+| POST | `/templates/:id/review` | admin, counselor, reviewer | `{decision: approved\|rejected, note?}` |
+
+Only `approved` translations are sent; an unreviewed language falls back to
+approved English. Placeholders: `{name}`, `{avg}`, `{date}`.
+
+## Parent portal (read-only)
+| Method | Path | Roles | Description |
+|---|---|---|---|
+| GET | `/portal/children` | parent | The signed-in guardian's linked children + attendance/avg summary |
+| GET | `/portal/children/:id` | parent | One child's attendance, results and received messages |
+
+Parents never see the internal vulnerability score, and can only access their
+own linked children.
+
 ## Risk & analytics
 | Method | Path | Roles | Description |
 |---|---|---|---|
 | GET | `/risk/:studentId` | any | Single learner vulnerability assessment |
 | GET | `/risk?minLevel=medium` | any | All at-risk learners, sorted |
-| GET | `/analytics/summary` | any | Dashboard headline metrics |
+| GET | `/analytics/summary` | admin, teacher, counselor, district, community | Dashboard headline metrics |
+| GET | `/analytics/attendance-trend?days=14` | any | Daily attendance-rate series |
+| GET | `/analytics/academic` | admin, teacher, counselor, district | Term-over-term averages, pass rates, top/low performers, decliners |
+| GET | `/analytics/gis` | admin, counselor, district | Geo-located learners for mapping |
 
 ## Audit
 | Method | Path | Roles | Description |

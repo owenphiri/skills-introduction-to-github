@@ -158,7 +158,7 @@ app.post('/api/attendance', auth.authenticate, auth.requireRole('admin', 'teache
   const out = { student_id, date: day, status, notifications: [] };
 
   if (notify && student.parent_phone && (status === 'present' || status === 'absent')) {
-    const body = templates.render(status, language, student.full_name);
+    const body = templates.render(status, language, { name: student.full_name });
     const msg = await messaging.send({
       studentId: student_id, phone: student.parent_phone,
       category: 'attendance', body, language
@@ -194,7 +194,7 @@ app.post('/api/attendance/bulk', auth.authenticate, auth.requireRole('admin', 't
     if (notify && student?.parent_phone && (r.status === 'present' || r.status === 'absent')) {
       await messaging.send({
         studentId: r.student_id, phone: student.parent_phone, category: 'attendance',
-        body: templates.render(r.status, language, student.full_name), language
+        body: templates.render(r.status, language, { name: student.full_name }), language
       });
     }
     results.push({ student_id: r.student_id, status: r.status });
@@ -220,7 +220,7 @@ app.post('/api/performance', auth.authenticate, auth.requireRole('admin', 'teach
     if (student?.parent_phone) {
       out.notification = await messaging.send({
         studentId: student_id, phone: student.parent_phone, category: 'results',
-        body: templates.render('results', language, student.full_name, Math.round(avg)), language
+        body: templates.render('results', language, { name: student.full_name, avg: Math.round(avg) }), language
       });
     }
   }
@@ -284,6 +284,62 @@ app.get('/api/messages', auth.authenticate, wrap((req, res) => {
   res.json(db.prepare(sql).all(...params));
 }));
 
+/* ----------------------------------------------- TEMPLATE REVIEW WORKFLOW -- */
+
+/** List all message templates (grouped client-side by key), with review status. */
+app.get('/api/templates', auth.authenticate,
+  auth.requireRole('admin', 'counselor', 'reviewer'), wrap((req, res) => {
+    const rows = db.prepare(`
+      SELECT t.*, u.full_name AS reviewer_name
+      FROM message_templates t LEFT JOIN users u ON u.id = t.reviewer_id
+      ORDER BY t.key, t.language
+    `).all();
+    res.json(rows);
+  }));
+
+/** Items awaiting native-speaker review. */
+app.get('/api/templates/pending', auth.authenticate,
+  auth.requireRole('admin', 'counselor', 'reviewer'), wrap((req, res) => {
+    res.json(db.prepare(
+      "SELECT * FROM message_templates WHERE status IN ('draft','pending_review') ORDER BY language, key"
+    ).all());
+  }));
+
+/** Edit a translation's wording. Editing resets it to 'pending_review'. */
+app.put('/api/templates/:id', auth.authenticate,
+  auth.requireRole('admin', 'counselor', 'reviewer'), wrap((req, res) => {
+    const { body } = req.body || {};
+    if (!body) return res.status(400).json({ error: 'body is required' });
+    if (!/\{name\}|\{avg\}|\{date\}/.test(body) && /\{/.test(body)) {
+      return res.status(400).json({ error: 'Unknown placeholder. Use {name}, {avg} or {date} only.' });
+    }
+    const tpl = db.prepare('SELECT * FROM message_templates WHERE id = ?').get(req.params.id);
+    if (!tpl) return res.status(404).json({ error: 'Template not found' });
+    db.prepare(
+      "UPDATE message_templates SET body = ?, status = 'pending_review', reviewer_id = NULL, updated_at = datetime('now') WHERE id = ?"
+    ).run(body, req.params.id);
+    security.audit(req, 'template.edit', `template:${tpl.key}/${tpl.language}`);
+    res.json(db.prepare('SELECT * FROM message_templates WHERE id = ?').get(req.params.id));
+  }));
+
+/** Approve or reject a translation. English approval is allowed; a non-English
+ *  template can be approved by any authorised reviewer (in production, restrict
+ *  reviewers to verified native speakers of that language). */
+app.post('/api/templates/:id/review', auth.authenticate,
+  auth.requireRole('admin', 'counselor', 'reviewer'), wrap((req, res) => {
+    const { decision, note } = req.body || {};
+    if (!['approved', 'rejected'].includes(decision)) {
+      return res.status(400).json({ error: "decision must be 'approved' or 'rejected'" });
+    }
+    const tpl = db.prepare('SELECT * FROM message_templates WHERE id = ?').get(req.params.id);
+    if (!tpl) return res.status(404).json({ error: 'Template not found' });
+    db.prepare(
+      "UPDATE message_templates SET status = ?, reviewer_id = ?, review_note = ?, updated_at = datetime('now') WHERE id = ?"
+    ).run(decision, req.user.id, note || null, req.params.id);
+    security.audit(req, `template.${decision}`, `template:${tpl.key}/${tpl.language}`, note || null);
+    res.json(db.prepare('SELECT * FROM message_templates WHERE id = ?').get(req.params.id));
+  }));
+
 /* ------------------------------------------------------------- AWARENESS -- */
 
 app.get('/api/awareness', auth.authenticate, wrap((req, res) => {
@@ -300,8 +356,59 @@ app.get('/api/risk/:studentId', auth.authenticate, wrap((req, res) =>
 app.get('/api/risk', auth.authenticate, wrap((req, res) =>
   res.json(riskEngine.assessAll({ minLevel: req.query.minLevel || 'medium' }))));
 
-/** Headline dashboard analytics. */
-app.get('/api/analytics/summary', auth.authenticate, wrap((req, res) => {
+/* ------------------------------------------------------- PARENT PORTAL -- */
+
+/**
+ * Read-only portal for guardians. A parent only ever sees their own linked
+ * children, and is NEVER shown the internal vulnerability score (it could
+ * stigmatise the child) — only attendance, results and messages they received.
+ */
+function childrenForGuardian(userId) {
+  return db.prepare(
+    'SELECT id, full_name, grade, gender FROM students WHERE guardian_user_id = ? AND active = 1'
+  ).all(userId);
+}
+
+app.get('/api/portal/children', auth.authenticate, auth.requireRole('parent'), wrap((req, res) => {
+  const kids = childrenForGuardian(req.user.id).map(c => {
+    const since = new Date(); since.setDate(since.getDate() - 30);
+    const att = db.prepare(`
+      SELECT SUM(status='present') AS present, SUM(status='late') AS late, COUNT(*) AS total
+      FROM attendance WHERE student_id = ? AND date >= ?
+    `).get(c.id, since.toISOString().slice(0, 10));
+    const recent = db.prepare(`
+      SELECT AVG(score) AS avg FROM performance WHERE student_id = ?
+        AND term = (SELECT term FROM performance WHERE student_id = ? ORDER BY term DESC LIMIT 1)
+    `).get(c.id, c.id);
+    return {
+      ...c,
+      attendanceRate: att.total ? Math.round((att.present + 0.5 * att.late) / att.total * 100) : null,
+      recentAverage: recent.avg != null ? Math.round(recent.avg) : null
+    };
+  });
+  res.json(kids);
+}));
+
+app.get('/api/portal/children/:id', auth.authenticate, auth.requireRole('parent'), wrap((req, res) => {
+  const child = db.prepare(
+    'SELECT id, full_name, grade, gender, village FROM students WHERE id = ? AND guardian_user_id = ?'
+  ).get(req.params.id, req.user.id);
+  if (!child) return res.status(404).json({ error: 'Child not found for this guardian' });
+  const attendance = db.prepare(
+    'SELECT date, status FROM attendance WHERE student_id = ? ORDER BY date DESC LIMIT 30'
+  ).all(child.id);
+  const performance = db.prepare(
+    'SELECT term, subject, score FROM performance WHERE student_id = ? ORDER BY term DESC, subject'
+  ).all(child.id);
+  const messages = db.prepare(
+    'SELECT category, body, created_at FROM messages WHERE student_id = ? ORDER BY created_at DESC LIMIT 30'
+  ).all(child.id);
+  res.json({ child, attendance, performance, messages });
+}));
+
+/** Headline dashboard analytics (school-wide — not for individual guardians). */
+app.get('/api/analytics/summary', auth.authenticate,
+  auth.requireRole('admin', 'teacher', 'counselor', 'district', 'community'), wrap((req, res) => {
   const today = new Date().toISOString().slice(0, 10);
   const totalStudents = db.prepare('SELECT COUNT(*) AS n FROM students WHERE active = 1').get().n;
   const girls = db.prepare("SELECT COUNT(*) AS n FROM students WHERE active = 1 AND gender = 'F'").get().n;
@@ -415,6 +522,61 @@ app.get('/api/analytics/gis', auth.authenticate,
         return { ...a, gps_lat: s.gps_lat, gps_lng: s.gps_lng };
       })
       .filter(a => a.gps_lat != null && a.gps_lng != null));
+  }));
+
+/**
+ * Term-over-term academic analytics: overall averages & pass rates per term,
+ * per-subject trend lines, top/low performers and the steepest decliners.
+ */
+app.get('/api/analytics/academic', auth.authenticate,
+  auth.requireRole('admin', 'teacher', 'counselor', 'district'), wrap((req, res) => {
+    const terms = db.prepare('SELECT DISTINCT term FROM performance ORDER BY term').all().map(r => r.term);
+
+    const overall = db.prepare(`
+      SELECT term, ROUND(AVG(score), 1) AS avg,
+        ROUND(100.0 * SUM(score >= 50) / COUNT(*), 1) AS passRate,
+        COUNT(*) AS entries
+      FROM performance GROUP BY term ORDER BY term
+    `).all();
+
+    const subjects = db.prepare('SELECT DISTINCT subject FROM performance ORDER BY subject').all().map(r => r.subject);
+    const bySubject = subjects.map(subject => ({
+      subject,
+      byTerm: terms.map(term => {
+        const row = db.prepare('SELECT ROUND(AVG(score),1) AS avg FROM performance WHERE subject = ? AND term = ?')
+          .get(subject, term);
+        return { term, avg: row.avg };
+      })
+    }));
+
+    const latest = terms[terms.length - 1];
+    const perStudentLatest = latest ? db.prepare(`
+      SELECT s.id, s.full_name, s.grade, ROUND(AVG(p.score),1) AS avg
+      FROM performance p JOIN students s ON s.id = p.student_id
+      WHERE p.term = ? GROUP BY s.id ORDER BY avg DESC
+    `).all(latest) : [];
+
+    // Steepest term-over-term decline (last two terms).
+    let decliners = [];
+    if (terms.length >= 2) {
+      const prev = terms[terms.length - 2];
+      const a = db.prepare('SELECT student_id, AVG(score) AS avg FROM performance WHERE term = ? GROUP BY student_id').all(prev);
+      const b = db.prepare('SELECT student_id, AVG(score) AS avg FROM performance WHERE term = ? GROUP BY student_id').all(latest);
+      const prevMap = Object.fromEntries(a.map(r => [r.student_id, r.avg]));
+      decliners = b.map(r => {
+        const drop = (prevMap[r.student_id] ?? r.avg) - r.avg;
+        const s = db.prepare('SELECT full_name, grade FROM students WHERE id = ?').get(r.student_id);
+        return { ...s, drop: Math.round(drop), from: Math.round(prevMap[r.student_id] ?? r.avg), to: Math.round(r.avg) };
+      }).filter(r => r.drop > 0).sort((x, y) => y.drop - x.drop).slice(0, 5);
+    }
+
+    res.json({
+      terms, overall, bySubject,
+      topPerformers: perStudentLatest.slice(0, 5),
+      lowPerformers: perStudentLatest.slice(-5).reverse(),
+      decliners,
+      latestTerm: latest
+    });
   }));
 
 /* ----------------------------------------------------------------- MISC -- */

@@ -23,6 +23,8 @@ button {
 button:hover { background: var(--green-dark); }
 button.ghost { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,.5); }
 button.sm { padding: 5px 10px; font-size: .8rem; }
+button.ghost-red { background: #fff; color: var(--red); border: 1px solid var(--red); }
+button.ghost-red:hover { background: var(--red); color: #fff; }
 input, select, textarea {
   width: 100%; padding: 10px 12px; margin: 6px 0; border: 1px solid var(--line);
   border-radius: 8px; font-size: .95rem; font-family: inherit;

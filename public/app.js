@@ -45,12 +45,12 @@ function logout() {
 
 /* -------------------------------------------------------------- NAV ------ */
 const ROLE_NAV = {
-  admin:     ['dashboard', 'students', 'risk', 'map', 'attendance', 'counseling', 'awareness', 'messages', 'reports', 'audit'],
-  teacher:   ['dashboard', 'students', 'attendance', 'risk', 'counseling'],
-  counselor: ['dashboard', 'risk', 'map', 'counseling', 'students', 'awareness'],
-  district:  ['dashboard', 'risk', 'map', 'awareness', 'messages', 'reports'],
+  admin:     ['dashboard', 'students', 'risk', 'map', 'attendance', 'academics', 'counseling', 'awareness', 'messages', 'translations', 'reports', 'audit'],
+  teacher:   ['dashboard', 'students', 'attendance', 'risk', 'academics', 'counseling'],
+  counselor: ['dashboard', 'risk', 'map', 'counseling', 'students', 'awareness', 'translations'],
+  district:  ['dashboard', 'risk', 'map', 'academics', 'awareness', 'messages', 'reports'],
   community: ['dashboard', 'awareness', 'messages'],
-  parent:    ['dashboard', 'awareness']
+  parent:    ['children', 'awareness']
 };
 const VIEWS = {};
 
@@ -63,10 +63,12 @@ function buildNav() {
 }
 
 function route() {
-  const tab = (location.hash.slice(1) || 'dashboard');
+  const tabs = ROLE_NAV[State.user.role] || ['dashboard'];
+  let tab = location.hash.slice(1).split('/')[0] || tabs[0];
+  if (!tabs.includes(tab) && !VIEWS[tab]) tab = tabs[0]; // fall back to first allowed tab
   $('#nav').querySelectorAll('a').forEach(a =>
     a.classList.toggle('active', a.dataset.tab === tab));
-  const view = VIEWS[tab] || VIEWS.dashboard;
+  const view = VIEWS[tab] || VIEWS[tabs[0]] || (() => setView('<p>Not found</p>'));
   view();
 }
 window.addEventListener('hashchange', route);
@@ -78,7 +80,7 @@ async function enterApp() {
   buildNav();
   updateOfflineBadge();
   flushQueue();
-  if (!location.hash) location.hash = 'dashboard';
+  if (!location.hash) location.hash = (ROLE_NAV[State.user.role] || ['dashboard'])[0];
   route();
 }
 
@@ -395,6 +397,144 @@ VIEWS.audit = async function () {
   `);
 };
 
+/* ------------------------------------------------ TRANSLATION REVIEW ---- */
+const LANG_NAMES = { en: 'English', bem: 'Bemba', nya: 'Nyanja', toi: 'Tonga', loz: 'Lozi' };
+
+VIEWS.translations = async function () {
+  const all = await api('/templates');
+  const byKey = {};
+  for (const t of all) (byKey[t.key] = byKey[t.key] || []).push(t);
+  const pending = all.filter(t => t.status === 'pending_review' || t.status === 'draft').length;
+  setView(`
+    <h2>Local-Language Message Review</h2>
+    <p class="sub">Native speakers approve translations before any are sent to guardians.
+      <span class="badge ${pending ? 'medium' : 'low'}">${pending} awaiting review</span></p>
+    ${Object.entries(byKey).map(([key, rows]) => {
+      const en = rows.find(r => r.language === 'en');
+      return `<div class="card" style="margin-bottom:14px">
+        <h3 style="text-transform:capitalize">${key} message</h3>
+        <p class="muted">English (source): ${esc(en ? en.body : '—')}</p>
+        ${renderTable(['Language', 'Translation', 'Status', 'Action'], rows.filter(r => r.language !== 'en').map(r => [
+          LANG_NAMES[r.language] || r.language,
+          `<span data-tpl-body="${r.id}">${esc(r.body)}</span>`,
+          `<span class="badge ${r.status === 'approved' ? 'low' : r.status === 'rejected' ? 'high' : 'medium'}">${r.status.replace('_', ' ')}</span>`,
+          `<button class="sm" data-action="tpl-edit" data-id="${r.id}">Edit</button>
+           <button class="sm" data-action="tpl-approve" data-id="${r.id}">Approve</button>
+           <button class="sm ghost-red" data-action="tpl-reject" data-id="${r.id}">Reject</button>`
+        ]))}
+      </div>`;
+    }).join('')}
+  `);
+};
+
+window.reviewTemplate = async function (id, decision) {
+  const note = decision === 'rejected' ? (prompt('Reason for rejection (optional):') || '') : '';
+  await api(`/templates/${id}/review`, { method: 'POST', body: { decision, note } });
+  flash(`Translation ${decision}.`); VIEWS.translations();
+};
+window.editTemplate = async function (id) {
+  const current = document.querySelector(`[data-tpl-body="${id}"]`)?.textContent || '';
+  const body = prompt('Edit translation (keep placeholders like {name}, {avg}, {date}):', current);
+  if (body == null) return;
+  try { await api(`/templates/${id}`, { method: 'PUT', body: { body } }); flash('Saved — now pending review.'); VIEWS.translations(); }
+  catch (e) { flash('Error: ' + e.message); }
+};
+
+/* ------------------------------------------------ ACADEMIC ANALYTICS ---- */
+VIEWS.academics = async function () {
+  setView('<h2>Academic Analytics</h2><p class="sub">Term-over-term performance trends.</p><p>Loading…</p>');
+  const d = await api('/analytics/academic');
+  setView(`
+    <h2>Academic Analytics</h2>
+    <p class="sub">Term-over-term performance across ${d.terms.length} term(s) · latest: ${d.latestTerm || '—'}</p>
+    <div class="row">
+      <div class="col card">
+        <h3>Overall average &amp; pass rate</h3>
+        ${renderTable(['Term', 'Avg %', 'Pass rate %', 'Entries'],
+          d.overall.map(o => [o.term, o.avg, `<b style="color:${o.passRate>=75?'var(--green)':o.passRate>=50?'var(--amber)':'var(--red)'}">${o.passRate}%</b>`, o.entries]))}
+      </div>
+      <div class="col card">
+        <h3>Subject averages by term</h3>
+        ${lineChart(d.bySubject, d.terms)}
+      </div>
+    </div>
+    <div class="row">
+      <div class="col card"><h3>🏆 Top performers (${d.latestTerm || ''})</h3>
+        ${renderTable(['Learner', 'Grade', 'Avg %'], d.topPerformers.map(s => [esc(s.full_name), s.grade, s.avg]))}</div>
+      <div class="col card"><h3>📉 Steepest decline</h3>
+        ${d.decliners.length ? renderTable(['Learner', 'Grade', 'From', 'To', 'Drop'],
+          d.decliners.map(s => [esc(s.full_name), s.grade, s.from + '%', s.to + '%', `<span class="badge high">−${s.drop}</span>`]))
+          : '<p class="muted">No decline detected. 🎉</p>'}</div>
+    </div>
+  `);
+};
+
+/* SVG multi-series line chart of subject averages across terms. */
+function lineChart(series, terms) {
+  if (!terms.length) return '<p class="muted">No data.</p>';
+  const W = 460, H = 220, pad = 34;
+  const colors = ['#1f8a4c', '#e6a700', '#d6453d', '#2b6cb0', '#7c3aed', '#0891b2'];
+  const x = i => pad + (terms.length === 1 ? (W - pad * 2) / 2 : i * (W - pad * 2) / (terms.length - 1));
+  const y = v => H - pad - (v / 100) * (H - pad * 2);
+  const lines = series.map((s, si) => {
+    const pts = s.byTerm.map((t, i) => t.avg != null ? `${x(i).toFixed(1)},${y(t.avg).toFixed(1)}` : null).filter(Boolean);
+    const dots = s.byTerm.map((t, i) => t.avg != null
+      ? `<circle cx="${x(i).toFixed(1)}" cy="${y(t.avg).toFixed(1)}" r="3" fill="${colors[si % colors.length]}"><title>${esc(s.subject)} ${t.term}: ${t.avg}%</title></circle>` : '').join('');
+    return `<polyline points="${pts.join(' ')}" fill="none" stroke="${colors[si % colors.length]}" stroke-width="2"/>${dots}`;
+  }).join('');
+  const xlabels = terms.map((t, i) => `<text x="${x(i)}" y="${H - 10}" font-size="9" text-anchor="middle" fill="#6b7a87">${t}</text>`).join('');
+  const legend = series.map((s, si) =>
+    `<span class="pill" style="margin-right:10px"><span style="display:inline-block;width:10px;height:10px;background:${colors[si % colors.length]};border-radius:2px"></span> ${esc(s.subject)}</span>`).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%">
+    <line x1="${pad}" y1="${H - pad}" x2="${W - pad}" y2="${H - pad}" stroke="#e3e9e7"/>
+    <line x1="${pad}" y1="${pad}" x2="${pad}" y2="${H - pad}" stroke="#e3e9e7"/>
+    <text x="6" y="${pad}" font-size="9" fill="#6b7a87">100</text>
+    <text x="10" y="${H - pad}" font-size="9" fill="#6b7a87">0</text>
+    ${lines}${xlabels}</svg><div style="margin-top:6px">${legend}</div>`;
+}
+
+/* ---------------------------------------------------- PARENT PORTAL ----- */
+VIEWS.children = async function () {
+  setView('<h2>My Children</h2><p class="sub">Loading…</p>');
+  const kids = await api('/portal/children');
+  if (!kids.length) { setView('<h2>My Children</h2><p class="muted">No children are linked to your account yet. Please contact the school.</p>'); return; }
+  setView(`
+    <h2>My Children</h2>
+    <p class="sub">Attendance, results and school messages for your child(ren).</p>
+    <div class="grid">${kids.map(c => `
+      <div class="card">
+        <h3>${esc(c.full_name)}</h3>
+        <p class="muted">Grade ${c.grade}</p>
+        <p>Attendance (30 days): <b>${c.attendanceRate != null ? c.attendanceRate + '%' : '—'}</b></p>
+        <p>Recent average: <b>${c.recentAverage != null ? c.recentAverage + '%' : '—'}</b></p>
+        <button class="sm" data-action="child" data-id="${c.id}">View details</button>
+      </div>`).join('')}
+    </div>
+  `);
+};
+
+window.openChild = async function (id) {
+  const d = await api('/portal/children/' + id);
+  const att = d.attendance.slice(0, 14).reverse();
+  setView(`
+    <p><a href="#children" data-action="children">&larr; Back</a></p>
+    <h2>${esc(d.child.full_name)}</h2>
+    <p class="sub">Grade ${d.child.grade} · ${esc(d.child.village || '')}</p>
+    <div class="row">
+      <div class="col card">
+        <h3>Recent attendance</h3>
+        <p>${att.map(a => `<span title="${a.date}" class="badge ${a.status==='present'?'low':a.status==='late'?'medium':'high'}" style="margin:2px">${a.status[0].toUpperCase()}</span>`).join('') || '<span class="muted">No records</span>'}</p>
+        <h3>Results</h3>
+        ${renderTable(['Term', 'Subject', 'Score'], d.performance.map(p => [p.term, p.subject, p.score + '%']))}
+      </div>
+      <div class="col card">
+        <h3>School messages</h3>
+        ${renderTable(['Date', 'Type', 'Message'], d.messages.map(m => [m.created_at.slice(0,10), m.category, esc(m.body)]))}
+      </div>
+    </div>
+  `);
+};
+
 /* ----------------------------------------------------------- FORMS ------ */
 async function addStudentForm() {
   setView(`
@@ -481,6 +621,11 @@ document.addEventListener('click', e => {
   else if (action === 'students') { e.preventDefault(); VIEWS.students(); }
   else if (action === 'counsel') { e.preventDefault(); logCounseling(Number(id)); }
   else if (action === 'report') { e.preventDefault(); downloadReport(path, file); }
+  else if (action === 'child') { e.preventDefault(); openChild(Number(id)); }
+  else if (action === 'children') { e.preventDefault(); VIEWS.children(); }
+  else if (action === 'tpl-edit') { e.preventDefault(); editTemplate(Number(id)); }
+  else if (action === 'tpl-approve') { e.preventDefault(); reviewTemplate(Number(id), 'approved'); }
+  else if (action === 'tpl-reject') { e.preventDefault(); reviewTemplate(Number(id), 'rejected'); }
 });
 
 /* --------------------------------------------------------- BOOTSTRAP ---- */

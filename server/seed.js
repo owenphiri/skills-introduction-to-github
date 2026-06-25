@@ -10,9 +10,11 @@
  */
 const db = require('./db');
 const auth = require('./auth');
+const { DEFAULTS } = require('./templates');
 
 function reset() {
-  for (const t of ['sessions', 'messages', 'counseling', 'performance', 'attendance', 'students', 'awareness', 'users', 'schools']) {
+  for (const t of ['sessions', 'messages', 'counseling', 'performance', 'attendance',
+    'students', 'awareness', 'message_templates', 'audit_log', 'users', 'schools']) {
     db.exec(`DELETE FROM ${t};`);
   }
 }
@@ -44,6 +46,7 @@ for (const [name, username, role] of users) {
 }
 const teacher = db.prepare("SELECT id FROM users WHERE username = 'teacher'").get().id;
 const counselor = db.prepare("SELECT id FROM users WHERE username = 'counselor'").get().id;
+const parentUser = db.prepare("SELECT id FROM users WHERE username = 'parent'").get().id;
 
 const students = [
   ['Mary Phiri', 'F', '9A', 'orphan', '0977000001', 'Chongwe'],
@@ -60,6 +63,24 @@ const studentIds = students.map(([full_name, gender, grade, vuln, phone, village
       (full_name, gender, grade, vulnerability_status, parent_name, parent_phone, village, school_id)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
     .run(full_name, gender, grade, vuln, 'Guardian', phone, village, schoolId).lastInsertRowid);
+
+// Link the demo parent/guardian account to two learners (parent portal).
+db.prepare('UPDATE students SET guardian_user_id = ? WHERE id IN (?, ?)')
+  .run(parentUser, studentIds[0], studentIds[1]); // Mary Phiri + Grace Banda
+
+// Seed message templates with the review workflow. English + Nyanja are marked
+// approved (reviewed); Bemba/Tonga/Lozi start as pending_review to populate the
+// native-speaker review queue.
+const APPROVED = new Set(['en', 'nya']);
+const insTpl = db.prepare(
+  "INSERT INTO message_templates (key, language, body, status, reviewer_id, updated_at) VALUES (?, ?, ?, ?, ?, datetime('now'))"
+);
+for (const [key, langs] of Object.entries(DEFAULTS)) {
+  for (const [lang, body] of Object.entries(langs)) {
+    const approved = APPROVED.has(lang);
+    insTpl.run(key, lang, body, approved ? 'approved' : 'pending_review', approved ? counselor : null);
+  }
+}
 
 // Geo-locate learners around Chongwe district (for GIS mapping). Coordinates
 // are scattered near each village so the map shows a realistic spread.

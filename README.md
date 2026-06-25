@@ -37,6 +37,9 @@ Designed to align with the Government of Zambia's **Keeping Girls in School
 | Attendance-trend chart + GIS map of vulnerable learners | ✅ |
 | Audit trail of sensitive actions | ✅ |
 | **Installable mobile app (PWA) with offline attendance** | ✅ |
+| Native-speaker **review workflow** for local-language messages | ✅ |
+| Read-only **parent portal** (own children only, no risk score) | ✅ |
+| Term-over-term **academic analytics** (pass rates, trends, decliners) | ✅ |
 
 ---
 
