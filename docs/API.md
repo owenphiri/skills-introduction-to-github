@@ -86,10 +86,22 @@ own linked children.
 | GET | `/analytics/academic` | admin, teacher, counselor, district | Term-over-term averages, pass rates, top/low performers, decliners |
 | GET | `/analytics/gis` | admin, counselor, district | Geo-located learners for mapping |
 
+## Schools & district hierarchy
+| Method | Path | Roles | Description |
+|---|---|---|---|
+| GET | `/schools` | any (scoped) | Schools in the caller's scope (admin: all; district: their district; staff: own) |
+| POST | `/schools` | admin | Register a school `{name, district, province?, package?}` |
+| GET | `/analytics/by-school` | admin, district | Per-school breakdown (learners, girls, risk counts, attendance) |
+
+**Data scoping:** every learner-level endpoint is bounded by the caller's scope —
+admins see all schools, a District Education Officer sees only schools in their
+assigned `district`, and teachers/counselors see only their own school. Accessing
+a learner outside scope returns `403`.
+
 ## Audit
 | Method | Path | Roles | Description |
 |---|---|---|---|
-| GET | `/audit` | admin | Last 200 audited actions (logins, user/student creation, broadcasts) |
+| GET | `/audit` | admin | Last 200 audited actions (logins, user/student/school creation, broadcasts) |
 
 ## Health
 | Method | Path | Roles | Description |

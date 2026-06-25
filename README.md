@@ -40,6 +40,8 @@ Designed to align with the Government of Zambia's **Keeping Girls in School
 | Native-speaker **review workflow** for local-language messages | ✅ |
 | Read-only **parent portal** (own children only, no risk score) | ✅ |
 | Term-over-term **academic analytics** (pass rates, trends, decliners) | ✅ |
+| **Multi-school / district hierarchy** with enforced data scoping | ✅ |
+| District Education Officer **per-school dashboard** | ✅ |
 
 ---
 

@@ -50,8 +50,10 @@ children at risk.
 ## 5. Scale & data model
 - [ ] Migrate from `node:sqlite` to **PostgreSQL** for multi-school concurrency
       (the SQL schema is already standard; the swap is isolated to `db.js`).
-- [ ] Multi-tenancy (district → school → class hierarchy) and the packaging
-      tiers (Bronze/Silver/Gold/Platinum) enforced as feature flags.
+- [x] Multi-school / district hierarchy with enforced per-user data scoping
+      (admin → district → school) and a District Education Officer dashboard.
+- [ ] Package tiers (Bronze/Silver/Gold/Platinum) enforced as feature flags
+      (the tiers are stored per school; gating logic still to come).
 - [ ] GIS mapping of vulnerable learners (GPS fields already captured).
 - [ ] Replace the heuristic risk model with a model **trained on Zambian
       outcome data** — while keeping it explainable.

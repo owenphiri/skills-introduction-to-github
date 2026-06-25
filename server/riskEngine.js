@@ -185,10 +185,22 @@ function recommend(level, factors, student) {
   return recs;
 }
 
-/** Convenience: assess every active student and return a sorted at-risk list. */
-function assessAll({ minLevel = 'medium' } = {}) {
+/**
+ * Convenience: assess active students and return a sorted at-risk list.
+ * @param {object} opts
+ * @param {string} opts.minLevel  'low' | 'medium' | 'high'
+ * @param {number[]|null} opts.schoolIds  restrict to these schools (null = all)
+ */
+function assessAll({ minLevel = 'medium', schoolIds = null } = {}) {
   const order = { low: 0, medium: 1, high: 2 };
-  const students = db.prepare('SELECT id FROM students WHERE active = 1').all();
+  let sql = 'SELECT id FROM students WHERE active = 1';
+  const params = [];
+  if (schoolIds !== null) {
+    if (schoolIds.length === 0) return [];
+    sql += ` AND school_id IN (${schoolIds.map(() => '?').join(',')})`;
+    params.push(...schoolIds);
+  }
+  const students = db.prepare(sql).all(...params);
   return students
     .map(s => {
       const a = assess(s.id);

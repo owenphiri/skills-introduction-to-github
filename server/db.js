@@ -187,5 +187,7 @@ function addColumnIfMissing(table, column, definition) {
 }
 // Link a guardian (parent user) to a learner for the read-only parent portal.
 addColumnIfMissing('students', 'guardian_user_id', 'INTEGER REFERENCES users(id)');
+// District scope for District Education Officers (which district they oversee).
+addColumnIfMissing('users', 'district', 'TEXT');
 
 module.exports = db;

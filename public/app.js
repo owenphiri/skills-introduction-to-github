@@ -45,10 +45,10 @@ function logout() {
 
 /* -------------------------------------------------------------- NAV ------ */
 const ROLE_NAV = {
-  admin:     ['dashboard', 'students', 'risk', 'map', 'attendance', 'academics', 'counseling', 'awareness', 'messages', 'translations', 'reports', 'audit'],
+  admin:     ['dashboard', 'schools', 'students', 'risk', 'map', 'attendance', 'academics', 'counseling', 'awareness', 'messages', 'translations', 'reports', 'audit'],
   teacher:   ['dashboard', 'students', 'attendance', 'risk', 'academics', 'counseling'],
   counselor: ['dashboard', 'risk', 'map', 'counseling', 'students', 'awareness', 'translations'],
-  district:  ['dashboard', 'risk', 'map', 'academics', 'awareness', 'messages', 'reports'],
+  district:  ['dashboard', 'schools', 'risk', 'map', 'academics', 'awareness', 'messages', 'reports'],
   community: ['dashboard', 'awareness', 'messages'],
   parent:    ['children', 'awareness']
 };
@@ -88,8 +88,11 @@ async function enterApp() {
 VIEWS.dashboard = async function () {
   setView('<h2>Dashboard</h2><p class="sub">Loading…</p>');
   const s = await api('/analytics/summary');
+  const scopeLabel = State.user.role === 'admin' ? 'National'
+    : State.user.role === 'district' ? 'District'
+    : 'School';
   setView(`
-    <h2>National Early-Warning Dashboard</h2>
+    <h2>${scopeLabel} Early-Warning Dashboard</h2>
     <p class="sub">Real-time welfare &amp; attendance overview · Keeping Girls in School</p>
     <div class="grid">
       ${stat('green', s.totalStudents, 'Active learners')}
@@ -129,6 +132,46 @@ function barChart(points) {
     <line x1="${pad}" y1="${pad}" x2="${pad}" y2="${H - pad}" stroke="#e3e9e7"/>
     ${bars}</svg>`;
 }
+
+VIEWS.schools = async function () {
+  setView('<h2>Schools &amp; District Overview</h2><p class="sub">Loading…</p>');
+  const rows = await api('/analytics/by-school');
+  const tot = rows.reduce((a, s) => ({
+    students: a.students + s.students, girls: a.girls + s.girls,
+    high: a.high + s.high, medium: a.medium + s.medium
+  }), { students: 0, girls: 0, high: 0, medium: 0 });
+  setView(`
+    <h2>Schools &amp; District Overview</h2>
+    <p class="sub">${rows.length} school(s) in scope · ${tot.students} learners · ${tot.girls} girls</p>
+    <div class="grid">
+      ${stat('green', rows.length, 'Schools')}
+      ${stat('green', tot.students, 'Learners')}
+      ${stat('red', tot.high, 'High-risk')}
+      ${stat('amber', tot.medium, 'Medium-risk')}
+    </div>
+    <h3 class="section-title">Per-school breakdown</h3>
+    ${renderTable(['School', 'District', 'Package', 'Learners', 'Girls', 'High', 'Medium', 'Attendance today'],
+      rows.map(s => [
+        esc(s.name), esc(s.district),
+        `<span class="badge gray">${s.package}</span>`,
+        s.students, s.girls,
+        s.high ? `<span class="badge high">${s.high}</span>` : '0',
+        s.medium ? `<span class="badge medium">${s.medium}</span>` : '0',
+        s.attendanceToday != null
+          ? `<b style="color:${s.attendanceToday>=85?'var(--green)':s.attendanceToday>=70?'var(--amber)':'var(--red)'}">${s.attendanceToday}%</b>`
+          : '<span class="muted">—</span>'
+      ]))}
+    ${can('admin') ? '<p style="margin-top:14px"><button class="sm" data-action="add-school">+ Register school</button></p>' : ''}
+  `);
+};
+
+window.addSchool = async function () {
+  const name = prompt('School name:'); if (!name) return;
+  const district = prompt('District:'); if (!district) return;
+  const pkg = prompt('Package (bronze/silver/gold/platinum):', 'bronze') || 'bronze';
+  try { await api('/schools', { method: 'POST', body: { name, district, package: pkg } }); flash('School registered.'); VIEWS.schools(); }
+  catch (e) { flash('Error: ' + e.message); }
+};
 
 VIEWS.map = async function () {
   setView('<h2>GIS — Vulnerable Learner Map</h2><p class="sub">Geo-located by village, coloured by risk level.</p><div class="card" id="mapCard">Loading…</div>');
@@ -626,6 +669,7 @@ document.addEventListener('click', e => {
   else if (action === 'tpl-edit') { e.preventDefault(); editTemplate(Number(id)); }
   else if (action === 'tpl-approve') { e.preventDefault(); reviewTemplate(Number(id), 'approved'); }
   else if (action === 'tpl-reject') { e.preventDefault(); reviewTemplate(Number(id), 'rejected'); }
+  else if (action === 'add-school') { e.preventDefault(); addSchool(); }
 });
 
 /* --------------------------------------------------------- BOOTSTRAP ---- */

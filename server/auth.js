@@ -48,7 +48,7 @@ function userForToken(token) {
     return null;
   }
   return db.prepare(
-    'SELECT id, full_name, username, role, phone, school_id FROM users WHERE id = ?'
+    'SELECT id, full_name, username, role, phone, school_id, district FROM users WHERE id = ?'
   ).get(row.user_id);
 }
 

@@ -15,6 +15,7 @@ const messaging = require('./messaging');
 const riskEngine = require('./riskEngine');
 const templates = require('./templates');
 const security = require('./security');
+const scope = require('./scope');
 
 const app = express();
 app.set('trust proxy', true); // correct req.ip behind a load balancer / reverse proxy
@@ -94,6 +95,9 @@ app.post('/api/students', auth.authenticate, auth.requireRole('admin', 'teacher'
   if (!b.full_name || !b.grade || !b.gender) {
     return res.status(400).json({ error: 'full_name, grade and gender are required' });
   }
+  // A learner registered by school staff belongs to that staff member's school
+  // unless an admin explicitly assigns one.
+  if (b.school_id === undefined && req.user.school_id) b.school_id = req.user.school_id;
   const cols = STUDENT_FIELDS.filter(f => b[f] !== undefined);
   const info = db.prepare(
     `INSERT INTO students (${cols.join(',')}) VALUES (${cols.map(() => '?').join(',')})`
@@ -104,8 +108,9 @@ app.post('/api/students', auth.authenticate, auth.requireRole('admin', 'teacher'
 
 app.get('/api/students', auth.authenticate, wrap((req, res) => {
   const { grade, q } = req.query;
-  let sql = 'SELECT * FROM students WHERE active = 1';
-  const params = [];
+  const sc = scope.schoolClause(req.user);
+  let sql = 'SELECT * FROM students WHERE active = 1' + sc.clause;
+  const params = [...sc.params];
   if (grade) { sql += ' AND grade = ?'; params.push(grade); }
   if (q) { sql += ' AND full_name LIKE ?'; params.push(`%${q}%`); }
   sql += ' ORDER BY full_name';
@@ -115,6 +120,11 @@ app.get('/api/students', auth.authenticate, wrap((req, res) => {
 app.get('/api/students/:id', auth.authenticate, wrap((req, res) => {
   const student = db.prepare('SELECT * FROM students WHERE id = ?').get(req.params.id);
   if (!student) return res.status(404).json({ error: 'Student not found' });
+  // Enforce school scope: a user may only view learners within their scope.
+  const allowed = scope.allowedSchoolIds(req.user);
+  if (allowed !== null && !allowed.includes(student.school_id)) {
+    return res.status(403).json({ error: 'This learner is outside your school/district scope' });
+  }
   const attendance = db.prepare(
     'SELECT date, status FROM attendance WHERE student_id = ? ORDER BY date DESC LIMIT 30'
   ).all(student.id);
@@ -350,11 +360,21 @@ app.get('/api/awareness', auth.authenticate, wrap((req, res) => {
 
 /* ------------------------------------------------------- RISK & ANALYTICS -- */
 
-app.get('/api/risk/:studentId', auth.authenticate, wrap((req, res) =>
-  res.json(riskEngine.assess(Number(req.params.studentId)))));
+app.get('/api/risk/:studentId', auth.authenticate, wrap((req, res) => {
+  const student = db.prepare('SELECT school_id FROM students WHERE id = ?').get(req.params.studentId);
+  if (!student) return res.status(404).json({ error: 'Student not found' });
+  const allowed = scope.allowedSchoolIds(req.user);
+  if (allowed !== null && !allowed.includes(student.school_id)) {
+    return res.status(403).json({ error: 'This learner is outside your school/district scope' });
+  }
+  res.json(riskEngine.assess(Number(req.params.studentId)));
+}));
 
 app.get('/api/risk', auth.authenticate, wrap((req, res) =>
-  res.json(riskEngine.assessAll({ minLevel: req.query.minLevel || 'medium' }))));
+  res.json(riskEngine.assessAll({
+    minLevel: req.query.minLevel || 'medium',
+    schoolIds: scope.allowedSchoolIds(req.user)
+  }))));
 
 /* ------------------------------------------------------- PARENT PORTAL -- */
 
@@ -410,21 +430,27 @@ app.get('/api/portal/children/:id', auth.authenticate, auth.requireRole('parent'
 app.get('/api/analytics/summary', auth.authenticate,
   auth.requireRole('admin', 'teacher', 'counselor', 'district', 'community'), wrap((req, res) => {
   const today = new Date().toISOString().slice(0, 10);
-  const totalStudents = db.prepare('SELECT COUNT(*) AS n FROM students WHERE active = 1').get().n;
-  const girls = db.prepare("SELECT COUNT(*) AS n FROM students WHERE active = 1 AND gender = 'F'").get().n;
+  const allowed = scope.allowedSchoolIds(req.user);
+  const sStud = scope.schoolClause(req.user, 'school_id');  // direct on students
+  const sJoin = scope.schoolClause(req.user, 's.school_id'); // via join
 
-  const todayRows = db.prepare('SELECT status, COUNT(*) AS n FROM attendance WHERE date = ? GROUP BY status').all(today);
+  const totalStudents = db.prepare('SELECT COUNT(*) AS n FROM students WHERE active = 1' + sStud.clause).get(...sStud.params).n;
+  const girls = db.prepare("SELECT COUNT(*) AS n FROM students WHERE active = 1 AND gender = 'F'" + sStud.clause).get(...sStud.params).n;
+
+  const todayRows = db.prepare(
+    'SELECT a.status, COUNT(*) AS n FROM attendance a JOIN students s ON s.id = a.student_id WHERE a.date = ?'
+    + sJoin.clause + ' GROUP BY a.status').all(today, ...sJoin.params);
   const todayMap = Object.fromEntries(todayRows.map(r => [r.status, r.n]));
   const marked = todayRows.reduce((s, r) => s + r.n, 0);
   const attendanceRateToday = marked ? Math.round(((todayMap.present || 0) + 0.5 * (todayMap.late || 0)) / marked * 100) : null;
 
-  const atRisk = riskEngine.assessAll({ minLevel: 'medium' });
+  const atRisk = riskEngine.assessAll({ minLevel: 'medium', schoolIds: allowed });
   const high = atRisk.filter(a => a.level === 'high').length;
   const medium = atRisk.filter(a => a.level === 'medium').length;
 
-  const interventions = db.prepare('SELECT COUNT(*) AS n FROM counseling').get().n;
-  const resolved = db.prepare("SELECT COUNT(*) AS n FROM counseling WHERE status = 'resolved'").get().n;
-  const messagesSent = db.prepare('SELECT COUNT(*) AS n FROM messages').get().n;
+  const interventions = db.prepare('SELECT COUNT(*) AS n FROM counseling c JOIN students s ON s.id = c.student_id WHERE 1=1' + sJoin.clause).get(...sJoin.params).n;
+  const resolved = db.prepare("SELECT COUNT(*) AS n FROM counseling c JOIN students s ON s.id = c.student_id WHERE c.status = 'resolved'" + sJoin.clause).get(...sJoin.params).n;
+  const messagesSent = db.prepare('SELECT COUNT(*) AS n FROM messages m JOIN students s ON s.id = m.student_id WHERE 1=1' + sJoin.clause).get(...sJoin.params).n;
 
   res.json({
     totalStudents, girls,
@@ -455,7 +481,9 @@ function sendCSV(res, filename, headers, rows) {
 /** At-risk learners report (CSV) — for District Education Office returns. */
 app.get('/api/reports/at-risk.csv', auth.authenticate,
   auth.requireRole('admin', 'counselor', 'district'), wrap((req, res) => {
-    const list = riskEngine.assessAll({ minLevel: req.query.minLevel || 'medium' });
+    const list = riskEngine.assessAll({
+      minLevel: req.query.minLevel || 'medium', schoolIds: scope.allowedSchoolIds(req.user)
+    });
     sendCSV(res, 'at-risk-learners.csv',
       ['Name', 'Grade', 'Sex', 'Village', 'Score', 'Level', 'AttendanceRate%', 'TopFactor', 'PrimaryAction'],
       list.map(a => [
@@ -471,6 +499,7 @@ app.get('/api/reports/attendance.csv', auth.authenticate,
     const days = Math.min(180, Number(req.query.days) || 30);
     const since = new Date(); since.setDate(since.getDate() - days);
     const sinceISO = since.toISOString().slice(0, 10);
+    const sc = scope.schoolClause(req.user, 's.school_id');
     const rows = db.prepare(`
       SELECT s.full_name, s.grade,
         SUM(a.status = 'present') AS present,
@@ -479,9 +508,9 @@ app.get('/api/reports/attendance.csv', auth.authenticate,
         COUNT(a.id)               AS total
       FROM students s LEFT JOIN attendance a
         ON a.student_id = s.id AND a.date >= ?
-      WHERE s.active = 1
+      WHERE s.active = 1${sc.clause}
       GROUP BY s.id ORDER BY s.grade, s.full_name
-    `).all(sinceISO);
+    `).all(sinceISO, ...sc.params);
     sendCSV(res, `attendance-${days}d.csv`,
       ['Name', 'Grade', 'Present', 'Absent', 'Late', 'Total', 'Rate%'],
       rows.map(r => [r.full_name, r.grade, r.present, r.absent, r.late, r.total,
@@ -497,15 +526,16 @@ app.get('/api/audit', auth.authenticate, auth.requireRole('admin'), wrap((req, r
 /** Daily attendance-rate trend for the dashboard chart. */
 app.get('/api/analytics/attendance-trend', auth.authenticate, wrap((req, res) => {
   const days = Math.min(60, Number(req.query.days) || 14);
+  const sc = scope.schoolClause(req.user, 's.school_id');
   const rows = db.prepare(`
-    SELECT date,
-      SUM(status = 'present') AS present,
-      SUM(status = 'late')    AS late,
-      COUNT(*)                AS total
-    FROM attendance
-    WHERE date >= date('now', ?)
-    GROUP BY date ORDER BY date
-  `).all(`-${days} days`);
+    SELECT a.date AS date,
+      SUM(a.status = 'present') AS present,
+      SUM(a.status = 'late')    AS late,
+      COUNT(*)                  AS total
+    FROM attendance a JOIN students s ON s.id = a.student_id
+    WHERE a.date >= date('now', ?)${sc.clause}
+    GROUP BY a.date ORDER BY a.date
+  `).all(`-${days} days`, ...sc.params);
   res.json(rows.map(r => ({
     date: r.date,
     rate: r.total ? Math.round((r.present + 0.5 * r.late) / r.total * 100) : null
@@ -515,7 +545,7 @@ app.get('/api/analytics/attendance-trend', auth.authenticate, wrap((req, res) =>
 /** Geo-located at-risk learners for GIS mapping (only those with coordinates). */
 app.get('/api/analytics/gis', auth.authenticate,
   auth.requireRole('admin', 'counselor', 'district'), wrap((req, res) => {
-    const list = riskEngine.assessAll({ minLevel: 'low' });
+    const list = riskEngine.assessAll({ minLevel: 'low', schoolIds: scope.allowedSchoolIds(req.user) });
     res.json(list
       .map(a => {
         const s = db.prepare('SELECT gps_lat, gps_lng FROM students WHERE id = ?').get(a.studentId);
@@ -530,21 +560,25 @@ app.get('/api/analytics/gis', auth.authenticate,
  */
 app.get('/api/analytics/academic', auth.authenticate,
   auth.requireRole('admin', 'teacher', 'counselor', 'district'), wrap((req, res) => {
-    const terms = db.prepare('SELECT DISTINCT term FROM performance ORDER BY term').all().map(r => r.term);
+    const sc = scope.schoolClause(req.user, 's.school_id');
+    const J = 'performance p JOIN students s ON s.id = p.student_id';
+    const terms = db.prepare(`SELECT DISTINCT p.term FROM ${J} WHERE 1=1${sc.clause} ORDER BY p.term`)
+      .all(...sc.params).map(r => r.term);
 
     const overall = db.prepare(`
-      SELECT term, ROUND(AVG(score), 1) AS avg,
-        ROUND(100.0 * SUM(score >= 50) / COUNT(*), 1) AS passRate,
+      SELECT p.term AS term, ROUND(AVG(p.score), 1) AS avg,
+        ROUND(100.0 * SUM(p.score >= 50) / COUNT(*), 1) AS passRate,
         COUNT(*) AS entries
-      FROM performance GROUP BY term ORDER BY term
-    `).all();
+      FROM ${J} WHERE 1=1${sc.clause} GROUP BY p.term ORDER BY p.term
+    `).all(...sc.params);
 
-    const subjects = db.prepare('SELECT DISTINCT subject FROM performance ORDER BY subject').all().map(r => r.subject);
+    const subjects = db.prepare(`SELECT DISTINCT p.subject FROM ${J} WHERE 1=1${sc.clause} ORDER BY p.subject`)
+      .all(...sc.params).map(r => r.subject);
     const bySubject = subjects.map(subject => ({
       subject,
       byTerm: terms.map(term => {
-        const row = db.prepare('SELECT ROUND(AVG(score),1) AS avg FROM performance WHERE subject = ? AND term = ?')
-          .get(subject, term);
+        const row = db.prepare(`SELECT ROUND(AVG(p.score),1) AS avg FROM ${J} WHERE p.subject = ? AND p.term = ?${sc.clause}`)
+          .get(subject, term, ...sc.params);
         return { term, avg: row.avg };
       })
     }));
@@ -552,16 +586,15 @@ app.get('/api/analytics/academic', auth.authenticate,
     const latest = terms[terms.length - 1];
     const perStudentLatest = latest ? db.prepare(`
       SELECT s.id, s.full_name, s.grade, ROUND(AVG(p.score),1) AS avg
-      FROM performance p JOIN students s ON s.id = p.student_id
-      WHERE p.term = ? GROUP BY s.id ORDER BY avg DESC
-    `).all(latest) : [];
+      FROM ${J} WHERE p.term = ?${sc.clause} GROUP BY s.id ORDER BY avg DESC
+    `).all(latest, ...sc.params) : [];
 
     // Steepest term-over-term decline (last two terms).
     let decliners = [];
     if (terms.length >= 2) {
       const prev = terms[terms.length - 2];
-      const a = db.prepare('SELECT student_id, AVG(score) AS avg FROM performance WHERE term = ? GROUP BY student_id').all(prev);
-      const b = db.prepare('SELECT student_id, AVG(score) AS avg FROM performance WHERE term = ? GROUP BY student_id').all(latest);
+      const a = db.prepare(`SELECT p.student_id AS student_id, AVG(p.score) AS avg FROM ${J} WHERE p.term = ?${sc.clause} GROUP BY p.student_id`).all(prev, ...sc.params);
+      const b = db.prepare(`SELECT p.student_id AS student_id, AVG(p.score) AS avg FROM ${J} WHERE p.term = ?${sc.clause} GROUP BY p.student_id`).all(latest, ...sc.params);
       const prevMap = Object.fromEntries(a.map(r => [r.student_id, r.avg]));
       decliners = b.map(r => {
         const drop = (prevMap[r.student_id] ?? r.avg) - r.avg;
@@ -577,6 +610,65 @@ app.get('/api/analytics/academic', auth.authenticate,
       decliners,
       latestTerm: latest
     });
+  }));
+
+/* --------------------------------------------------- SCHOOLS & DISTRICT -- */
+
+/** List schools within the caller's scope. */
+app.get('/api/schools', auth.authenticate, wrap((req, res) => {
+  if (req.user.role === 'admin') {
+    return res.json(db.prepare('SELECT * FROM schools ORDER BY district, name').all());
+  }
+  if (req.user.role === 'district' && req.user.district) {
+    return res.json(db.prepare('SELECT * FROM schools WHERE district = ? ORDER BY name').all(req.user.district));
+  }
+  if (req.user.school_id) {
+    return res.json(db.prepare('SELECT * FROM schools WHERE id = ?').all(req.user.school_id));
+  }
+  res.json([]);
+}));
+
+/** Register a new school (admin). */
+app.post('/api/schools', auth.authenticate, auth.requireRole('admin'), wrap((req, res) => {
+  const { name, district, province, package: pkg } = req.body || {};
+  if (!name || !district) return res.status(400).json({ error: 'name and district are required' });
+  const info = db.prepare('INSERT INTO schools (name, district, province, package) VALUES (?, ?, ?, COALESCE(?, ?))')
+    .run(name, district, province || null, pkg || null, 'bronze');
+  security.audit(req, 'school.create', `school:${info.lastInsertRowid}`, `${name} (${district})`);
+  res.status(201).json(db.prepare('SELECT * FROM schools WHERE id = ?').get(info.lastInsertRowid));
+}));
+
+/**
+ * Per-school breakdown for the District Education Officer / national dashboard.
+ * Scoped: admin sees all schools, a district officer sees only their district.
+ */
+app.get('/api/analytics/by-school', auth.authenticate,
+  auth.requireRole('admin', 'district'), wrap((req, res) => {
+    const allowed = scope.allowedSchoolIds(req.user); // null for admin
+    let schools = allowed === null
+      ? db.prepare('SELECT * FROM schools ORDER BY district, name').all()
+      : (allowed.length
+          ? db.prepare(`SELECT * FROM schools WHERE id IN (${allowed.map(() => '?').join(',')}) ORDER BY name`).all(...allowed)
+          : []);
+    const today = new Date().toISOString().slice(0, 10);
+    const rows = schools.map(school => {
+      const students = db.prepare('SELECT COUNT(*) AS n FROM students WHERE active = 1 AND school_id = ?').get(school.id).n;
+      const girls = db.prepare("SELECT COUNT(*) AS n FROM students WHERE active = 1 AND gender = 'F' AND school_id = ?").get(school.id).n;
+      const atRisk = riskEngine.assessAll({ minLevel: 'medium', schoolIds: [school.id] });
+      const high = atRisk.filter(a => a.level === 'high').length;
+      const medium = atRisk.filter(a => a.level === 'medium').length;
+      const att = db.prepare(`
+        SELECT SUM(a.status='present') AS present, SUM(a.status='late') AS late, COUNT(*) AS total
+        FROM attendance a JOIN students s ON s.id = a.student_id
+        WHERE a.date = ? AND s.school_id = ?
+      `).get(today, school.id);
+      return {
+        id: school.id, name: school.name, district: school.district, package: school.package,
+        students, girls, high, medium,
+        attendanceToday: att.total ? Math.round((att.present + 0.5 * att.late) / att.total * 100) : null
+      };
+    });
+    res.json(rows);
   }));
 
 /* ----------------------------------------------------------------- MISC -- */
