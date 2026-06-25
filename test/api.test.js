@@ -30,7 +30,7 @@ test('RBAC: teacher cannot create users, admin can', async () => {
 
   const admin = await h.login('admin');
   const allowed = await h.req('POST', '/api/users', {
-    token: admin, body: { full_name: 'New Teacher', username: 'newteacher', password: 'pass123', role: 'teacher' }
+    token: admin, body: { full_name: 'New Teacher', username: 'newteacher', password: 'Passw0rd', role: 'teacher' }
   });
   assert.equal(allowed.status, 201);
 });

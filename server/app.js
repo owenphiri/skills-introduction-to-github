@@ -14,10 +14,18 @@ const auth = require('./auth');
 const messaging = require('./messaging');
 const riskEngine = require('./riskEngine');
 const templates = require('./templates');
+const security = require('./security');
 
 const app = express();
+app.set('trust proxy', true); // correct req.ip behind a load balancer / reverse proxy
+app.use(security.securityHeaders);
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, '..', 'public')));
+
+// Throttle authentication attempts per IP to blunt credential-stuffing.
+const loginLimiter = security.rateLimit({ windowMs: 15 * 60_000, max: 20 });
+// General API ceiling per IP.
+app.use('/api', security.rateLimit({ windowMs: 60_000, max: 300 }));
 
 // Small async wrapper so route handlers can throw / await safely.
 const wrap = fn => (req, res) =>
@@ -28,13 +36,16 @@ const wrap = fn => (req, res) =>
 
 /* ------------------------------------------------------------------ AUTH -- */
 
-app.post('/api/auth/login', wrap((req, res) => {
+app.post('/api/auth/login', loginLimiter, wrap((req, res) => {
   const { username, password } = req.body || {};
   const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
   if (!user || !auth.verifyPassword(password, user.password_hash)) {
+    security.audit(req, 'login.failed', username ? `user:${username}` : null);
     return res.status(401).json({ error: 'Invalid username or password' });
   }
   const token = auth.createSession(user.id);
+  req.user = user;
+  security.audit(req, 'login.success', `user:${user.id}`);
   res.json({
     token,
     user: { id: user.id, full_name: user.full_name, role: user.role, username: user.username }
@@ -55,10 +66,13 @@ app.post('/api/users', auth.authenticate, auth.requireRole('admin'), wrap((req, 
   if (!full_name || !username || !password || !role) {
     return res.status(400).json({ error: 'full_name, username, password and role are required' });
   }
+  const pwProblem = security.passwordProblem(password);
+  if (pwProblem) return res.status(400).json({ error: pwProblem });
   try {
     const info = db.prepare(
       'INSERT INTO users (full_name, username, password_hash, role, phone) VALUES (?, ?, ?, ?, ?)'
     ).run(full_name, username, auth.hashPassword(password), role, phone || null);
+    security.audit(req, 'user.create', `user:${info.lastInsertRowid}`, `role=${role}`);
     res.status(201).json({ id: info.lastInsertRowid });
   } catch (e) {
     res.status(400).json({ error: 'Username already exists' });
@@ -84,6 +98,7 @@ app.post('/api/students', auth.authenticate, auth.requireRole('admin', 'teacher'
   const info = db.prepare(
     `INSERT INTO students (${cols.join(',')}) VALUES (${cols.map(() => '?').join(',')})`
   ).run(...cols.map(c => b[c]));
+  security.audit(req, 'student.create', `student:${info.lastInsertRowid}`);
   res.status(201).json(db.prepare('SELECT * FROM students WHERE id = ?').get(info.lastInsertRowid));
 }));
 
@@ -255,6 +270,7 @@ app.post('/api/messages/broadcast', auth.authenticate,
       await messaging.send({ studentId: r.id, phone: r.parent_phone, category, body, language, channel });
       sent++;
     }
+    security.audit(req, 'message.broadcast', grade ? `grade:${grade}` : 'all', `sent=${sent} lang=${language}`);
     res.json({ sent, recipients: recipients.length });
   }));
 
@@ -310,6 +326,12 @@ app.get('/api/analytics/summary', auth.authenticate, wrap((req, res) => {
     interventions, resolvedInterventions: resolved,
     messagesSent
   });
+}));
+
+/* ----------------------------------------------------------------- AUDIT -- */
+
+app.get('/api/audit', auth.authenticate, auth.requireRole('admin'), wrap((req, res) => {
+  res.json(db.prepare('SELECT * FROM audit_log ORDER BY id DESC LIMIT 200').all());
 }));
 
 /* ----------------------------------------------------------------- MISC -- */

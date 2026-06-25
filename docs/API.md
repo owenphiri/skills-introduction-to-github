@@ -63,10 +63,21 @@ Base URL: `/api`. All endpoints except `/auth/login` and `/health` require a
 | GET | `/risk?minLevel=medium` | any | All at-risk learners, sorted |
 | GET | `/analytics/summary` | any | Dashboard headline metrics |
 
+## Audit
+| Method | Path | Roles | Description |
+|---|---|---|---|
+| GET | `/audit` | admin | Last 200 audited actions (logins, user/student creation, broadcasts) |
+
 ## Health
 | Method | Path | Roles | Description |
 |---|---|---|---|
 | GET | `/health` | public | Liveness probe |
+
+## Security notes
+- All responses carry hardening headers (CSP, `X-Frame-Options: DENY`, `nosniff`).
+- Login is rate-limited (20 attempts / 15 min / IP); the API is capped at 300 req/min/IP.
+- Passwords require ≥ 8 chars with letters and numbers.
+- Sensitive actions are written to the `audit_log` table.
 
 ### Example
 ```bash

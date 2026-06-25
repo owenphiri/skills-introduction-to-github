@@ -46,4 +46,6 @@ async function login(username, password = 'password') {
   return data.token;
 }
 
-module.exports = { start, stop, req, login };
+function url(path = '') { return base + path; }
+
+module.exports = { start, stop, req, login, url };

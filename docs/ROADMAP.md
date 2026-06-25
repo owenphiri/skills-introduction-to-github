@@ -16,9 +16,14 @@ children at risk.
 - [ ] Independent **security penetration test** before go-live.
 
 ## 2. Security hardening
+- [x] HTTP security headers (CSP, X-Frame-Options, nosniff, Referrer-Policy).
+- [x] Rate limiting on login + global API ceiling (in-memory; move to Redis for multi-instance).
+- [x] Password-strength policy.
+- [x] Audit logging of sensitive actions.
+- [x] Containerised deployment (Dockerfile + data volume).
 - [ ] Encryption at rest (DB volume) and in transit (TLS everywhere).
 - [ ] Move from opaque bearer tokens to short-lived tokens + refresh + device binding.
-- [ ] Rate limiting, brute-force lockout, password policy, optional 2FA for staff.
+- [ ] Brute-force account lockout, optional 2FA for staff.
 - [ ] Secrets management (no credentials in env files in production).
 - [ ] Backups + disaster recovery runbook.
 

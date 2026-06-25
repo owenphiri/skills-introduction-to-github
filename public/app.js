@@ -45,7 +45,7 @@ function logout() {
 
 /* -------------------------------------------------------------- NAV ------ */
 const ROLE_NAV = {
-  admin:     ['dashboard', 'students', 'risk', 'attendance', 'counseling', 'awareness', 'messages'],
+  admin:     ['dashboard', 'students', 'risk', 'attendance', 'counseling', 'awareness', 'messages', 'audit'],
   teacher:   ['dashboard', 'students', 'attendance', 'risk', 'counseling'],
   counselor: ['dashboard', 'risk', 'counseling', 'students', 'awareness'],
   district:  ['dashboard', 'risk', 'awareness', 'messages'],
@@ -260,6 +260,19 @@ VIEWS.messages = async function () {
     flash(`Broadcast queued to ${r.sent} guardians.`);
     VIEWS.messages();
   });
+};
+
+VIEWS.audit = async function () {
+  const list = await api('/audit');
+  setView(`
+    <h2>Audit Trail</h2>
+    <p class="sub">Tamper-evident log of sensitive actions — safeguarding &amp; Data Protection Act compliance.</p>
+    ${renderTable(['Time', 'User', 'Action', 'Entity', 'IP', 'Detail'], list.map(e => [
+      e.created_at, esc(e.username || '—'),
+      `<span class="badge ${e.action.includes('failed') ? 'high' : 'gray'}">${esc(e.action)}</span>`,
+      esc(e.entity || '—'), esc(e.ip || '—'), esc(e.detail || '')
+    ]))}
+  `);
 };
 
 /* ----------------------------------------------------------- FORMS ------ */

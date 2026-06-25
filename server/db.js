@@ -143,6 +143,20 @@ function migrate() {
       user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       expires_at INTEGER NOT NULL
     );
+
+    -- Tamper-evident audit trail. Access to minors' welfare data must be
+    -- traceable (safeguarding + Data Protection Act requirement).
+    CREATE TABLE IF NOT EXISTS audit_log (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id    INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      username   TEXT,
+      action     TEXT NOT NULL,        -- e.g. login, student.create, attendance.mark
+      entity     TEXT,                 -- e.g. student:42
+      ip         TEXT,
+      detail     TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log(created_at);
   `);
 }
 
