@@ -96,6 +96,29 @@ curl http://localhost:8000/api/markets/status
 `active_primary` and the live `probe` tell you exactly which feed is serving prices.
 The startup log prints the same summary on boot.
 
+## Live forex streaming (OANDA)
+
+When OANDA is configured (`OANDA_API_TOKEN` + `OANDA_ACCOUNT_ID`, and
+`MARKET_DATA_PROVIDER` ≠ `synthetic`), a background consumer connects to OANDA's
+v20 streaming pricing endpoint and maintains a real-time **bid/ask** cache for all
+catalog forex & metals symbols. It starts automatically on boot and auto-reconnects.
+
+`market_service` reads this cache **first** for forex/metals, so the markets board,
+ticker and the client WebSocket (`/api/markets/stream`) all serve real-time OANDA
+prices (source `oanda-stream`, with the broker's true spread). Other classes use the
+vendor chain. Prices older than 10s (e.g. weekend close) are treated as stale and the
+feed falls through to the next provider.
+
+Check it live:
+```bash
+curl http://localhost:8000/api/markets/status
+# -> "oanda_stream": { "configured": true, "connected": true,
+#                      "instruments": 16, "live_symbols_cached": 16 }
+```
+The Markets page shows a green **● OANDA LIVE** badge on the selected instrument when
+prices are streaming (vs `○ SIM` on the built-in feed). Uses the practice host unless
+`OANDA_ENVIRONMENT=live`.
+
 The system **never silently trades live money**: Alpaca defaults to the paper
 endpoint, and the UI shows a red `● LIVE BROKER` badge only when pointed at the live
 host. Placing/closing orders requires a paid plan (Trader/Elite); free users can view

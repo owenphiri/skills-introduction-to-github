@@ -41,7 +41,7 @@ voltexai/
 | Area | What it does |
 |---|---|
 | 🧠 **AI Terminal** | Claude streaming chat with 4 modes (Terminal/Analysis/Signals/Academy), vision chart analysis, conversation history, plan-aware quotas |
-| 📈 **Live Markets** | 35 instruments across FX, metals, energy, indices, crypto, US equities — REST + **WebSocket** stream, candlesticks, movers. **Real feed via Twelve Data / Finnhub / Binance** with a high-fidelity simulated fallback (zero-config) |
+| 📈 **Live Markets** | 35 instruments across FX, metals, energy, indices, crypto, US equities — REST + **WebSocket** stream, candlesticks, movers. **Real feed via Twelve Data / Finnhub / Binance, plus real-time OANDA bid/ask streaming for forex & metals**, with a high-fidelity simulated fallback (zero-config) |
 | ⚡ **Signal Scanner** | Deterministic quant engine (EMA/RSI/MACD/Bollinger/ATR + market structure) → ranked, risk-bracketed signals. No AI quota burned |
 | 💹 **Trade Execution** | One-click trading from signals. Safe built-in **paper broker** (long/short, limit orders, P&L) by default, or **real execution via Alpaca** (paper/live). See [docs/TRADING.md](docs/TRADING.md) |
 | 🏦 **Prop Firms** | Compare FTMO, FundedNext, FundingPips, The5ers, HolaPrime & more — splits, rules, payouts |

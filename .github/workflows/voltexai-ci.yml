@@ -37,7 +37,8 @@ jobs:
           assert c.get('/api/directory/brokers').json()['count'] > 0
           assert c.get('/api/fund/summary').status_code == 200
           assert c.get('/api/markets/candles/AAPL?timeframe=M15&count=20').json()['count'] == 20
-          assert 'active_primary' in c.get('/api/markets/status').json()
+          st = c.get('/api/markets/status').json()
+          assert 'active_primary' in st and 'oanda_stream' in st
           assert c.get('/api/trade/account').status_code == 401  # auth required
           from backend.services.execution_service import OandaBroker, RoutingBroker
           assert OandaBroker()._inst('EURUSD') == 'EUR_USD'

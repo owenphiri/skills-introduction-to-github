@@ -15,6 +15,19 @@ const CLASSES = [
 ];
 const TFS = ["M5", "M15", "M30", "H1", "H4", "D1"];
 
+const SOURCE_LABELS = {
+  "oanda-stream": "OANDA LIVE", twelvedata: "LIVE", finnhub: "LIVE",
+  binance: "LIVE", synthetic: "SIM",
+};
+function SourceBadge({ source }) {
+  const live = source && source !== "synthetic";
+  return (
+    <span className={`vx-source ${live ? "live" : "sim"}`} title={`Data source: ${source}`}>
+      {live ? "● " : "○ "}{SOURCE_LABELS[source] || source}
+    </span>
+  );
+}
+
 export default function Markets() {
   const [assetClass, setAssetClass] = useState("all");
   const [quotes, setQuotes] = useState([]);
@@ -70,6 +83,7 @@ export default function Markets() {
                   {sel.change_pct >= 0 ? "+" : ""}{sel.change} ({sel.change_pct}%)
                 </span>
               )}
+              {sel && <SourceBadge source={sel.source} />}
             </div>
             <div className="vx-tf-toggle">
               {TFS.map((tf) => (

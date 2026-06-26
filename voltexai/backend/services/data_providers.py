@@ -62,6 +62,25 @@ def has_provider() -> bool:
     return bool(settings.TWELVEDATA_API_KEY or settings.FINNHUB_API_KEY)
 
 
+# ---- OANDA instrument mapping (forex + metals price streaming) ----
+def to_oanda_instrument(symbol: str) -> str | None:
+    """Internal forex/metals symbol -> OANDA instrument (EURUSD -> EUR_USD)."""
+    inst = get_instrument(symbol)
+    if not inst or inst["asset_class"] not in ("forex", "metals") or len(symbol) != 6:
+        return None
+    return f"{symbol[:3]}_{symbol[3:]}"
+
+
+def from_oanda_instrument(instrument: str) -> str:
+    return instrument.replace("_", "")
+
+
+def oanda_streamable_symbols() -> list[str]:
+    """All catalog forex + metals symbols that OANDA can stream."""
+    from ..data.instruments import ALL_SYMBOLS
+    return [s for s in ALL_SYMBOLS if to_oanda_instrument(s)]
+
+
 def provider_status() -> dict:
     """Config snapshot for the /status endpoint — never echoes the actual keys."""
     if settings.MARKET_DATA_PROVIDER == "synthetic":

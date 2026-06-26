@@ -27,8 +27,10 @@ router = APIRouter(prefix="/api/markets", tags=["markets"])
 async def status(probe_symbol: str = Query("EURUSD")):
     """Reports the configured data provider and runs a live connectivity probe.
     Use this to verify a TWELVEDATA_API_KEY / FINNHUB_API_KEY is wired correctly."""
+    from ..services.oanda_stream import oanda_stream
     s = data_providers.provider_status()
     s["probe"] = await data_providers.probe(probe_symbol.upper())
+    s["oanda_stream"] = oanda_stream.status()
     return s
 
 

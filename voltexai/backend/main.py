@@ -32,7 +32,11 @@ async def lifespan(_: FastAPI):
                 ps["configured"], ps["active_primary"],
                 ps["twelvedata_key_present"], ps["finnhub_key_present"])
     logger.info("Trade broker: %s", settings.BROKER)
+    from .services.oanda_stream import oanda_stream
+    if oanda_stream.configured() and settings.MARKET_DATA_PROVIDER != "synthetic":
+        await oanda_stream.start()
     yield
+    await oanda_stream.stop()
     logger.info("Shutting down")
 
 

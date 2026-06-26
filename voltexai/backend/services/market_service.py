@@ -28,6 +28,7 @@ import httpx
 from ..config import settings
 from ..data.instruments import INSTRUMENTS, get_instrument
 from . import data_providers
+from .oanda_stream import oanda_stream
 
 # timeframe -> seconds per candle
 TIMEFRAMES = {
@@ -171,6 +172,21 @@ async def _fetch_quote(symbol: str, inst: dict) -> "Quote":
     """Provider chain: real vendor -> Binance (crypto) -> synthetic fallback."""
     t = time.time()
     provider = settings.MARKET_DATA_PROVIDER
+
+    # 0) real-time OANDA stream (forex & metals): freshest bid/ask available
+    if provider != "synthetic":
+        streamed = oanda_stream.get(symbol)
+        if streamed:
+            mid = streamed["mid"]
+            ratio = mid / _synthetic_price(symbol, t)
+            prev = _synthetic_price(symbol, t - 86400) * ratio
+            samples = [_synthetic_price(symbol, t - i * 3600) * ratio for i in range(24)]
+            q = _make_quote(symbol, inst, mid, prev,
+                            max(samples), min(samples), "oanda-stream")
+            # use the broker's real bid/ask rather than a synthetic spread
+            q.bid, q.ask = streamed["bid"], streamed["ask"]
+            q.spread = round(streamed["ask"] - streamed["bid"], 8)
+            return q
 
     # 1) real vendor (Twelve Data covers FX/metals/crypto/indices/stocks; Finnhub stocks)
     if provider != "synthetic":
