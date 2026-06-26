@@ -62,6 +62,42 @@ def has_provider() -> bool:
     return bool(settings.TWELVEDATA_API_KEY or settings.FINNHUB_API_KEY)
 
 
+def provider_status() -> dict:
+    """Config snapshot for the /status endpoint — never echoes the actual keys."""
+    if settings.MARKET_DATA_PROVIDER == "synthetic":
+        active = "synthetic"
+    elif settings.TWELVEDATA_API_KEY:
+        active = "twelvedata"
+    elif settings.FINNHUB_API_KEY:
+        active = "finnhub"
+    else:
+        active = "binance+synthetic"
+    return {
+        "configured": settings.MARKET_DATA_PROVIDER,
+        "active_primary": active,
+        "twelvedata_key_present": bool(settings.TWELVEDATA_API_KEY),
+        "finnhub_key_present": bool(settings.FINNHUB_API_KEY),
+        "cache_ttl_s": settings.MARKET_CACHE_TTL,
+    }
+
+
+async def probe(symbol: str = "EURUSD") -> dict:
+    """Live connectivity check against the configured vendor for the /status endpoint."""
+    import time as _t
+    t0 = _t.perf_counter()
+    real = await twelvedata_quote(symbol)
+    if real is None and get_instrument(symbol) and \
+            get_instrument(symbol)["asset_class"] == "stocks":
+        real = await finnhub_quote(symbol)
+    latency_ms = round((_t.perf_counter() - t0) * 1000, 1)
+    if real:
+        return {"ok": True, "symbol": symbol, "source": real["source"],
+                "price": real["price"], "latency_ms": latency_ms}
+    return {"ok": False, "symbol": symbol, "source": "synthetic-fallback",
+            "latency_ms": latency_ms,
+            "reason": "no vendor key set or vendor unreachable — using built-in feed"}
+
+
 async def twelvedata_quote(symbol: str) -> dict | None:
     key = settings.TWELVEDATA_API_KEY
     sym = td_symbol(symbol)

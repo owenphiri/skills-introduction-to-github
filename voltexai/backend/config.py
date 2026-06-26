@@ -50,6 +50,11 @@ class Settings(BaseSettings):
     # paper endpoint by default — never silently defaults to live money
     ALPACA_BASE_URL: str = os.getenv("ALPACA_BASE_URL", "https://paper-api.alpaca.markets")
 
+    # OANDA (real forex + metals execution). Practice (demo) by default.
+    OANDA_API_TOKEN: str = os.getenv("OANDA_API_TOKEN", "")
+    OANDA_ACCOUNT_ID: str = os.getenv("OANDA_ACCOUNT_ID", "")
+    OANDA_ENVIRONMENT: str = os.getenv("OANDA_ENVIRONMENT", "practice")  # practice | live
+
     # Stripe (international cards / USD)
     STRIPE_SECRET_KEY: str = os.getenv("STRIPE_SECRET_KEY", "")
     STRIPE_PUBLISHABLE_KEY: str = os.getenv("STRIPE_PUBLISHABLE_KEY", "")

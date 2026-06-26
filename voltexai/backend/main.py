@@ -26,6 +26,12 @@ async def lifespan(_: FastAPI):
                 settings.ENVIRONMENT)
     init_db()
     logger.info("Database ready")
+    from .services import data_providers
+    ps = data_providers.provider_status()
+    logger.info("Market data: configured=%s active=%s (twelvedata_key=%s finnhub_key=%s)",
+                ps["configured"], ps["active_primary"],
+                ps["twelvedata_key_present"], ps["finnhub_key_present"])
+    logger.info("Trade broker: %s", settings.BROKER)
     yield
     logger.info("Shutting down")
 

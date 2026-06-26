@@ -371,15 +371,181 @@ class AlpacaBroker:
         }
 
 
+# ============================================================
+#  OANDA broker (real forex + metals execution; practice by default)
+# ============================================================
+class OandaBroker:
+    name = "oanda"
+
+    # internal symbol -> OANDA v20 instrument
+    _MAP = {
+        "US30": "US30_USD", "NAS100": "NAS100_USD", "SPX500": "SPX500_USD",
+        "GER40": "DE30_EUR", "UK100": "UK100_GBP", "JP225": "JP225_USD",
+        "WTIUSD": "WTICO_USD", "XBRUSD": "BCO_USD",
+    }
+
+    def __init__(self):
+        host = ("api-fxtrade.oanda.com" if settings.OANDA_ENVIRONMENT == "live"
+                else "api-fxpractice.oanda.com")
+        self.base = f"https://{host}"
+        self.account = settings.OANDA_ACCOUNT_ID
+        self.headers = {"Authorization": f"Bearer {settings.OANDA_API_TOKEN}",
+                        "Content-Type": "application/json"}
+        self.is_live = settings.OANDA_ENVIRONMENT == "live"
+
+    def _inst(self, symbol: str) -> str:
+        symbol = symbol.upper()
+        inst = get_instrument(symbol)
+        if not inst:
+            raise HTTPException(400, f"Unknown instrument: {symbol}")
+        if inst["asset_class"] in ("forex", "metals") and len(symbol) == 6:
+            return f"{symbol[:3]}_{symbol[3:]}"
+        if symbol in self._MAP:
+            return self._MAP[symbol]
+        raise HTTPException(400,
+            f"{symbol} is not tradable via OANDA (forex, metals, major indices & energy)")
+
+    @staticmethod
+    def _to_symbol(instrument: str) -> str:
+        rev = {v: k for k, v in OandaBroker._MAP.items()}
+        if instrument in rev:
+            return rev[instrument]
+        return instrument.replace("_", "")
+
+    async def _req(self, method: str, path: str, **kw):
+        if not self.account:
+            raise HTTPException(500, "OANDA_ACCOUNT_ID not configured")
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            r = await client.request(method, f"{self.base}{path}",
+                                     headers=self.headers, **kw)
+            if r.status_code >= 400:
+                raise HTTPException(r.status_code, f"OANDA: {r.text[:200]}")
+            return r.json() if r.text else {}
+
+    async def get_account(self, db: Session, user: User) -> dict:
+        d = (await self._req("GET", f"/v3/accounts/{self.account}/summary"))["account"]
+        balance = float(d.get("balance") or 0)
+        nav = float(d.get("NAV") or balance)
+        upl = float(d.get("unrealizedPL") or 0)
+        realized = float(d.get("pl") or 0)              # lifetime realized
+        starting = balance - realized or balance
+        return {
+            "broker": "oanda", "currency": d.get("currency", "USD"),
+            "cash": round(balance, 2), "equity": round(nav, 2),
+            "market_value": round(nav - balance, 2),
+            "starting_balance": round(starting, 2),
+            "realized_pnl": round(realized, 2),
+            "unrealized_pnl": round(upl, 2),
+            "total_return_pct": round((nav - starting) / starting * 100 if starting else 0, 2),
+            "open_positions": int(d.get("openPositionCount") or 0),
+            "buying_power": round(float(d.get("marginAvailable") or 0), 2),
+            "is_live": self.is_live,
+        }
+
+    async def get_positions(self, db: Session, user: User) -> list[dict]:
+        rows = (await self._req("GET",
+                f"/v3/accounts/{self.account}/openPositions")).get("positions", [])
+        out = []
+        for p in rows:
+            long_u = float(p.get("long", {}).get("units") or 0)
+            short_u = float(p.get("short", {}).get("units") or 0)
+            net = long_u + short_u
+            if abs(net) < 1e-9:
+                continue
+            leg = p["long"] if net > 0 else p["short"]
+            avg = float(leg.get("averagePrice") or 0)
+            upl = float(p.get("unrealizedPL") or 0)
+            cost = abs(net) * avg
+            sym = self._to_symbol(p["instrument"])
+            inst = get_instrument(sym)
+            out.append({
+                "symbol": sym, "display": inst["display"] if inst else sym,
+                "side": "long" if net > 0 else "short",
+                "qty": net, "avg_price": round(avg, 6),
+                "current_price": round(avg + (upl / net if net else 0), 6),
+                "market_value": round(cost, 2),
+                "unrealized_pnl": round(upl, 2),
+                "unrealized_pct": round((upl / cost * 100) if cost else 0, 2),
+            })
+        return out
+
+    async def place_order(self, db: Session, user: User, symbol: str, side: str,
+                          qty: float, order_type: str = "market",
+                          limit_price: float | None = None,
+                          note: str | None = None) -> dict:
+        units = qty if side.lower() == "buy" else -qty
+        order = {"instrument": self._inst(symbol), "units": str(units)}
+        if order_type.lower() == "limit":
+            order.update(type="LIMIT", price=str(limit_price), timeInForce="GTC")
+        else:
+            order.update(type="MARKET", timeInForce="FOK", positionFill="DEFAULT")
+        resp = await self._req("POST", f"/v3/accounts/{self.account}/orders",
+                               json={"order": order})
+        return self._order_dict(resp, symbol)
+
+    async def list_orders(self, db: Session, user: User, limit: int = 50) -> list[dict]:
+        rows = (await self._req("GET",
+                f"/v3/accounts/{self.account}/orders",
+                params={"state": "ALL", "count": limit})).get("orders", [])
+        out = []
+        for o in rows:
+            out.append({
+                "id": o.get("id"),
+                "symbol": self._to_symbol(o.get("instrument", "")),
+                "side": "buy" if float(o.get("units") or 0) >= 0 else "sell",
+                "type": (o.get("type") or "").lower(),
+                "qty": abs(float(o.get("units") or 0)),
+                "limit_price": float(o["price"]) if o.get("price") else None,
+                "status": (o.get("state") or "").lower(),
+                "filled_price": None, "realized_pnl": 0.0, "note": None,
+                "created_at": o.get("createTime"), "filled_at": None,
+            })
+        return out
+
+    async def cancel_order(self, db: Session, user: User, order_id) -> dict:
+        await self._req("PUT", f"/v3/accounts/{self.account}/orders/{order_id}/cancel")
+        return {"id": order_id, "status": "cancelled"}
+
+    @staticmethod
+    def _order_dict(resp: dict, symbol: str) -> dict:
+        fill = resp.get("orderFillTransaction")
+        create = resp.get("orderCreateTransaction") or {}
+        if fill:
+            return {
+                "id": fill.get("orderID") or fill.get("id"), "symbol": symbol,
+                "side": "buy" if float(fill.get("units") or 0) >= 0 else "sell",
+                "type": "market", "qty": abs(float(fill.get("units") or 0)),
+                "limit_price": None, "status": "filled",
+                "filled_price": float(fill["price"]) if fill.get("price") else None,
+                "realized_pnl": float(fill.get("pl") or 0), "note": None,
+                "created_at": fill.get("time"), "filled_at": fill.get("time"),
+            }
+        return {
+            "id": create.get("id"), "symbol": symbol,
+            "side": "buy" if float(create.get("units") or 0) >= 0 else "sell",
+            "type": (create.get("type") or "limit").lower(),
+            "qty": abs(float(create.get("units") or 0)),
+            "limit_price": float(create["price"]) if create.get("price") else None,
+            "status": "pending", "filled_price": None, "realized_pnl": 0.0,
+            "note": None, "created_at": create.get("time"), "filled_at": None,
+        }
+
+
 _paper = PaperBroker()
 _alpaca: AlpacaBroker | None = None
+_oanda: OandaBroker | None = None
 
 
 def get_broker():
-    """Active broker. Falls back to the safe paper broker if Alpaca isn't configured."""
-    global _alpaca
+    """Active broker. Falls back to the safe paper broker if the chosen live
+    broker isn't fully configured."""
+    global _alpaca, _oanda
     if settings.BROKER == "alpaca" and settings.ALPACA_API_KEY and settings.ALPACA_API_SECRET:
         if _alpaca is None:
             _alpaca = AlpacaBroker()
         return _alpaca
+    if settings.BROKER == "oanda" and settings.OANDA_API_TOKEN and settings.OANDA_ACCOUNT_ID:
+        if _oanda is None:
+            _oanda = OandaBroker()
+        return _oanda
     return _paper

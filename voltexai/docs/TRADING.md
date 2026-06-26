@@ -32,22 +32,47 @@ key is present (`GET /api/markets/candles/{symbol}`).
 
 Two interchangeable brokers behind one API (`/api/trade/*`):
 
-| Broker | What it is | Money | Default |
-|---|---|---|---|
-| `paper` | Built-in simulated broker (DB-backed). Fills market orders at the live/model quote; supports **long & short**, limit orders, P&L. | None — simulated | ✅ |
-| `alpaca` | Real [Alpaca](https://alpaca.markets) REST (US stocks + crypto). | Paper or live | opt-in |
+| Broker | What it is | Markets | Money | Default |
+|---|---|---|---|---|
+| `paper` | Built-in simulated broker (DB-backed). Long & short, limit orders, P&L. | All | None — simulated | ✅ |
+| `alpaca` | Real [Alpaca](https://alpaca.markets) REST. | US stocks + crypto | Paper or live | opt-in |
+| `oanda` | Real [OANDA v20](https://www.oanda.com) REST. | Forex + metals + major indices/energy | Practice or live | opt-in |
 
 ```bash
 # .env — safe default
 BROKER=paper
 PAPER_STARTING_BALANCE=100000
 
-# go real (Alpaca) — defaults to the PAPER endpoint
+# go real (Alpaca, stocks + crypto) — defaults to the PAPER endpoint
 BROKER=alpaca
 ALPACA_API_KEY=...
 ALPACA_API_SECRET=...
 ALPACA_BASE_URL=https://paper-api.alpaca.markets   # live: https://api.alpaca.markets
+
+# go real (OANDA, forex + metals) — defaults to the PRACTICE (demo) account
+BROKER=oanda
+OANDA_API_TOKEN=...
+OANDA_ACCOUNT_ID=101-001-xxxxxxx-001
+OANDA_ENVIRONMENT=practice                         # live: trades real money
 ```
+
+> One `BROKER` is active at a time. With `oanda`, forex/metals/indices route to
+> OANDA and unsupported symbols (e.g. US single stocks) are rejected with a clear
+> message; use `alpaca` for those. A multi-venue router (forex→OANDA, stocks→Alpaca
+> simultaneously) is a straightforward extension of `get_broker()`.
+
+## Verifying the data-vendor key path
+
+After setting `TWELVEDATA_API_KEY` (or `FINNHUB_API_KEY`), confirm it's live:
+
+```bash
+curl http://localhost:8000/api/markets/status
+# -> { "active_primary": "twelvedata", "twelvedata_key_present": true,
+#      "probe": { "ok": true, "source": "twelvedata", "price": 1.0842, "latency_ms": 180 } }
+```
+
+`active_primary` and the live `probe` tell you exactly which feed is serving prices.
+The startup log prints the same summary on boot.
 
 The system **never silently trades live money**: Alpaca defaults to the paper
 endpoint, and the UI shows a red `● LIVE BROKER` badge only when pointed at the live

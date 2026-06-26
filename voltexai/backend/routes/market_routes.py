@@ -16,10 +16,20 @@ import logging
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect, HTTPException
 
 from ..services import market_service as mkt
+from ..services import data_providers
 from ..data.instruments import list_by_class, ALL_SYMBOLS, ASSET_CLASSES
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/markets", tags=["markets"])
+
+
+@router.get("/status")
+async def status(probe_symbol: str = Query("EURUSD")):
+    """Reports the configured data provider and runs a live connectivity probe.
+    Use this to verify a TWELVEDATA_API_KEY / FINNHUB_API_KEY is wired correctly."""
+    s = data_providers.provider_status()
+    s["probe"] = await data_providers.probe(probe_symbol.upper())
+    return s
 
 
 @router.get("/instruments")
