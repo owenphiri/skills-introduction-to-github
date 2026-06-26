@@ -1,0 +1,72 @@
+"""
+VoltexAI - Configuration
+Central settings loaded from environment variables.
+"""
+import os
+from functools import lru_cache
+from pydantic_settings import BaseSettings
+
+
+class Settings(BaseSettings):
+    # App
+    APP_NAME: str = "VoltexAI"
+    APP_VERSION: str = "1.0.0"
+    ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
+    BASE_URL: str = os.getenv("BASE_URL", "http://localhost:8000")
+    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173")
+
+    # Database
+    DATABASE_URL: str = os.getenv(
+        "DATABASE_URL", "sqlite:///./voltexai.db"
+    )
+
+    # JWT / Auth
+    JWT_SECRET: str = os.getenv("JWT_SECRET", "change-me-in-production-32-chars-min")
+    JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_TTL_MIN: int = 30
+    REFRESH_TOKEN_TTL_DAYS: int = 14
+    PASSWORD_RESET_TTL_MIN: int = 30
+
+    # Anthropic
+    ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
+    CLAUDE_MODEL: str = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-5")
+    CLAUDE_MAX_TOKENS: int = 4096
+
+    # Stripe (international cards / USD)
+    STRIPE_SECRET_KEY: str = os.getenv("STRIPE_SECRET_KEY", "")
+    STRIPE_PUBLISHABLE_KEY: str = os.getenv("STRIPE_PUBLISHABLE_KEY", "")
+    STRIPE_WEBHOOK_SECRET: str = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+    STRIPE_PRICE_TRADER: str = os.getenv("STRIPE_PRICE_TRADER", "")  # $29 plan
+    STRIPE_PRICE_ELITE: str = os.getenv("STRIPE_PRICE_ELITE", "")    # $99 plan
+
+    # Flutterwave (African mobile money / ZMW)
+    FLW_SECRET_KEY: str = os.getenv("FLW_SECRET_KEY", "")
+    FLW_PUBLIC_KEY: str = os.getenv("FLW_PUBLIC_KEY", "")
+    FLW_ENCRYPTION_KEY: str = os.getenv("FLW_ENCRYPTION_KEY", "")
+    FLW_WEBHOOK_HASH: str = os.getenv("FLW_WEBHOOK_HASH", "")
+
+    # Pricing (single source of truth)
+    PLAN_TRADER_USD: float = 29.00
+    PLAN_ELITE_USD: float = 99.00
+    USD_TO_ZMW_RATE: float = float(os.getenv("USD_TO_ZMW_RATE", "26.5"))
+
+    # Rate limits per plan (Claude calls per day)
+    RATE_FREE: int = 10
+    RATE_TRADER: int = 250
+    RATE_ELITE: int = 2000
+
+    # CORS
+    CORS_ORIGINS: list = ["http://localhost:5173", "http://localhost:3000",
+                          "https://voltexai.app", "https://app.voltexai.com"]
+
+    class Config:
+        env_file = ".env"
+        case_sensitive = True
+
+
+@lru_cache()
+def get_settings() -> Settings:
+    return Settings()
+
+
+settings = get_settings()

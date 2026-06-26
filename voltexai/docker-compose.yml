@@ -1,0 +1,48 @@
+# VoltexAI — one-command local/prod stack: API + web + Postgres.
+# Usage: cp backend/.env.example backend/.env && docker compose up --build
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: voltexai
+      POSTGRES_PASSWORD: voltexai
+      POSTGRES_DB: voltexai
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U voltexai"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: ./backend
+    restart: unless-stopped
+    env_file:
+      - path: ./backend/.env
+        required: false
+    environment:
+      DATABASE_URL: postgresql://voltexai:voltexai@db:5432/voltexai
+      ENVIRONMENT: production
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production-32-chars-min}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: ""   # same-origin: nginx proxies /api to the api service
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "8080:80"
+
+volumes:
+  pgdata:
