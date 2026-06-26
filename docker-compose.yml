@@ -1,0 +1,45 @@
+# Production deployment: SafeGirl EduTrack behind Caddy (automatic HTTPS/TLS).
+#
+#   1. Point your domain's DNS A record at the server.
+#   2. Set DOMAIN and your SMS credentials in a .env file (see .env.example).
+#   3. docker compose up -d
+#
+# Caddy obtains and renews Let's Encrypt certificates automatically — the app
+# itself never terminates TLS and is never exposed directly to the internet.
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - SEWSMS_DB=/app/data/sewsms.db
+      - MESSAGING_PROVIDER=${MESSAGING_PROVIDER:-mock}
+      - SMS_SENDER_ID=${SMS_SENDER_ID:-SAFEGIRL}
+      - AT_USERNAME=${AT_USERNAME:-}
+      - AT_API_KEY=${AT_API_KEY:-}
+      - SMS_WEBHOOK_SECRET=${SMS_WEBHOOK_SECRET:-}
+    volumes:
+      - sewsms-data:/app/data        # encrypt this volume at the host level
+    expose:
+      - "3000"                        # internal only — not published to the host
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - DOMAIN=${DOMAIN:-localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data              # persists issued certificates
+      - caddy-config:/config
+
+volumes:
+  sewsms-data:
+  caddy-data:
+  caddy-config:

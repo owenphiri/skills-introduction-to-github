@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PrimeAxis — Smart Poultry Management System</title>
+  <meta name="theme-color" content="#5b21b6" />
+  <meta name="description" content="All-in-one Smart Poultry Management System for broilers, layers and your poultry business — from SMEs to large commercial farms." />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" href="/assets/icon-192.png" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+
+<!-- ============================ MARKETING LANDING ============================ -->
+<div id="site">
+  <header class="nav" id="topnav">
+    <a class="brand" href="#top"><span class="logo">🐔</span> Prime<b>Axis</b></a>
+    <nav class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#products">Modules</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#ai">AI</a>
+      <a href="#contact">Contact</a>
+      <button class="btn-launch" data-action="open-login">Launch App →</button>
+    </nav>
+  </header>
+
+  <!-- HERO -->
+  <section class="hero" id="top">
+    <div class="hero-bg"></div>
+    <div class="hero-inner">
+      <div class="hero-copy reveal">
+        <span class="pill-tag">All-in-One Solution for Broilers, Layers &amp; Your Poultry Business</span>
+        <h1>Smart Poultry<br><span class="grad">Management System</span></h1>
+        <p>Transform your poultry business with technology. Track flocks, feed, vaccinations,
+           mortality, egg production, sales and profit — from a smallholding to a large commercial farm.</p>
+        <div class="hero-cta">
+          <button class="btn-primary" data-action="open-login">Get Started</button>
+          <a class="btn-ghost" href="#pricing">View Pricing</a>
+        </div>
+        <div class="hero-stats">
+          <div><b data-count="50000">0</b><span>Birds tracked</span></div>
+          <div><b data-count="98">0</b><span>% Survival</span></div>
+          <div><b data-count="4">0</b><span>Tier packages</span></div>
+        </div>
+      </div>
+      <div class="hero-art reveal">
+        <div class="float-card f1">🥚 <b>Egg Production</b><span class="up">▲ 84% HDEP</span></div>
+        <div class="float-card f2">🐔 <b>Broiler FCR</b><span class="up">1.38</span></div>
+        <div class="float-card f3">💰 <b>Net Profit</b><span class="up">▲ 11.1%</span></div>
+        <div class="hero-orb"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURE STRIP -->
+  <section class="features" id="features">
+    <h2 class="reveal">Everything your farm needs, in one platform</h2>
+    <div class="feature-grid" id="featureGrid"></div>
+  </section>
+
+  <!-- PRODUCT SLIDES -->
+  <section class="products" id="products">
+    <h2 class="reveal">A module for every part of your business</h2>
+    <p class="section-sub reveal">Catering for any scale — SMEs to large-scale commercial farmers.</p>
+    <div class="slider">
+      <div class="slides" id="slides"></div>
+      <div class="slider-dots" id="slideDots"></div>
+    </div>
+  </section>
+
+  <!-- AI -->
+  <section class="ai" id="ai">
+    <div class="ai-inner reveal">
+      <div class="ai-copy">
+        <span class="pill-tag light">AI-Powered Future</span>
+        <h2>Smart predictions, better decisions</h2>
+        <ul class="ai-list" id="aiList"></ul>
+      </div>
+      <div class="ai-visual"><div class="ai-brain">🧠</div><div class="ai-ring"></div></div>
+    </div>
+  </section>
+
+  <!-- PRICING -->
+  <section class="pricing" id="pricing">
+    <h2 class="reveal">Pricing that scales with your farm</h2>
+    <p class="section-sub reveal">Pay once per package. Upgrade any time as you grow.</p>
+    <div class="price-grid" id="priceGrid"></div>
+  </section>
+
+  <!-- CONTACT -->
+  <section class="contact" id="contact">
+    <div class="contact-card reveal">
+      <h2>Ready to grow your poultry business?</h2>
+      <p>Talk to PrimeAxis ICT Trade &amp; Solutions Ltd today.</p>
+      <div class="contact-grid">
+        <div>📞 <b>0972 446 895</b></div>
+        <div>📞 <b>0964 841 625</b></div>
+        <div>📞 <b>0966 993 658</b></div>
+        <div>📍 Kasama, Northern Province, Zambia</div>
+        <div>🌐 www.primeaxis.com</div>
+      </div>
+      <button class="btn-primary" data-action="open-login">Launch the App</button>
+    </div>
+    <footer class="foot">© 2026 PrimeAxis ICT Trade &amp; Solutions Ltd · “From Chicks to Profits — manage everything in one intelligent poultry platform.”</footer>
+  </section>
+</div>
+
+<!-- ============================ LOGIN ============================ -->
+<div id="loginOverlay" class="overlay hidden">
+  <div class="login-card">
+    <button class="close" data-action="close-login">✕</button>
+    <div class="brand"><span class="logo">🐔</span> Prime<b>Axis</b></div>
+    <p class="muted">Sign in to your farm dashboard</p>
+    <form id="loginForm">
+      <input id="username" placeholder="Username" autocomplete="username" required />
+      <input id="password" type="password" placeholder="Password" autocomplete="current-password" required />
+      <button type="submit" class="btn-primary">Sign in</button>
+      <p class="hint">Demo (password: <code>password</code>): owner · manager · worker · accountant</p>
+      <p id="loginError" class="error"></p>
+    </form>
+  </div>
+</div>
+
+<!-- ============================ APP ============================ -->
+<div id="app" class="hidden">
+  <header class="appbar">
+    <div class="brand-sm"><span class="logo">🐔</span> Prime<b>Axis</b></div>
+    <nav id="nav"></nav>
+    <div class="user-box"><span id="userLabel"></span><button class="ghost" data-action="logout">Logout</button></div>
+  </header>
+  <main id="view"></main>
+</div>
+
+<script src="/app.js"></script>
+</body>
+</html>

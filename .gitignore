@@ -35,3 +35,9 @@
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Node / SafeGirl EduTrack
+node_modules/
+data/*.db
+data/*.db-*
+.env
