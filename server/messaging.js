@@ -121,14 +121,24 @@ function applyDeliveryReport({ providerRef, status }) {
 async function send({ studentId = null, phone, channel = 'sms', category, body, language = 'en' }) {
   if (!phone) throw new Error('Recipient phone is required');
 
+  // Guardian-consent gate (Data Protection Act): never transmit a message about
+  // a learner whose guardian has not granted consent. The attempt is still
+  // recorded as "blocked" for audit, but nothing leaves the system.
+  let blocked = false;
+  if (studentId) {
+    const st = db.prepare('SELECT consent_status FROM students WHERE id = ?').get(studentId);
+    if (st && st.consent_status !== 'granted') blocked = true;
+  }
+
   const insert = db.prepare(`
     INSERT INTO messages (student_id, recipient_phone, channel, category, body, language, delivery_status)
-    VALUES (?, ?, ?, ?, ?, ?, 'queued')
-  `).run(studentId, phone, channel, category, body, language);
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(studentId, phone, channel, category, body, language, blocked ? 'blocked' : 'queued');
 
   const id = insert.lastInsertRowid;
-  const message = db.prepare('SELECT * FROM messages WHERE id = ?').get(id);
+  if (blocked) return db.prepare('SELECT * FROM messages WHERE id = ?').get(id);
 
+  const message = db.prepare('SELECT * FROM messages WHERE id = ?').get(id);
   const provider = providers[config.messaging.provider] || providers.mock;
   const result = await provider(message);
 

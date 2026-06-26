@@ -1,0 +1,21 @@
+# Caddy reverse proxy with automatic HTTPS for SafeGirl EduTrack.
+# {$DOMAIN} comes from the environment (docker-compose). For local testing the
+# default "localhost" issues a self-signed certificate.
+{$DOMAIN} {
+	encode gzip
+	reverse_proxy app:3000
+
+	# Security headers (defence in depth — the app sets its own CSP too).
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "no-referrer"
+		-Server
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}

@@ -45,7 +45,28 @@ Each school's `package` (bronze/silver/gold/platinum) gates features server-side
 (HTTP 402 when a school's tier is too low) and hides locked tabs in the UI. Set a
 school's tier when registering it, or update the `schools.package` column.
 
-## 4. What software cannot do for you (the honest part)
+## 4. Deployment with TLS (Docker Compose + Caddy)
+
+A one-command deployment ships in `docker-compose.yml` + `Caddyfile`. Caddy
+terminates HTTPS with automatic Let's Encrypt certificates; the app runs on an
+internal network and is never exposed directly.
+
+```bash
+cp .env.example .env          # set DOMAIN, MESSAGING_PROVIDER, SMS creds, secrets
+docker compose up -d          # app + Caddy (auto-HTTPS) come up
+```
+
+The database lives on the `sewsms-data` volume — **encrypt this volume at the
+host level** (e.g. LUKS / cloud disk encryption) to satisfy encryption-at-rest.
+
+## 5. Guardian consent & QR check-in (built in)
+- **Consent gate:** no SMS is sent about a learner until a guardian's consent is
+  recorded as `granted`; blocked attempts are logged. Capture consent per learner
+  on the student profile.
+- **QR check-in (Platinum):** each learner has a printable QR code; the check-in
+  kiosk marks attendance in seconds.
+
+## 6. What software cannot do for you (the honest part)
 Connectivity ≠ compliance. Before sending a single live message about a real
 child, the following must be in place — none are code:
 

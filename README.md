@@ -45,6 +45,9 @@ Designed to align with the Government of Zambia's **Keeping Girls in School
 | **Package-tier feature gating** (Bronze/Silver/Gold/Platinum) | ✅ |
 | **Real SMS adapter** (Africa's Talking) + delivery-report webhooks | ✅ |
 | **Counseling scheduling** with automatic SMS follow-up reminders | ✅ |
+| **Guardian-consent gate** — no SMS until consent granted (Data Protection Act) | ✅ |
+| **QR check-in** kiosk for fast attendance (Platinum) | ✅ |
+| **Docker Compose + Caddy** one-command deploy with automatic HTTPS | ✅ |
 
 ---
 

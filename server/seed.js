@@ -85,6 +85,13 @@ const studentIds = students.map(([full_name, gender, grade, vuln, phone, village
 db.prepare('UPDATE students SET guardian_user_id = ? WHERE id IN (?, ?)')
   .run(parentUser, studentIds[0], studentIds[1]); // Mary Phiri + Grace Banda
 
+// Guardian consent: most granted (so messaging works), two left pending to
+// demonstrate that the system blocks SMS to non-consented guardians.
+db.prepare("UPDATE students SET consent_status = 'granted', consent_date = datetime('now'), consent_by = ?, consent_method = 'paper_form'")
+  .run(counselor);
+db.prepare("UPDATE students SET consent_status = 'pending', consent_date = NULL WHERE id IN (?, ?)")
+  .run(studentIds[7], studentIds[10]); // Esther Ngoma + Linda Sakala
+
 // Seed message templates with the review workflow. English + Nyanja are marked
 // approved (reviewed); Bemba/Tonga/Lozi start as pending_review to populate the
 // native-speaker review queue.

@@ -122,7 +122,7 @@ function migrate() {
       body            TEXT NOT NULL,
       language        TEXT NOT NULL DEFAULT 'en',
       delivery_status TEXT NOT NULL DEFAULT 'queued'
-                        CHECK (delivery_status IN ('queued','sent','delivered','failed')),
+                        CHECK (delivery_status IN ('queued','sent','delivered','failed','blocked')),
       provider_ref    TEXT,
       created_at      TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -192,5 +192,12 @@ addColumnIfMissing('users', 'district', 'TEXT');
 // Counseling reminder tracking (so a session/follow-up is only reminded once).
 addColumnIfMissing('counseling', 'reminded_scheduled', 'INTEGER NOT NULL DEFAULT 0');
 addColumnIfMissing('counseling', 'reminded_followup', 'INTEGER NOT NULL DEFAULT 0');
+// Guardian consent for messaging/data processing (Data Protection Act).
+addColumnIfMissing('students', 'consent_status', "TEXT NOT NULL DEFAULT 'pending'");
+addColumnIfMissing('students', 'consent_date', 'TEXT');
+addColumnIfMissing('students', 'consent_by', 'INTEGER REFERENCES users(id)');
+addColumnIfMissing('students', 'consent_method', 'TEXT');
+// Per-learner QR check-in token (Platinum biometric/QR attendance).
+addColumnIfMissing('students', 'qr_token', 'TEXT');
 
 module.exports = db;

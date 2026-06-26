@@ -45,8 +45,8 @@ function logout() {
 
 /* -------------------------------------------------------------- NAV ------ */
 const ROLE_NAV = {
-  admin:     ['dashboard', 'schools', 'students', 'risk', 'map', 'attendance', 'academics', 'counseling', 'awareness', 'messages', 'translations', 'reports', 'audit'],
-  teacher:   ['dashboard', 'students', 'attendance', 'risk', 'academics', 'counseling'],
+  admin:     ['dashboard', 'schools', 'students', 'risk', 'map', 'attendance', 'checkin', 'academics', 'counseling', 'awareness', 'messages', 'translations', 'reports', 'audit'],
+  teacher:   ['dashboard', 'students', 'attendance', 'checkin', 'risk', 'academics', 'counseling'],
   counselor: ['dashboard', 'risk', 'map', 'counseling', 'students', 'awareness', 'translations'],
   district:  ['dashboard', 'schools', 'risk', 'map', 'academics', 'awareness', 'messages', 'reports'],
   community: ['dashboard', 'awareness', 'messages'],
@@ -55,7 +55,7 @@ const ROLE_NAV = {
 // Nav tab → the package feature it requires (others are ungated).
 const NAV_FEATURE = {
   risk: 'ai_risk', academics: 'academic_reports', counseling: 'counseling',
-  map: 'gis', reports: 'analytics'
+  map: 'gis', reports: 'analytics', checkin: 'biometric'
 };
 function hasFeature(f) { return !f || (State.user.features || []).includes(f); }
 const VIEWS = {};
@@ -303,10 +303,68 @@ window.openStudent = async function (id) {
         ${renderTable(['Term','Subject','Score'], d.performance.map(p => [p.term, p.subject, p.score + '%']))}
       </div>
     </div>
+    <div class="row">
+      <div class="col card">
+        <h3>Guardian consent</h3>
+        <p>Status: <span class="badge ${d.student.consent_status==='granted'?'low':d.student.consent_status==='withdrawn'?'high':'medium'}">${d.student.consent_status || 'pending'}</span>
+          ${d.student.consent_date ? `<span class="muted">· ${d.student.consent_date.slice(0,10)}</span>` : ''}</p>
+        <p class="muted">SMS to this guardian is ${d.student.consent_status==='granted'?'enabled':'<b>blocked</b> until consent is granted'} (Data Protection Act).</p>
+        ${can('admin','teacher','counselor') ? `
+          <button class="sm" data-action="consent" data-id="${id}" data-status="granted">Record consent granted</button>
+          <button class="sm ghost-red" data-action="consent" data-id="${id}" data-status="withdrawn">Withdraw</button>` : ''}
+      </div>
+      ${hasFeature('biometric') && can('admin','teacher') ? `
+      <div class="col card">
+        <h3>QR check-in code</h3>
+        <p class="muted">Print and place on the learner's card for fast attendance.</p>
+        <button class="sm" data-action="qr" data-id="${id}">Show QR code</button>
+        <div id="qrBox" style="margin-top:10px"></div>
+      </div>` : ''}
+    </div>
     <h3 class="section-title">Counseling &amp; welfare history</h3>
     ${renderTable(['Date','Type','Status','Notes'], d.counseling.map(c =>
       [c.created_at.slice(0,10), c.type, `<span class="badge ${c.status==='resolved'?'low':'medium'}">${c.status}</span>`, esc(c.notes||'')]))}
   `);
+};
+
+window.setConsent = async function (id, status) {
+  if (status === 'withdrawn' && !confirm('Withdraw consent? SMS to this guardian will stop.')) return;
+  await api(`/students/${id}/consent`, { method: 'PUT', body: { status, method: 'staff_recorded' } });
+  flash('Consent updated.'); openStudent(id);
+};
+window.showQr = async function (id) {
+  const d = await api(`/students/${id}/checkin-code`);
+  const box = document.getElementById('qrBox');
+  if (box) box.innerHTML = `<div style="max-width:180px">${d.svg}</div><p class="pill">${esc(d.token)}</p>`;
+};
+
+const ciSession = [];
+VIEWS.checkin = async function () {
+  setView(`
+    <h2>QR Attendance Check-in</h2>
+    <p class="sub">Scan a learner's QR code (or paste the token) to mark them present today.</p>
+    <div class="card" style="max-width:560px">
+      <input id="ciToken" placeholder="Scan QR or paste token (SAFEGIRL:…)" />
+      <button class="sm" data-action="checkin-submit">Check in</button>
+    </div>
+    <h3 class="section-title">Checked in this session</h3>
+    <div id="ciLog"><p class="muted">None yet.</p></div>
+  `);
+  const i = document.getElementById('ciToken');
+  if (i) { i.focus(); i.addEventListener('keydown', e => { if (e.key === 'Enter') doCheckin(); }); }
+};
+window.doCheckin = async function () {
+  const inp = document.getElementById('ciToken');
+  const token = (inp.value || '').trim();
+  if (!token) return;
+  try {
+    const r = await api('/attendance/checkin', { method: 'POST', body: { token } });
+    ciSession.unshift(`✅ ${r.full_name} (${r.grade}) — present · ${r.date}`);
+    flash(r.full_name + ' marked present');
+  } catch (e) { ciSession.unshift('❌ ' + e.message); flash(e.message); }
+  inp.value = ''; inp.focus();
+  const log = document.getElementById('ciLog');
+  if (log) log.innerHTML = '<ul class="recs">' + ciSession.map(x => `<li>${esc(x)}</li>`).join('') + '</ul>';
 };
 
 VIEWS.risk = async function () {
@@ -718,7 +776,7 @@ function flash(msg) {
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-action]');
   if (!el) return;
-  const { action, id, path, file } = el.dataset;
+  const { action, id, path, file, status } = el.dataset;
   if (action === 'student') { e.preventDefault(); openStudent(Number(id)); }
   else if (action === 'students') { e.preventDefault(); VIEWS.students(); }
   else if (action === 'counsel') { e.preventDefault(); logCounseling(Number(id)); }
@@ -731,6 +789,9 @@ document.addEventListener('click', e => {
   else if (action === 'add-school') { e.preventDefault(); addSchool(); }
   else if (action === 'counsel-save') { e.preventDefault(); saveCounseling(); }
   else if (action === 'run-reminders') { e.preventDefault(); runReminders(); }
+  else if (action === 'consent') { e.preventDefault(); setConsent(Number(id), status); }
+  else if (action === 'qr') { e.preventDefault(); showQr(Number(id)); }
+  else if (action === 'checkin-submit') { e.preventDefault(); doCheckin(); }
 });
 
 /* --------------------------------------------------------- BOOTSTRAP ---- */

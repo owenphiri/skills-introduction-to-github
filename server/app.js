@@ -7,7 +7,9 @@
  * web dashboard from /public.
  */
 const path = require('path');
+const crypto = require('crypto');
 const express = require('express');
+const QRCode = require('qrcode');
 const config = require('./config');
 const db = require('./db');
 const auth = require('./auth');
@@ -158,6 +160,76 @@ app.put('/api/students/:id', auth.authenticate, auth.requireRole('admin', 'teach
     .run(...cols.map(c => b[c]), req.params.id);
   res.json(db.prepare('SELECT * FROM students WHERE id = ?').get(req.params.id));
 }));
+
+/** Helper: enforce that the caller may act on this learner's school. */
+function assertStudentInScope(req, res, student) {
+  if (!student) { res.status(404).json({ error: 'Student not found' }); return false; }
+  const allowed = scope.allowedSchoolIds(req.user);
+  if (allowed !== null && !allowed.includes(student.school_id)) {
+    res.status(403).json({ error: 'This learner is outside your school/district scope' });
+    return false;
+  }
+  return true;
+}
+
+/* -------------------------------------------------------- GUARDIAN CONSENT -- */
+
+/**
+ * Record guardian consent for messaging / data processing (Data Protection Act).
+ * Until consent is 'granted', the system will not transmit any SMS about the
+ * learner (attempts are recorded as "blocked").
+ */
+app.put('/api/students/:id/consent', auth.authenticate,
+  auth.requireRole('admin', 'teacher', 'counselor'), wrap((req, res) => {
+    const { status, method } = req.body || {};
+    if (!['pending', 'granted', 'withdrawn'].includes(status)) {
+      return res.status(400).json({ error: "status must be 'granted', 'withdrawn' or 'pending'" });
+    }
+    const student = db.prepare('SELECT * FROM students WHERE id = ?').get(req.params.id);
+    if (!assertStudentInScope(req, res, student)) return;
+    db.prepare(`UPDATE students SET consent_status = ?, consent_method = ?,
+        consent_date = CASE WHEN ? = 'pending' THEN NULL ELSE datetime('now') END,
+        consent_by = ? WHERE id = ?`)
+      .run(status, method || null, status, req.user.id, student.id);
+    security.audit(req, 'consent.update', `student:${student.id}`, `status=${status}`);
+    res.json(db.prepare('SELECT * FROM students WHERE id = ?').get(student.id));
+  }));
+
+/* ------------------------------------------------ QR / BIOMETRIC CHECK-IN -- */
+
+function ensureQrToken(studentId) {
+  const row = db.prepare('SELECT qr_token FROM students WHERE id = ?').get(studentId);
+  if (row && row.qr_token) return row.qr_token;
+  const token = crypto.randomBytes(8).toString('hex');
+  db.prepare('UPDATE students SET qr_token = ? WHERE id = ?').run(token, studentId);
+  return token;
+}
+
+/** Return a printable QR code (SVG) that encodes a learner's check-in token. */
+app.get('/api/students/:id/checkin-code', auth.authenticate,
+  auth.requireRole('admin', 'teacher'), features.requireFeature('biometric'), wrap(async (req, res) => {
+    const student = db.prepare('SELECT * FROM students WHERE id = ?').get(req.params.id);
+    if (!assertStudentInScope(req, res, student)) return;
+    const token = ensureQrToken(student.id);
+    const payload = `SAFEGIRL:${token}`;
+    const svg = await QRCode.toString(payload, { type: 'svg', margin: 1, width: 180 });
+    res.json({ student_id: student.id, full_name: student.full_name, token, payload, svg });
+  }));
+
+/** Fast attendance check-in by scanning/entering a learner's QR token. */
+app.post('/api/attendance/checkin', auth.authenticate,
+  auth.requireRole('admin', 'teacher'), features.requireFeature('biometric'), wrap(async (req, res) => {
+    let token = (req.body?.token || '').trim().replace(/^SAFEGIRL:/, '');
+    if (!token) return res.status(400).json({ error: 'token is required' });
+    const student = db.prepare('SELECT * FROM students WHERE qr_token = ?').get(token);
+    if (!student) return res.status(404).json({ error: 'Unrecognised check-in code' });
+    if (!assertStudentInScope(req, res, student)) return;
+    const day = new Date().toISOString().slice(0, 10);
+    db.prepare(`INSERT INTO attendance (student_id, date, status, marked_by)
+      VALUES (?, ?, 'present', ?)
+      ON CONFLICT(student_id, date) DO UPDATE SET status = 'present'`).run(student.id, day, req.user.id);
+    res.status(201).json({ student_id: student.id, full_name: student.full_name, grade: student.grade, status: 'present', date: day });
+  }));
 
 /* ------------------------------------------------------------ ATTENDANCE -- */
 

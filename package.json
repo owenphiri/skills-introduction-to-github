@@ -15,7 +15,8 @@
     "node": ">=22.5.0"
   },
   "dependencies": {
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "qrcode": "^1.5.4"
   },
   "license": "MIT"
 }
