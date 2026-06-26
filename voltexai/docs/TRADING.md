@@ -56,10 +56,32 @@ OANDA_ACCOUNT_ID=101-001-xxxxxxx-001
 OANDA_ENVIRONMENT=practice                         # live: trades real money
 ```
 
-> One `BROKER` is active at a time. With `oanda`, forex/metals/indices route to
-> OANDA and unsupported symbols (e.g. US single stocks) are rejected with a clear
-> message; use `alpaca` for those. A multi-venue router (forex→OANDA, stocks→Alpaca
-> simultaneously) is a straightforward extension of `get_broker()`.
+### Multi-venue routing (`BROKER=router`)
+
+Run every venue at once and let each order go where it belongs:
+
+```bash
+BROKER=router
+# OANDA handles forex/metals/indices/energy:
+OANDA_API_TOKEN=...
+OANDA_ACCOUNT_ID=101-001-xxxxxxx-001
+# Alpaca handles stocks/crypto:
+ALPACA_API_KEY=...
+ALPACA_API_SECRET=...
+# anything a configured live venue can't take falls back to the paper broker.
+```
+
+Routing table: `forex, metals, indices, energy → OANDA`, `stocks, crypto → Alpaca`,
+everything else → paper. If a venue's keys are absent, that class falls back to paper.
+
+`GET /api/trade/broker` returns the live `venue_map`. Aggregated views:
+- `/api/trade/account` sums cash/equity/P&L across venues with a per-venue `venues`
+  breakdown (an untouched paper book is omitted once a live venue is active).
+- `/api/trade/positions` and `/orders` tag every row with its `venue`; order ids are
+  namespaced `venue:id` so `/orders/{id}/cancel` routes back to the right venue.
+
+`is_live` is true only if a venue points at a live host — practice/paper venues stay
+simulated.
 
 ## Verifying the data-vendor key path
 

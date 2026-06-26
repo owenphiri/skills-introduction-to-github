@@ -49,11 +49,20 @@ def _require_paid(user: User):
 @router.get("/broker")
 def broker_info(user: User = Depends(get_current_user)):
     b = get_broker()
-    return {"broker": b.name,
-            "is_live": getattr(b, "is_live", False),
-            "configured": settings.BROKER,
-            "note": ("Live brokerage — real orders." if getattr(b, "is_live", False)
-                     else "Simulated paper trading — no real money moves.")}
+    is_live = getattr(b, "is_live", False)
+    info = {
+        "broker": b.name,
+        "is_live": is_live,
+        "configured": settings.BROKER,
+        "note": ("Live brokerage — real orders." if is_live
+                 else "Simulated paper trading — no real money moves."),
+    }
+    if b.name == "router":
+        info["venue_map"] = b.venue_map()
+        info["note"] = ("Multi-venue routing: each asset class trades on its venue. "
+                        + ("Some venues are LIVE." if is_live
+                           else "All venues simulated/practice."))
+    return info
 
 
 @router.get("/account")

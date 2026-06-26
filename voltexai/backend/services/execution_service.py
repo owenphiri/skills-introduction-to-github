@@ -531,20 +531,161 @@ class OandaBroker:
         }
 
 
+# ============================================================
+#  Multi-venue router (forex/metals -> OANDA, stocks/crypto -> Alpaca, else paper)
+# ============================================================
+def _alpaca_ready() -> bool:
+    return bool(settings.ALPACA_API_KEY and settings.ALPACA_API_SECRET)
+
+
+def _oanda_ready() -> bool:
+    return bool(settings.OANDA_API_TOKEN and settings.OANDA_ACCOUNT_ID)
+
+
+class RoutingBroker:
+    """Runs several venues at once and sends each order to the right one based on
+    the instrument's asset class. Falls back to the paper broker for any class
+    whose live venue isn't configured. Account/positions/orders are aggregated
+    across venues; order ids are namespaced 'venue:id' so cancels route back."""
+    name = "router"
+
+    def __init__(self):
+        self.paper = _paper
+        self.alpaca = AlpacaBroker() if _alpaca_ready() else None
+        self.oanda = OandaBroker() if _oanda_ready() else None
+        self.is_live = bool((self.alpaca and self.alpaca.is_live) or
+                            (self.oanda and self.oanda.is_live))
+
+    # ---- routing ----
+    def _venue(self, symbol: str):
+        inst = get_instrument(symbol)
+        if not inst:
+            raise HTTPException(400, f"Unknown instrument: {symbol}")
+        ac = inst["asset_class"]
+        if ac in ("forex", "metals", "indices", "energy") and self.oanda:
+            return "oanda", self.oanda
+        if ac in ("stocks", "crypto") and self.alpaca:
+            return "alpaca", self.alpaca
+        return "paper", self.paper
+
+    def _participating(self) -> list[tuple[str, object]]:
+        venues = [("paper", self.paper)]
+        if self.alpaca:
+            venues.append(("alpaca", self.alpaca))
+        if self.oanda:
+            venues.append(("oanda", self.oanda))
+        return venues
+
+    def venue_map(self) -> dict:
+        return {
+            "forex": "oanda" if self.oanda else "paper",
+            "metals": "oanda" if self.oanda else "paper",
+            "indices": "oanda" if self.oanda else "paper",
+            "energy": "oanda" if self.oanda else "paper",
+            "stocks": "alpaca" if self.alpaca else "paper",
+            "crypto": "alpaca" if self.alpaca else "paper",
+        }
+
+    @staticmethod
+    def _idle_paper(acc: dict) -> bool:
+        return (acc["realized_pnl"] == 0 and acc["unrealized_pnl"] == 0 and
+                (acc["open_positions"] or 0) == 0 and
+                abs(acc["cash"] - acc["starting_balance"]) < 1e-6)
+
+    # ---- aggregate views ----
+    async def get_account(self, db: Session, user: User) -> dict:
+        venues = self._participating()
+        has_live = bool(self.alpaca or self.oanda)
+        agg = {"cash": 0.0, "equity": 0.0, "market_value": 0.0,
+               "starting_balance": 0.0, "realized_pnl": 0.0,
+               "unrealized_pnl": 0.0, "buying_power": 0.0, "open_positions": 0}
+        breakdown = []
+        for vname, vb in venues:
+            try:
+                a = await vb.get_account(db, user)
+            except HTTPException as e:
+                breakdown.append({"venue": vname, "error": e.detail})
+                continue
+            # skip an untouched paper book when real venues are active
+            if vname == "paper" and has_live and self._idle_paper(a):
+                continue
+            breakdown.append({"venue": vname, **a})
+            for k in agg:
+                if k == "open_positions":
+                    agg[k] += a.get("open_positions") or 0
+                else:
+                    agg[k] += a.get(k) or 0.0
+        start = agg["starting_balance"]
+        agg["total_return_pct"] = round((agg["equity"] - start) / start * 100, 2) if start else 0.0
+        for k in ("cash", "equity", "market_value", "starting_balance",
+                  "realized_pnl", "unrealized_pnl", "buying_power"):
+            agg[k] = round(agg[k], 2)
+        agg.update(broker="router", currency="USD", is_live=self.is_live,
+                   venues=breakdown)
+        return agg
+
+    async def get_positions(self, db: Session, user: User) -> list[dict]:
+        out = []
+        for vname, vb in self._participating():
+            try:
+                for p in await vb.get_positions(db, user):
+                    out.append({**p, "venue": vname})
+            except HTTPException:
+                continue
+        return out
+
+    async def list_orders(self, db: Session, user: User, limit: int = 50) -> list[dict]:
+        out = []
+        for vname, vb in self._participating():
+            try:
+                for o in await vb.list_orders(db, user, limit):
+                    out.append({**o, "venue": vname, "id": f"{vname}:{o['id']}"})
+            except HTTPException:
+                continue
+        out.sort(key=lambda o: o.get("created_at") or "", reverse=True)
+        return out[:limit]
+
+    async def place_order(self, db: Session, user: User, symbol: str, side: str,
+                          qty: float, order_type: str = "market",
+                          limit_price: float | None = None,
+                          note: str | None = None) -> dict:
+        vname, vb = self._venue(symbol)
+        o = await vb.place_order(db, user, symbol, side, qty, order_type,
+                                 limit_price, note)
+        return {**o, "venue": vname, "id": f"{vname}:{o['id']}"}
+
+    async def cancel_order(self, db: Session, user: User, order_id) -> dict:
+        if isinstance(order_id, str) and ":" in order_id:
+            vname, raw = order_id.split(":", 1)
+        else:
+            vname, raw = "paper", order_id
+        vb = {"paper": self.paper, "alpaca": self.alpaca,
+              "oanda": self.oanda}.get(vname)
+        if not vb:
+            raise HTTPException(400, f"Venue '{vname}' is not active")
+        r = await vb.cancel_order(db, user, raw)
+        return {**r, "venue": vname, "id": order_id}
+
+
 _paper = PaperBroker()
 _alpaca: AlpacaBroker | None = None
 _oanda: OandaBroker | None = None
+_router: "RoutingBroker | None" = None
 
 
 def get_broker():
     """Active broker. Falls back to the safe paper broker if the chosen live
     broker isn't fully configured."""
-    global _alpaca, _oanda
-    if settings.BROKER == "alpaca" and settings.ALPACA_API_KEY and settings.ALPACA_API_SECRET:
+    global _alpaca, _oanda, _router
+    if settings.BROKER == "router":
+        if _router is None:
+            _router = RoutingBroker()
+        return _router
+    if settings.BROKER == "alpaca" and _alpaca_ready():
         if _alpaca is None:
             _alpaca = AlpacaBroker()
         return _alpaca
-    if settings.BROKER == "oanda" and settings.OANDA_API_TOKEN and settings.OANDA_ACCOUNT_ID:
+    if settings.BROKER == "oanda" and _oanda_ready():
         if _oanda is None:
             _oanda = OandaBroker()
         return _oanda

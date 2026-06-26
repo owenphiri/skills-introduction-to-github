@@ -7,5 +7,5 @@ export const tradeService = {
   positions: () => api.get("/api/trade/positions"),
   orders: (limit = 50) => api.get(`/api/trade/orders?limit=${limit}`),
   placeOrder: (payload) => api.post("/api/trade/orders", payload),
-  cancelOrder: (id) => api.post(`/api/trade/orders/${id}/cancel`, {}),
+  cancelOrder: (id) => api.post(`/api/trade/orders/${encodeURIComponent(id)}/cancel`, {}),
 };

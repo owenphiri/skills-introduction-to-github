@@ -200,7 +200,7 @@ export default function Trade() {
                 <tbody>
                   {positions.map((p) => (
                     <tr key={p.symbol}>
-                      <td><b>{p.symbol}</b></td>
+                      <td><b>{p.symbol}</b>{p.venue && <span className="vx-venue">{p.venue}</span>}</td>
                       <td><span className={`vx-pill vx-pill--${p.side === "long" ? "long" : "short"}`}>{p.side}</span></td>
                       <td className="vx-r vx-mono">{p.qty}</td>
                       <td className="vx-r vx-mono">{p.avg_price}</td>
@@ -230,7 +230,7 @@ export default function Trade() {
                 <tbody>
                   {orders.map((o) => (
                     <tr key={o.id}>
-                      <td><b>{o.symbol}</b></td>
+                      <td><b>{o.symbol}</b>{o.venue && <span className="vx-venue">{o.venue}</span>}</td>
                       <td className={o.side === "buy" ? "vx-up" : "vx-down"}>{o.side}</td>
                       <td className="vx-r vx-mono">{o.qty}</td>
                       <td>{o.type}</td>

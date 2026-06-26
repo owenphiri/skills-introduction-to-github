@@ -700,3 +700,6 @@ body {
 .vx-status--filled { color: var(--vx-success); background: rgba(69,224,160,0.12); }
 .vx-status--pending { color: var(--vx-warn); background: rgba(255,181,71,0.12); }
 .vx-status--cancelled, .vx-status--rejected { color: var(--vx-text-dim); background: var(--vx-bg-elev); }
+.vx-venue { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;
+  margin-left: 6px; padding: 1px 6px; border-radius: 6px; color: var(--vx-primary);
+  background: rgba(77,124,255,0.12); vertical-align: middle; }
