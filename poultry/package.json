@@ -1,0 +1,20 @@
+{
+  "name": "primeaxis-poultry",
+  "version": "0.1.0",
+  "description": "PrimeAxis Smart Poultry Management System — broiler & layer management, feed, vaccination, mortality, egg production, sales, finance, executive dashboards and AI predictions, with Bronze/Silver/Gold/Platinum tiers.",
+  "type": "commonjs",
+  "main": "server/app.js",
+  "scripts": {
+    "start": "node --experimental-sqlite server/app.js",
+    "seed": "node --experimental-sqlite server/seed.js",
+    "dev": "node --experimental-sqlite --watch server/app.js",
+    "test": "node --experimental-sqlite --test --test-reporter=spec \"test/*.test.js\""
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  },
+  "license": "MIT"
+}
