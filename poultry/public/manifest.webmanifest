@@ -1,0 +1,15 @@
+{
+  "name": "PrimeAxis Smart Poultry",
+  "short_name": "PrimeAxis",
+  "description": "Smart Poultry Management System — broilers, layers, feed, finance & AI.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#4c1d95",
+  "theme_color": "#5b21b6",
+  "icons": [
+    { "src": "/assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
