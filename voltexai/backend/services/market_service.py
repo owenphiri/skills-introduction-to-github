@@ -25,7 +25,9 @@ from dataclasses import dataclass
 
 import httpx
 
+from ..config import settings
 from ..data.instruments import INSTRUMENTS, get_instrument
+from . import data_providers
 
 # timeframe -> seconds per candle
 TIMEFRAMES = {
@@ -146,37 +148,13 @@ async def _live_crypto_price(symbol: str) -> float | None:
         return None
 
 
-async def get_quote(symbol: str) -> Quote | None:
-    symbol = symbol.upper()
-    inst = get_instrument(symbol)
-    if not inst:
-        return None
-    t = time.time()
-    source = "synthetic"
+_quote_cache: dict[str, tuple["Quote", float]] = {}   # symbol -> (quote, cached_at)
 
-    price = await _live_crypto_price(symbol)
-    if price is not None:
-        source = "binance"
-    else:
-        price = _synthetic_price(symbol, t)
 
-    # previous close ~ price 24h ago on the synthetic curve (anchors % change)
-    prev = _synthetic_price(symbol, t - 86400)
-    if source == "binance":
-        # scale the synthetic prev-close to the live price level for a sane %change
-        prev = price * (prev / _synthetic_price(symbol, t))
-
+def _make_quote(symbol: str, inst: dict, price: float, prev: float,
+                day_high: float, day_low: float, source: str) -> "Quote":
     change = price - prev
     change_pct = (change / prev) * 100.0 if prev else 0.0
-
-    # intraday range from the last 24 sampled points
-    samples = [_synthetic_price(symbol, t - i * 3600) for i in range(24)]
-    if source == "binance":
-        scale = price / samples[0]
-        samples = [s * scale for s in samples]
-    day_high = max(samples + [price])
-    day_low = min(samples + [price])
-
     pip = inst["pip_size"]
     spread = pip * (2 if inst["asset_class"] in ("forex", "metals") else 6)
     half = spread / 2.0
@@ -184,9 +162,53 @@ async def get_quote(symbol: str) -> Quote | None:
         symbol=symbol, display=inst["display"], asset_class=inst["asset_class"],
         price=price, bid=price - half, ask=price + half,
         change=change, change_pct=change_pct,
-        day_high=day_high, day_low=day_low, spread=spread,
-        updated_at=t, source=source,
+        day_high=max(day_high, price), day_low=min(day_low, price),
+        spread=spread, updated_at=time.time(), source=source,
     )
+
+
+async def _fetch_quote(symbol: str, inst: dict) -> "Quote":
+    """Provider chain: real vendor -> Binance (crypto) -> synthetic fallback."""
+    t = time.time()
+    provider = settings.MARKET_DATA_PROVIDER
+
+    # 1) real vendor (Twelve Data covers FX/metals/crypto/indices/stocks; Finnhub stocks)
+    if provider != "synthetic":
+        real = await data_providers.twelvedata_quote(symbol)
+        if real is None and inst["asset_class"] == "stocks":
+            real = await data_providers.finnhub_quote(symbol)
+        if real:
+            return _make_quote(symbol, inst, real["price"], real["prev_close"],
+                               real["high"], real["low"], real["source"])
+
+    # 2) live crypto via Binance (no key needed)
+    if provider != "synthetic":
+        price = await _live_crypto_price(symbol)
+        if price is not None:
+            ratio = price / _synthetic_price(symbol, t)
+            prev = _synthetic_price(symbol, t - 86400) * ratio
+            samples = [_synthetic_price(symbol, t - i * 3600) * ratio for i in range(24)]
+            return _make_quote(symbol, inst, price, prev,
+                               max(samples), min(samples), "binance")
+
+    # 3) built-in synthetic feed (always works, zero config)
+    price = _synthetic_price(symbol, t)
+    prev = _synthetic_price(symbol, t - 86400)
+    samples = [_synthetic_price(symbol, t - i * 3600) for i in range(24)]
+    return _make_quote(symbol, inst, price, prev, max(samples), min(samples), "synthetic")
+
+
+async def get_quote(symbol: str) -> Quote | None:
+    symbol = symbol.upper()
+    inst = get_instrument(symbol)
+    if not inst:
+        return None
+    cached = _quote_cache.get(symbol)
+    if cached and time.time() - cached[1] < settings.MARKET_CACHE_TTL:
+        return cached[0]
+    q = await _fetch_quote(symbol, inst)
+    _quote_cache[symbol] = (q, time.time())
+    return q
 
 
 async def get_quotes(symbols: list[str]) -> list[dict]:
@@ -229,3 +251,23 @@ def get_candles(symbol: str, timeframe: str = "M15", count: int = 200) -> list[d
 
 def closes(symbol: str, timeframe: str = "M15", count: int = 200) -> list[float]:
     return [c["close"] for c in get_candles(symbol, timeframe, count)]
+
+
+async def get_candles_live(symbol: str, timeframe: str = "M15",
+                           count: int = 200) -> list[dict]:
+    """Real vendor candles when configured, else the reproducible synthetic set."""
+    symbol = symbol.upper()
+    if not get_instrument(symbol):
+        return []
+    if settings.MARKET_DATA_PROVIDER != "synthetic":
+        real = await data_providers.twelvedata_candles(symbol, timeframe, count)
+        if real:
+            return real
+    return get_candles(symbol, timeframe, count)
+
+
+async def get_price(symbol: str) -> float | None:
+    """Single mid price — used by the execution engine to fill orders."""
+    q = await get_quote(symbol)
+    return q.price if q else None
+

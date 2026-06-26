@@ -53,9 +53,9 @@ async def quote(symbol: str):
 
 
 @router.get("/candles/{symbol}")
-def candles(symbol: str, timeframe: str = Query("M15"),
-            count: int = Query(200, ge=10, le=500)):
-    data = mkt.get_candles(symbol, timeframe, count)
+async def candles(symbol: str, timeframe: str = Query("M15"),
+                  count: int = Query(200, ge=10, le=500)):
+    data = await mkt.get_candles_live(symbol, timeframe, count)
     if not data:
         raise HTTPException(404, f"Unknown instrument: {symbol}")
     return {"symbol": symbol.upper(), "timeframe": timeframe.upper(),

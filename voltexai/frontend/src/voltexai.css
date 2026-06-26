@@ -659,4 +659,44 @@ body {
   .vx-nav-links { display: none; }
   .vx-table { font-size: 12px; }
   .vx-table th:nth-child(6), .vx-table td:nth-child(6) { display: none; }
+  .vx-trade-grid { grid-template-columns: 1fr; }
 }
+
+/* ---------- Trade desk ---------- */
+.vx-broker-badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 10px;
+  border-radius: 20px; letter-spacing: 0.5px; margin: 4px 0; }
+.vx-broker-badge.paper { color: var(--vx-warn); background: rgba(255,181,71,0.12); }
+.vx-broker-badge.live { color: var(--vx-danger); background: rgba(255,85,96,0.14); }
+.vx-trade-grid { display: grid; grid-template-columns: 340px 1fr; gap: 18px; align-items: start; }
+.vx-ticket { background: var(--vx-bg-card); border: 1px solid var(--vx-border);
+  border-radius: 16px; padding: 20px; position: sticky; top: 88px; }
+.vx-ticket h3 { margin: 0 0 14px; }
+.vx-side-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+.vx-side-toggle button { padding: 12px; border-radius: 10px; border: 1px solid var(--vx-border);
+  background: var(--vx-bg-elev); color: var(--vx-text-dim); font-weight: 700; cursor: pointer; }
+.vx-side-toggle button.buy.active { background: rgba(69,224,160,0.16); color: var(--vx-success); border-color: var(--vx-success); }
+.vx-side-toggle button.sell.active { background: rgba(255,85,96,0.16); color: var(--vx-danger); border-color: var(--vx-danger); }
+.vx-field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--vx-text-dim); margin-bottom: 12px; }
+.vx-field input { padding: 12px 14px; background: var(--vx-bg-elev); border: 1px solid var(--vx-border);
+  border-radius: 10px; color: var(--vx-text); font-size: 15px; font-family: var(--vx-font-mono); }
+.vx-field input:focus { outline: none; border-color: var(--vx-accent); }
+.vx-ticket-quote { display: flex; justify-content: space-between; align-items: center;
+  background: var(--vx-bg-elev); border-radius: 10px; padding: 10px 12px; margin-bottom: 12px;
+  font-size: 13px; font-family: var(--vx-font-mono); }
+.vx-ticket-quote > span:nth-child(2) { font-size: 18px; font-weight: 700; }
+.vx-order-type { width: 100%; display: grid; grid-template-columns: 1fr 1fr; margin-bottom: 12px; }
+.vx-order-type button { text-transform: capitalize; }
+.vx-ticket-notional { font-size: 13px; color: var(--vx-text-dim); margin: 4px 0 14px; }
+.vx-btn-block { display: block; width: 100%; text-align: center; padding: 14px; border-radius: 10px;
+  border: none; font-weight: 700; font-size: 15px; cursor: pointer; text-decoration: none; }
+.vx-btn-buy { background: var(--vx-success); color: #04231a; }
+.vx-btn-sell { background: var(--vx-danger); color: #2a0508; }
+.vx-trade-tables { display: flex; flex-direction: column; gap: 18px; }
+.vx-table-title { padding: 12px 16px; font-weight: 700; border-bottom: 1px solid var(--vx-border); }
+.vx-btn-mini { padding: 4px 10px; border-radius: 7px; border: 1px solid var(--vx-border);
+  background: var(--vx-bg-elev); color: var(--vx-text-dim); cursor: pointer; font-size: 12px; }
+.vx-btn-mini:hover { border-color: var(--vx-danger); color: var(--vx-danger); }
+.vx-status { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; text-transform: uppercase; }
+.vx-status--filled { color: var(--vx-success); background: rgba(69,224,160,0.12); }
+.vx-status--pending { color: var(--vx-warn); background: rgba(255,181,71,0.12); }
+.vx-status--cancelled, .vx-status--rejected { color: var(--vx-text-dim); background: var(--vx-bg-elev); }

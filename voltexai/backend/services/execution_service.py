@@ -1,0 +1,385 @@
+"""
+VoltexAI - Trade execution engine
+Two interchangeable brokers behind one interface:
+
+  * PaperBroker  — the safe default. A fully-functional simulated broker that
+    persists accounts, positions and orders in our DB and fills market orders at
+    the live (or model) quote. No real money ever moves. Supports long & short.
+
+  * AlpacaBroker — real execution via the Alpaca REST API. Defaults to Alpaca's
+    PAPER endpoint; only touches live money if ALPACA_BASE_URL is pointed at the
+    live host AND keys are set. Covers US stocks and crypto.
+
+`get_broker()` picks the implementation from settings. Both expose the same async
+methods so the routes never branch on broker type. All money figures are in the
+account currency (USD).
+"""
+from __future__ import annotations
+
+import logging
+from datetime import datetime
+
+import httpx
+from fastapi import HTTPException
+from sqlalchemy.orm import Session
+
+from ..config import settings
+from ..models import (User, BrokerAccount, Position, Order,
+                      OrderSide, OrderType, OrderStatus)
+from ..data.instruments import get_instrument
+from . import market_service as mkt
+
+logger = logging.getLogger(__name__)
+
+
+# ============================================================
+#  Internal paper broker (DB-backed, safe default)
+# ============================================================
+class PaperBroker:
+    name = "paper"
+
+    def _account(self, db: Session, user: User) -> BrokerAccount:
+        acc = (db.query(BrokerAccount)
+                 .filter(BrokerAccount.user_id == user.id).first())
+        if not acc:
+            acc = BrokerAccount(
+                user_id=user.id, broker="paper", currency="USD",
+                cash_balance=settings.PAPER_STARTING_BALANCE,
+                starting_balance=settings.PAPER_STARTING_BALANCE,
+            )
+            db.add(acc)
+            db.commit()
+            db.refresh(acc)
+        return acc
+
+    def _position(self, db: Session, acc: BrokerAccount, symbol: str) -> Position:
+        pos = (db.query(Position)
+                 .filter(Position.account_id == acc.id,
+                         Position.symbol == symbol).first())
+        if not pos:
+            pos = Position(account_id=acc.id, symbol=symbol, qty=0.0, avg_price=0.0)
+            db.add(pos)
+            db.flush()
+        return pos
+
+    async def _prices(self, symbols: list[str]) -> dict[str, float]:
+        out = {}
+        for s in symbols:
+            p = await mkt.get_price(s)
+            if p is not None:
+                out[s] = p
+        return out
+
+    async def get_account(self, db: Session, user: User) -> dict:
+        acc = self._account(db, user)
+        await self._fill_pending(db, acc)
+        positions = [p for p in acc.positions if abs(p.qty) > 1e-9]
+        prices = await self._prices([p.symbol for p in positions])
+        unrealized = 0.0
+        market_value = 0.0
+        for p in positions:
+            px = prices.get(p.symbol, p.avg_price)
+            market_value += p.qty * px
+            unrealized += p.qty * (px - p.avg_price)
+        equity = acc.cash_balance + market_value
+        ret_pct = ((equity - acc.starting_balance) / acc.starting_balance * 100
+                   if acc.starting_balance else 0.0)
+        return {
+            "broker": "paper",
+            "currency": acc.currency,
+            "cash": round(acc.cash_balance, 2),
+            "equity": round(equity, 2),
+            "market_value": round(market_value, 2),
+            "starting_balance": round(acc.starting_balance, 2),
+            "realized_pnl": round(acc.realized_pnl, 2),
+            "unrealized_pnl": round(unrealized, 2),
+            "total_return_pct": round(ret_pct, 2),
+            "open_positions": len(positions),
+            "buying_power": round(acc.cash_balance, 2),
+            "is_live": False,
+        }
+
+    async def get_positions(self, db: Session, user: User) -> list[dict]:
+        acc = self._account(db, user)
+        await self._fill_pending(db, acc)
+        positions = [p for p in acc.positions if abs(p.qty) > 1e-9]
+        prices = await self._prices([p.symbol for p in positions])
+        out = []
+        for p in positions:
+            px = prices.get(p.symbol, p.avg_price)
+            inst = get_instrument(p.symbol)
+            upl = p.qty * (px - p.avg_price)
+            cost = abs(p.qty) * p.avg_price
+            out.append({
+                "symbol": p.symbol,
+                "display": inst["display"] if inst else p.symbol,
+                "side": "long" if p.qty > 0 else "short",
+                "qty": round(p.qty, 6),
+                "avg_price": round(p.avg_price, 6),
+                "current_price": round(px, 6),
+                "market_value": round(p.qty * px, 2),
+                "unrealized_pnl": round(upl, 2),
+                "unrealized_pct": round((upl / cost * 100) if cost else 0.0, 2),
+            })
+        return out
+
+    async def place_order(self, db: Session, user: User, symbol: str, side: str,
+                          qty: float, order_type: str = "market",
+                          limit_price: float | None = None,
+                          note: str | None = None) -> dict:
+        symbol = symbol.upper()
+        inst = get_instrument(symbol)
+        if not inst:
+            raise HTTPException(400, f"Unknown instrument: {symbol}")
+        if qty <= 0:
+            raise HTTPException(400, "Quantity must be positive")
+        side_e = OrderSide(side.lower())
+        type_e = OrderType(order_type.lower())
+        acc = self._account(db, user)
+
+        order = Order(account_id=acc.id, symbol=symbol, side=side_e, type=type_e,
+                      qty=qty, limit_price=limit_price, note=note,
+                      status=OrderStatus.PENDING)
+        db.add(order)
+        db.flush()
+
+        price = await mkt.get_price(symbol)
+        if price is None:
+            order.status = OrderStatus.REJECTED
+            order.note = "no market price"
+            db.commit()
+            raise HTTPException(502, "No market price available")
+
+        if type_e == OrderType.LIMIT:
+            # fill immediately if marketable, else leave pending
+            marketable = ((side_e == OrderSide.BUY and price <= limit_price) or
+                          (side_e == OrderSide.SELL and price >= limit_price))
+            if not marketable:
+                db.commit()
+                db.refresh(order)
+                return self._order_dict(order)
+            price = limit_price
+
+        self._execute_fill(db, acc, order, price)
+        db.commit()
+        db.refresh(order)
+        return self._order_dict(order)
+
+    def _execute_fill(self, db: Session, acc: BrokerAccount, order: Order, price: float):
+        """Apply a fill: update cash, position (signed), realized P&L. Validates funds."""
+        signed = order.qty if order.side == OrderSide.BUY else -order.qty
+        pos = self._position(db, acc, order.symbol)
+        old_qty, old_avg = pos.qty, pos.avg_price
+
+        # ---- risk checks ----
+        cost = order.qty * price
+        if order.side == OrderSide.BUY and acc.cash_balance < cost - 1e-9 \
+                and (old_qty >= 0):
+            order.status = OrderStatus.REJECTED
+            order.note = "insufficient buying power"
+            raise HTTPException(400, "Insufficient buying power for this order")
+        # cap naked short exposure to the starting balance
+        new_qty_preview = old_qty + signed
+        if new_qty_preview < 0 and abs(new_qty_preview) * price > acc.starting_balance + 1e-6:
+            order.status = OrderStatus.REJECTED
+            order.note = "short exposure cap exceeded"
+            raise HTTPException(400, "Short exposure would exceed the account cap")
+
+        realized = 0.0
+        # same direction or opening from flat -> weighted average
+        if old_qty == 0 or (old_qty > 0) == (signed > 0):
+            total = abs(old_qty) + abs(signed)
+            pos.avg_price = (abs(old_qty) * old_avg + abs(signed) * price) / total
+            pos.qty = old_qty + signed
+        else:
+            # opposite direction -> close (and maybe flip)
+            closing = min(abs(signed), abs(old_qty))
+            sign_old = 1 if old_qty > 0 else -1
+            realized = closing * (price - old_avg) * sign_old
+            if abs(signed) <= abs(old_qty):
+                pos.qty = old_qty + signed            # reduced, avg unchanged
+            else:
+                pos.qty = old_qty + signed            # flipped
+                pos.avg_price = price                 # new basis at fill price
+
+        # cash moves opposite to signed exposure
+        acc.cash_balance -= signed * price
+        acc.realized_pnl += realized
+        pos.updated_at = datetime.utcnow()
+
+        order.status = OrderStatus.FILLED
+        order.filled_price = price
+        order.realized_pnl = realized
+        order.filled_at = datetime.utcnow()
+
+    async def _fill_pending(self, db: Session, acc: BrokerAccount):
+        """Opportunistically fill resting limit orders that have become marketable."""
+        pend = [o for o in acc.orders if o.status == OrderStatus.PENDING]
+        changed = False
+        for o in pend:
+            price = await mkt.get_price(o.symbol)
+            if price is None:
+                continue
+            hit = ((o.side == OrderSide.BUY and price <= o.limit_price) or
+                   (o.side == OrderSide.SELL and price >= o.limit_price))
+            if hit:
+                try:
+                    self._execute_fill(db, acc, o, o.limit_price)
+                    changed = True
+                except HTTPException:
+                    o.status = OrderStatus.REJECTED
+                    changed = True
+        if changed:
+            db.commit()
+
+    async def list_orders(self, db: Session, user: User, limit: int = 50) -> list[dict]:
+        acc = self._account(db, user)
+        orders = (db.query(Order).filter(Order.account_id == acc.id)
+                    .order_by(Order.created_at.desc()).limit(limit).all())
+        return [self._order_dict(o) for o in orders]
+
+    async def cancel_order(self, db: Session, user: User, order_id) -> dict:
+        try:
+            order_id = int(order_id)
+        except (TypeError, ValueError):
+            raise HTTPException(400, "Invalid order id")
+        acc = self._account(db, user)
+        o = (db.query(Order).filter(Order.id == order_id,
+                                    Order.account_id == acc.id).first())
+        if not o:
+            raise HTTPException(404, "Order not found")
+        if o.status != OrderStatus.PENDING:
+            raise HTTPException(400, f"Cannot cancel a {o.status.value} order")
+        o.status = OrderStatus.CANCELLED
+        db.commit()
+        db.refresh(o)
+        return self._order_dict(o)
+
+    @staticmethod
+    def _order_dict(o: Order) -> dict:
+        return {
+            "id": o.id, "symbol": o.symbol, "side": o.side.value,
+            "type": o.type.value, "qty": o.qty, "limit_price": o.limit_price,
+            "status": o.status.value, "filled_price": o.filled_price,
+            "realized_pnl": round(o.realized_pnl, 2), "note": o.note,
+            "created_at": o.created_at.isoformat(),
+            "filled_at": o.filled_at.isoformat() if o.filled_at else None,
+        }
+
+
+# ============================================================
+#  Alpaca broker (real execution; paper endpoint by default)
+# ============================================================
+class AlpacaBroker:
+    name = "alpaca"
+
+    def __init__(self):
+        self.base = settings.ALPACA_BASE_URL.rstrip("/")
+        self.headers = {
+            "APCA-API-KEY-ID": settings.ALPACA_API_KEY,
+            "APCA-API-SECRET-KEY": settings.ALPACA_API_SECRET,
+        }
+        self.is_live = "paper-api" not in self.base
+
+    @staticmethod
+    def _sym(symbol: str) -> str:
+        inst = get_instrument(symbol)
+        if not inst:
+            raise HTTPException(400, f"Unknown instrument: {symbol}")
+        if inst["asset_class"] == "stocks":
+            return symbol.upper()
+        if inst["asset_class"] == "crypto" and len(symbol) == 6:
+            return f"{symbol[:3].upper()}/{symbol[3:].upper()}"
+        raise HTTPException(400,
+            f"{symbol} is not tradable via Alpaca (stocks & crypto only)")
+
+    async def _req(self, method: str, path: str, **kw):
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            r = await client.request(method, f"{self.base}{path}",
+                                     headers=self.headers, **kw)
+            if r.status_code >= 400:
+                raise HTTPException(r.status_code, f"Alpaca: {r.text[:200]}")
+            return r.json() if r.text else {}
+
+    async def get_account(self, db: Session, user: User) -> dict:
+        a = await self._req("GET", "/v2/account")
+        equity = float(a.get("equity") or 0)
+        last = float(a.get("last_equity") or equity)
+        return {
+            "broker": "alpaca", "currency": a.get("currency", "USD"),
+            "cash": round(float(a.get("cash") or 0), 2),
+            "equity": round(equity, 2),
+            "market_value": round(float(a.get("long_market_value") or 0) +
+                                  float(a.get("short_market_value") or 0), 2),
+            "starting_balance": round(last, 2),
+            "realized_pnl": 0.0,
+            "unrealized_pnl": round(equity - last, 2),
+            "total_return_pct": round((equity - last) / last * 100 if last else 0, 2),
+            "open_positions": None,
+            "buying_power": round(float(a.get("buying_power") or 0), 2),
+            "is_live": self.is_live,
+        }
+
+    async def get_positions(self, db: Session, user: User) -> list[dict]:
+        rows = await self._req("GET", "/v2/positions")
+        out = []
+        for p in rows:
+            qty = float(p["qty"])
+            out.append({
+                "symbol": p["symbol"], "display": p["symbol"],
+                "side": p.get("side", "long"),
+                "qty": qty, "avg_price": round(float(p["avg_entry_price"]), 6),
+                "current_price": round(float(p.get("current_price") or 0), 6),
+                "market_value": round(float(p.get("market_value") or 0), 2),
+                "unrealized_pnl": round(float(p.get("unrealized_pl") or 0), 2),
+                "unrealized_pct": round(float(p.get("unrealized_plpc") or 0) * 100, 2),
+            })
+        return out
+
+    async def place_order(self, db: Session, user: User, symbol: str, side: str,
+                          qty: float, order_type: str = "market",
+                          limit_price: float | None = None,
+                          note: str | None = None) -> dict:
+        body = {
+            "symbol": self._sym(symbol), "qty": str(qty), "side": side.lower(),
+            "type": order_type.lower(), "time_in_force": "gtc",
+        }
+        if order_type.lower() == "limit":
+            body["limit_price"] = str(limit_price)
+        o = await self._req("POST", "/v2/orders", json=body)
+        return self._order_dict(o)
+
+    async def list_orders(self, db: Session, user: User, limit: int = 50) -> list[dict]:
+        rows = await self._req("GET", "/v2/orders",
+                               params={"status": "all", "limit": limit})
+        return [self._order_dict(o) for o in rows]
+
+    async def cancel_order(self, db: Session, user: User, order_id) -> dict:
+        await self._req("DELETE", f"/v2/orders/{order_id}")
+        return {"id": order_id, "status": "cancelled"}
+
+    @staticmethod
+    def _order_dict(o: dict) -> dict:
+        return {
+            "id": o.get("id"), "symbol": o.get("symbol"), "side": o.get("side"),
+            "type": o.get("type") or o.get("order_type"), "qty": float(o.get("qty") or 0),
+            "limit_price": float(o["limit_price"]) if o.get("limit_price") else None,
+            "status": o.get("status"),
+            "filled_price": float(o["filled_avg_price"]) if o.get("filled_avg_price") else None,
+            "realized_pnl": 0.0, "note": None,
+            "created_at": o.get("created_at"), "filled_at": o.get("filled_at"),
+        }
+
+
+_paper = PaperBroker()
+_alpaca: AlpacaBroker | None = None
+
+
+def get_broker():
+    """Active broker. Falls back to the safe paper broker if Alpaca isn't configured."""
+    global _alpaca
+    if settings.BROKER == "alpaca" and settings.ALPACA_API_KEY and settings.ALPACA_API_SECRET:
+        if _alpaca is None:
+            _alpaca = AlpacaBroker()
+        return _alpaca
+    return _paper

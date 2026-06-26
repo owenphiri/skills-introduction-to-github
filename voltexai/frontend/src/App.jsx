@@ -19,6 +19,7 @@ import Reset from "./pages/Reset";
 import Pricing from "./pages/Pricing";
 import Account from "./pages/Account";
 import Terminal from "./pages/Terminal";
+import Trade from "./pages/Trade";
 
 import "./voltexai.css";
 
@@ -48,6 +49,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <Terminal />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/trade"
+            element={
+              <ProtectedRoute>
+                <Trade />
               </ProtectedRoute>
             }
           />

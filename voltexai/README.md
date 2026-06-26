@@ -41,8 +41,9 @@ voltexai/
 | Area | What it does |
 |---|---|
 | 🧠 **AI Terminal** | Claude streaming chat with 4 modes (Terminal/Analysis/Signals/Academy), vision chart analysis, conversation history, plan-aware quotas |
-| 📈 **Live Markets** | 35 instruments across FX, metals, energy, indices, crypto, US equities — REST + **WebSocket** stream, candlesticks, movers. Live crypto via Binance with a high-fidelity simulated fallback (zero-config) |
+| 📈 **Live Markets** | 35 instruments across FX, metals, energy, indices, crypto, US equities — REST + **WebSocket** stream, candlesticks, movers. **Real feed via Twelve Data / Finnhub / Binance** with a high-fidelity simulated fallback (zero-config) |
 | ⚡ **Signal Scanner** | Deterministic quant engine (EMA/RSI/MACD/Bollinger/ATR + market structure) → ranked, risk-bracketed signals. No AI quota burned |
+| 💹 **Trade Execution** | One-click trading from signals. Safe built-in **paper broker** (long/short, limit orders, P&L) by default, or **real execution via Alpaca** (paper/live). See [docs/TRADING.md](docs/TRADING.md) |
 | 🏦 **Prop Firms** | Compare FTMO, FundedNext, FundingPips, The5ers, HolaPrime & more — splits, rules, payouts |
 | 🏛️ **Brokers** | Regulated brokers with Africa-friendly funding (M-Pesa, local bank), spreads, leverage |
 | 💼 **Managed AUM** | Investor pitch deck, equity curve, mandates, allocation, enquiry capture |
@@ -100,6 +101,8 @@ WS   /api/markets/stream
 GET  /api/signals | /signals/{s} | /signals/board/top
 GET  /api/directory/prop-firms | /brokers
 GET  /api/fund/summary | /performance | /pitch        POST /api/fund/enquire
+GET  /api/trade/account | /positions | /orders | /broker             (auth)
+POST /api/trade/orders | /orders/{id}/cancel                         (auth, paid)
 POST /api/auth/register | /login | /refresh           GET  /api/auth/me   (auth)
 POST /api/ai/chat | /stream | /signal | /analyze-chart                (auth)
 POST /api/payments/stripe/checkout | /flutterwave/checkout            (auth)

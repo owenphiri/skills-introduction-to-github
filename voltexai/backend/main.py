@@ -12,7 +12,8 @@ from fastapi.responses import JSONResponse
 from .config import settings
 from .database import init_db
 from .routes import (auth_router, ai_router, payment_router,
-                     market_router, signal_router, directory_router, fund_router)
+                     market_router, signal_router, directory_router, fund_router,
+                     trade_router)
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s")
@@ -52,6 +53,7 @@ app.include_router(market_router)
 app.include_router(signal_router)
 app.include_router(directory_router)
 app.include_router(fund_router)
+app.include_router(trade_router)
 
 
 @app.get("/")

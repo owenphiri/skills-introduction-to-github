@@ -43,7 +43,10 @@ function SignalCard({ s }) {
       </div>
       <div className="vx-signal-foot">
         <span className="vx-muted">{s.session} · {s.timeframe}</span>
-        <span className="vx-muted">RSI {s.indicators?.rsi14}</span>
+        <Link className="vx-inline-link"
+          to={`/trade?symbol=${s.symbol}&side=${long ? "buy" : "sell"}`}>
+          Trade {s.direction} →
+        </Link>
       </div>
     </div>
   );

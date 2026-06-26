@@ -32,6 +32,24 @@ class Settings(BaseSettings):
     CLAUDE_MODEL: str = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-5")
     CLAUDE_MAX_TOKENS: int = 4096
 
+    # --- Market data feed ---
+    # Provider order is automatic: a real vendor (if its key is set) is tried
+    # first per asset class, then Binance for crypto, then the built-in feed.
+    MARKET_DATA_PROVIDER: str = os.getenv("MARKET_DATA_PROVIDER", "auto")  # auto|twelvedata|finnhub|synthetic
+    TWELVEDATA_API_KEY: str = os.getenv("TWELVEDATA_API_KEY", "")
+    FINNHUB_API_KEY: str = os.getenv("FINNHUB_API_KEY", "")
+    MARKET_CACHE_TTL: float = float(os.getenv("MARKET_CACHE_TTL", "12"))   # seconds
+
+    # --- Trade execution ---
+    # BROKER "paper" = built-in simulated broker (safe default, no real money).
+    #        "alpaca" = real Alpaca API (paper or live per ALPACA_BASE_URL).
+    BROKER: str = os.getenv("BROKER", "paper")
+    PAPER_STARTING_BALANCE: float = float(os.getenv("PAPER_STARTING_BALANCE", "100000"))
+    ALPACA_API_KEY: str = os.getenv("ALPACA_API_KEY", "")
+    ALPACA_API_SECRET: str = os.getenv("ALPACA_API_SECRET", "")
+    # paper endpoint by default — never silently defaults to live money
+    ALPACA_BASE_URL: str = os.getenv("ALPACA_BASE_URL", "https://paper-api.alpaca.markets")
+
     # Stripe (international cards / USD)
     STRIPE_SECRET_KEY: str = os.getenv("STRIPE_SECRET_KEY", "")
     STRIPE_PUBLISHABLE_KEY: str = os.getenv("STRIPE_PUBLISHABLE_KEY", "")
