@@ -1,21 +1,21 @@
-# SafeGirl EduTrack — container image.
+# HardWare Plus POS — Container image
 FROM node:22-alpine
 
 ENV NODE_ENV=production
 WORKDIR /app
 
-# Install production dependencies first (better layer caching).
+# Install production dependencies (better layer caching)
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
 COPY server ./server
-COPY public ./public
+COPY public  ./public
 
-# Persistent, encryptable data volume (DB lives here).
+# Persistent data volume (SQLite DB lives here — encrypt at host level)
 VOLUME ["/app/data"]
-ENV SEWSMS_DB=/app/data/sewsms.db
+ENV POS_DB=/app/data/pos.db
 
 EXPOSE 3000
 
-# Built-in SQLite needs the experimental flag on Node 22.
+# Seed on first run if DB is empty, then start server
 CMD ["node", "--experimental-sqlite", "server/app.js"]

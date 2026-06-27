@@ -1,13 +1,13 @@
 {
-  "name": "SafeGirl EduTrack",
-  "short_name": "SafeGirl",
-  "description": "Protecting Girls · Promoting Education · Building Futures",
+  "name": "HardWare Plus POS",
+  "short_name": "HW Plus",
+  "description": "Complete Hardware Shop Point of Sale System",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "orientation": "portrait",
-  "background_color": "#145c33",
-  "theme_color": "#145c33",
+  "orientation": "landscape",
+  "background_color": "#0F172A",
+  "theme_color": "#1E40AF",
   "icons": [
     { "src": "/assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
     { "src": "/assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
