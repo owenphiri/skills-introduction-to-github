@@ -76,7 +76,7 @@ app.post('/api/categories', authenticate, requireRole('admin','manager'), (req, 
 });
 
 app.put('/api/categories/:id', authenticate, requireRole('admin','manager'), (req, res) => {
-  const { name, description, color } = req.body;
+  const { name = null, description = null, color = null } = req.body;
   db.prepare('UPDATE categories SET name=COALESCE(?,name), description=COALESCE(?,description), color=COALESCE(?,color) WHERE id=?')
     .run(name, description, color, req.params.id);
   res.json(db.prepare('SELECT * FROM categories WHERE id=?').get(req.params.id));
@@ -103,7 +103,7 @@ app.post('/api/suppliers', authenticate, requireRole('admin','manager'), (req, r
 });
 
 app.put('/api/suppliers/:id', authenticate, requireRole('admin','manager'), (req, res) => {
-  const { name, contact_name, email, phone, address, city, notes } = req.body;
+  const { name = null, contact_name = null, email = null, phone = null, address = null, city = null, notes = null } = req.body;
   db.prepare(`UPDATE suppliers SET
     name=COALESCE(?,name), contact_name=COALESCE(?,contact_name), email=COALESCE(?,email),
     phone=COALESCE(?,phone), address=COALESCE(?,address), city=COALESCE(?,city), notes=COALESCE(?,notes)
@@ -162,7 +162,7 @@ app.post('/api/products', authenticate, requireRole('admin','manager'), (req, re
 });
 
 app.put('/api/products/:id', authenticate, requireRole('admin','manager'), (req, res) => {
-  const { sku, barcode, name, description, category_id, supplier_id, unit, cost_price, selling_price, tax_rate, reorder_level } = req.body;
+  const { sku = null, barcode = null, name = null, description = null, category_id = null, supplier_id = null, unit = null, cost_price = null, selling_price = null, tax_rate = null, reorder_level = null } = req.body;
   db.prepare(`UPDATE products SET
     sku=COALESCE(?,sku), barcode=COALESCE(?,barcode), name=COALESCE(?,name),
     description=COALESCE(?,description), category_id=COALESCE(?,category_id),
@@ -263,7 +263,7 @@ app.post('/api/customers', authenticate, (req, res) => {
 });
 
 app.put('/api/customers/:id', authenticate, (req, res) => {
-  const { full_name, phone, email, address, city, credit_limit, notes } = req.body;
+  const { full_name = null, phone = null, email = null, address = null, city = null, credit_limit = null, notes = null } = req.body;
   db.prepare(`UPDATE customers SET
     full_name=COALESCE(?,full_name), phone=COALESCE(?,phone), email=COALESCE(?,email),
     address=COALESCE(?,address), city=COALESCE(?,city),
@@ -639,7 +639,7 @@ app.post('/api/users', authenticate, requireRole('admin'), (req, res) => {
 });
 
 app.put('/api/users/:id', authenticate, requireRole('admin'), (req, res) => {
-  const { full_name, role, email, phone, active, password } = req.body;
+  const { full_name = null, role = null, email = null, phone = null, active = null, password } = req.body;
   if (password) {
     db.prepare('UPDATE users SET password_hash=? WHERE id=?').run(hashPassword(password), req.params.id);
   }
@@ -654,9 +654,11 @@ app.put('/api/users/:id', authenticate, requireRole('admin'), (req, res) => {
 app.use(express.static(path.join(__dirname, '../public')));
 app.get('*', (_req, res) => res.sendFile(path.join(__dirname, '../public/index.html')));
 
-const server = http.createServer(app);
-server.listen(config.port, config.host, () => {
-  console.log(`HardWare Plus POS running at http://${config.host}:${config.port}`);
-});
+if (require.main === module) {
+  const server = http.createServer(app);
+  server.listen(config.port, config.host, () => {
+    console.log(`HardWare Plus POS running at http://${config.host}:${config.port}`);
+  });
+}
 
-module.exports = { app, server };
+module.exports = app;

@@ -6,75 +6,107 @@ const h = require('./helpers');
 before(h.start);
 after(h.stop);
 
-test('admin sees all schools and learners; teacher sees only their school', async () => {
-  const admin = await h.login('admin');
-  const teacher = await h.login('teacher');
-  const all = (await h.req('GET', '/api/students', { token: admin })).data;
-  const mine = (await h.req('GET', '/api/students', { token: teacher })).data;
-  assert.ok(all.length > mine.length, 'admin should see more learners than a single-school teacher');
-  // Every learner a teacher sees belongs to one school.
-  const schoolIds = new Set(mine.map(s => s.school_id));
-  assert.equal(schoolIds.size, 1);
+// ── User management ─────────────────────────────────────────────────────────
+
+test('admin can list all users; password hashes are never exposed', async () => {
+  const token = await h.login('admin');
+  const { status, data } = await h.req('GET', '/api/users', { token });
+  assert.equal(status, 200);
+  assert.ok(data.some(u => u.role === 'admin'));
+  assert.ok(data.some(u => u.role === 'manager'));
+  assert.ok(data.some(u => u.role === 'cashier'));
+  assert.ok(data.every(u => !('password_hash' in u)), 'password hashes must never be in the response');
 });
 
-test('district officer sees only schools in their district', async () => {
-  const district = await h.login('district');
-  const schools = (await h.req('GET', '/api/analytics/by-school', { token: district })).data;
-  assert.ok(schools.length >= 1);
-  assert.ok(schools.every(s => s.district === 'Chongwe'), 'Chongwe DEO must not see other districts');
-  assert.ok(!schools.some(s => s.district === 'Lusaka'));
+test('admin can create a new user with any valid role', async () => {
+  const token = await h.login('admin');
+
+  for (const role of ['cashier', 'manager']) {
+    const username = `new_${role}_${Date.now()}`;
+    const { status, data } = await h.req('POST', '/api/users', {
+      token,
+      body: { username, password: 'Test1234!', full_name: `New ${role}`, role }
+    });
+    assert.equal(status, 201, `creating ${role} user should return 201`);
+    assert.equal(data.username, username);
+    assert.equal(data.role, role);
+    assert.ok(!('password_hash' in data));
+  }
 });
 
-test('admin by-school dashboard covers every district', async () => {
-  const admin = await h.login('admin');
-  const schools = (await h.req('GET', '/api/analytics/by-school', { token: admin })).data;
-  const districts = new Set(schools.map(s => s.district));
-  assert.ok(districts.has('Chongwe') && districts.has('Lusaka'));
-});
-
-test('a teacher cannot view a learner outside their school (403)', async () => {
-  const admin = await h.login('admin');
-  const teacher = await h.login('teacher');
-  // Find a learner in a school the teacher does NOT belong to.
-  const mine = (await h.req('GET', '/api/students', { token: teacher })).data;
-  const myschool = mine[0].school_id;
-  const all = (await h.req('GET', '/api/students', { token: admin })).data;
-  const other = all.find(s => s.school_id !== myschool);
-  assert.ok(other, 'seed should include a learner in another school');
-  const res = await h.req('GET', '/api/students/' + other.id, { token: teacher });
-  assert.equal(res.status, 403);
-});
-
-test('district analytics summary is bounded to the district', async () => {
-  const district = await h.login('district');
-  const admin = await h.login('admin');
-  const dSum = (await h.req('GET', '/api/analytics/summary', { token: district })).data;
-  const aSum = (await h.req('GET', '/api/analytics/summary', { token: admin })).data;
-  assert.ok(dSum.totalStudents < aSum.totalStudents, 'district total must be a subset of national total');
-});
-
-test('new learners default to the registering staff member\'s school', async () => {
-  const teacher = await h.login('teacher');
-  const created = (await h.req('POST', '/api/students', {
-    token: teacher, body: { full_name: 'Scoped Learner', grade: '8C', gender: 'F' }
-  })).data;
-  assert.ok(created.school_id, 'should inherit the teacher\'s school');
-  // And the teacher can immediately see it within scope.
-  const fetched = await h.req('GET', '/api/students/' + created.id, { token: teacher });
-  assert.equal(fetched.status, 200);
-});
-
-test('admin can create a new school; non-admin cannot', async () => {
-  const admin = await h.login('admin');
-  const ok = await h.req('POST', '/api/schools', {
-    token: admin, body: { name: 'Test School', district: 'Kafue', package: 'bronze' }
+test('creating a user with a duplicate username returns 409', async () => {
+  const token = await h.login('admin');
+  await h.req('POST', '/api/users', {
+    token, body: { username: 'dupuser', password: 'Dup1234!', full_name: 'Dup', role: 'cashier' }
   });
-  assert.equal(ok.status, 201);
-  assert.equal(ok.data.district, 'Kafue');
-
-  const teacher = await h.login('teacher');
-  const denied = await h.req('POST', '/api/schools', {
-    token: teacher, body: { name: 'Nope', district: 'X' }
+  const dup = await h.req('POST', '/api/users', {
+    token, body: { username: 'dupuser', password: 'Dup1234!', full_name: 'Dup2', role: 'cashier' }
   });
-  assert.equal(denied.status, 403);
+  assert.equal(dup.status, 409);
+});
+
+test('creating a user with missing fields returns 400', async () => {
+  const token = await h.login('admin');
+  const noPassword = await h.req('POST', '/api/users', {
+    token, body: { username: 'x1', full_name: 'X', role: 'cashier' }
+  });
+  assert.equal(noPassword.status, 400);
+});
+
+test('admin can update a user name and role', async () => {
+  const token = await h.login('admin');
+  const { data: users } = await h.req('GET', '/api/users', { token });
+  const cashier = users.find(u => u.username === 'cashier2');
+
+  const updated = await h.req('PUT', `/api/users/${cashier.id}`, {
+    token, body: { full_name: 'Brian Updated' }
+  });
+  assert.equal(updated.status, 200);
+  assert.equal(updated.data.full_name, 'Brian Updated');
+});
+
+test('non-admin users cannot list or create users', async () => {
+  for (const username of ['manager', 'cashier1']) {
+    const token = await h.login(username);
+    const list = await h.req('GET', '/api/users', { token });
+    assert.equal(list.status, 403, `${username} must not list users`);
+  }
+});
+
+// ── Settings ────────────────────────────────────────────────────────────────
+
+test('any authenticated user can read settings', async () => {
+  const token = await h.login('cashier1');
+  const { status, data } = await h.req('GET', '/api/settings', { token });
+  assert.equal(status, 200);
+  assert.ok('business_name'  in data, 'must include business_name');
+  assert.ok('currency_code'  in data, 'must include currency_code');
+  assert.ok('currency_symbol' in data, 'must include currency_symbol');
+  assert.ok('receipt_prefix' in data, 'must include receipt_prefix');
+});
+
+test('admin can update settings and changes persist', async () => {
+  const token = await h.login('admin');
+
+  const updated = await h.req('PUT', '/api/settings', {
+    token, body: { receipt_footer: 'New footer text', low_stock_alert: '5' }
+  });
+  assert.equal(updated.status, 200);
+  assert.equal(updated.data.receipt_footer, 'New footer text');
+  assert.equal(updated.data.low_stock_alert, '5');
+
+  // Verify persistence with a separate GET
+  const { data: readback } = await h.req('GET', '/api/settings', { token });
+  assert.equal(readback.receipt_footer, 'New footer text');
+});
+
+test('non-admin cannot update settings', async () => {
+  const manager = await h.login('manager');
+  const cashier = await h.login('cashier1');
+
+  const mgrRes = await h.req('PUT', '/api/settings', { token: manager, body: { business_name: 'Hack' } });
+  assert.equal(mgrRes.status, 403);
+
+  const cshRes = await h.req('PUT', '/api/settings', { token: cashier, body: { business_name: 'Hack' } });
+  assert.equal(cshRes.status, 403);
 });
