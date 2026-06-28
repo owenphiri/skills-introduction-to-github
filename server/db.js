@@ -1,203 +1,197 @@
 'use strict';
 
-/**
- * Database layer for SafeGirl EduTrack.
- *
- * Uses Node's built-in `node:sqlite` (no native build step, no external DB
- * server) so the system runs anywhere Node 22.5+ is available — from a rural
- * school laptop in offline mode to a national data centre. The schema is the
- * same; only the deployment target changes.
- */
 const fs = require('fs');
 const path = require('path');
 const { DatabaseSync } = require('node:sqlite');
 const config = require('./config');
 
-// Ensure the data directory exists.
-fs.mkdirSync(path.dirname(config.dbFile), { recursive: true });
+fs.mkdirSync(path.dirname(config.db), { recursive: true });
 
-const db = new DatabaseSync(config.dbFile);
+const db = new DatabaseSync(config.db);
 db.exec('PRAGMA journal_mode = WAL;');
 db.exec('PRAGMA foreign_keys = ON;');
 
-/**
- * Schema. Designed around the SEWSMS modules:
- * users, students, attendance, performance, counseling, messages (outbox),
- * awareness content, and audit sessions.
- */
 function migrate() {
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id            INTEGER PRIMARY KEY AUTOINCREMENT,
-      full_name     TEXT NOT NULL,
-      username      TEXT NOT NULL UNIQUE,
-      password_hash TEXT NOT NULL,
-      role          TEXT NOT NULL CHECK (role IN
-                      ('admin','teacher','counselor','parent','district','community','reviewer')),
+      username      TEXT    NOT NULL UNIQUE,
+      password_hash TEXT    NOT NULL,
+      full_name     TEXT    NOT NULL,
+      role          TEXT    NOT NULL CHECK(role IN ('admin','manager','cashier')),
+      email         TEXT,
       phone         TEXT,
-      school_id     INTEGER,
-      created_at    TEXT NOT NULL DEFAULT (datetime('now'))
+      active        INTEGER NOT NULL DEFAULT 1,
+      created_at    TEXT    NOT NULL DEFAULT (datetime('now')),
+      last_login    TEXT
     );
 
-    CREATE TABLE IF NOT EXISTS schools (
-      id        INTEGER PRIMARY KEY AUTOINCREMENT,
-      name      TEXT NOT NULL,
-      district  TEXT NOT NULL,
-      province  TEXT,
-      package   TEXT NOT NULL DEFAULT 'bronze'
-                  CHECK (package IN ('bronze','silver','gold','platinum'))
-    );
-
-    CREATE TABLE IF NOT EXISTS students (
-      id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-      full_name           TEXT NOT NULL,
-      nrc                 TEXT,                 -- NRC / Birth Certificate No.
-      grade               TEXT NOT NULL,
-      gender              TEXT NOT NULL CHECK (gender IN ('F','M')),
-      date_of_birth       TEXT,
-      parent_name         TEXT,
-      parent_phone        TEXT,
-      village             TEXT,
-      gps_lat             REAL,
-      gps_lng             REAL,
-      vulnerability_status TEXT DEFAULT 'none'  -- none | orphan | low_income | disability | other
-                  ,
-      health_info         TEXT,
-      emergency_contact   TEXT,
-      school_id           INTEGER REFERENCES schools(id),
-      active              INTEGER NOT NULL DEFAULT 1,
-      created_at          TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS attendance (
-      id          INTEGER PRIMARY KEY AUTOINCREMENT,
-      student_id  INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
-      date        TEXT NOT NULL,               -- YYYY-MM-DD
-      status      TEXT NOT NULL CHECK (status IN ('present','absent','late')),
-      marked_by   INTEGER REFERENCES users(id),
-      note        TEXT,
-      created_at  TEXT NOT NULL DEFAULT (datetime('now')),
-      UNIQUE (student_id, date)
-    );
-    CREATE INDEX IF NOT EXISTS idx_attendance_student_date
-      ON attendance(student_id, date);
-
-    CREATE TABLE IF NOT EXISTS performance (
-      id          INTEGER PRIMARY KEY AUTOINCREMENT,
-      student_id  INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
-      term        TEXT NOT NULL,               -- e.g. "2026-T1" or "2026-06"
-      subject     TEXT NOT NULL,
-      score       REAL NOT NULL CHECK (score >= 0 AND score <= 100),
-      recorded_by INTEGER REFERENCES users(id),
-      created_at  TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-    CREATE INDEX IF NOT EXISTS idx_performance_student
-      ON performance(student_id);
-
-    CREATE TABLE IF NOT EXISTS counseling (
-      id            INTEGER PRIMARY KEY AUTOINCREMENT,
-      student_id    INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
-      type          TEXT NOT NULL CHECK (type IN
-                      ('session','home_visit','parent_meeting','welfare_case','referral')),
-      notes         TEXT,
-      counselor_id  INTEGER REFERENCES users(id),
-      scheduled_date TEXT,
-      status        TEXT NOT NULL DEFAULT 'open'
-                      CHECK (status IN ('open','in_progress','resolved','escalated')),
-      follow_up_date TEXT,
-      created_at    TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-    CREATE INDEX IF NOT EXISTS idx_counseling_student
-      ON counseling(student_id);
-
-    -- Messaging outbox. Every SMS / WhatsApp is recorded for audit and for the
-    -- analytics "community engagement" metrics. delivery_status is updated by
-    -- the gateway adapter.
-    CREATE TABLE IF NOT EXISTS messages (
-      id              INTEGER PRIMARY KEY AUTOINCREMENT,
-      student_id      INTEGER REFERENCES students(id) ON DELETE SET NULL,
-      recipient_phone TEXT NOT NULL,
-      channel         TEXT NOT NULL CHECK (channel IN ('sms','whatsapp')),
-      category        TEXT NOT NULL,           -- attendance | results | counseling | awareness | system
-      body            TEXT NOT NULL,
-      language        TEXT NOT NULL DEFAULT 'en',
-      delivery_status TEXT NOT NULL DEFAULT 'queued'
-                        CHECK (delivery_status IN ('queued','sent','delivered','failed','blocked')),
-      provider_ref    TEXT,
-      created_at      TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-    CREATE INDEX IF NOT EXISTS idx_messages_category ON messages(category);
-
-    -- Multilingual awareness library (English, Bemba, Nyanja, Tonga, Lozi).
-    CREATE TABLE IF NOT EXISTS awareness (
-      id        INTEGER PRIMARY KEY AUTOINCREMENT,
-      language  TEXT NOT NULL,
-      category  TEXT NOT NULL,
-      title     TEXT NOT NULL,
-      body      TEXT NOT NULL
-    );
-
-    -- Auth sessions (opaque bearer tokens).
     CREATE TABLE IF NOT EXISTS sessions (
-      token      TEXT PRIMARY KEY,
+      token      TEXT    PRIMARY KEY,
       user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      expires_at INTEGER NOT NULL
+      expires_at INTEGER NOT NULL,
+      created_at TEXT    NOT NULL DEFAULT (datetime('now'))
     );
 
-    -- Message templates with a native-speaker review workflow. Only 'approved'
-    -- translations are ever sent to guardians; un-reviewed languages fall back
-    -- to approved English so a learner's family is never sent unchecked copy.
-    CREATE TABLE IF NOT EXISTS message_templates (
+    CREATE TABLE IF NOT EXISTS categories (
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
-      key         TEXT NOT NULL,        -- present | absent | results | counseling
-      language    TEXT NOT NULL,        -- en | bem | nya | toi | loz
-      body        TEXT NOT NULL,        -- with {name} {avg} {date} placeholders
-      status      TEXT NOT NULL DEFAULT 'draft'
-                    CHECK (status IN ('draft','pending_review','approved','rejected')),
-      reviewer_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
-      review_note TEXT,
-      updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
-      UNIQUE (key, language)
+      name        TEXT    NOT NULL UNIQUE,
+      description TEXT,
+      color       TEXT    NOT NULL DEFAULT '#3B82F6',
+      active      INTEGER NOT NULL DEFAULT 1,
+      created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
     );
 
-    -- Tamper-evident audit trail. Access to minors' welfare data must be
-    -- traceable (safeguarding + Data Protection Act requirement).
-    CREATE TABLE IF NOT EXISTS audit_log (
-      id         INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id    INTEGER REFERENCES users(id) ON DELETE SET NULL,
-      username   TEXT,
-      action     TEXT NOT NULL,        -- e.g. login, student.create, attendance.mark
-      entity     TEXT,                 -- e.g. student:42
-      ip         TEXT,
-      detail     TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    CREATE TABLE IF NOT EXISTS suppliers (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      name         TEXT    NOT NULL,
+      contact_name TEXT,
+      email        TEXT,
+      phone        TEXT,
+      address      TEXT,
+      city         TEXT,
+      active       INTEGER NOT NULL DEFAULT 1,
+      notes        TEXT,
+      created_at   TEXT    NOT NULL DEFAULT (datetime('now'))
     );
-    CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log(created_at);
+
+    CREATE TABLE IF NOT EXISTS products (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      sku           TEXT    NOT NULL UNIQUE,
+      barcode       TEXT    UNIQUE,
+      name          TEXT    NOT NULL,
+      description   TEXT,
+      category_id   INTEGER REFERENCES categories(id),
+      supplier_id   INTEGER REFERENCES suppliers(id),
+      unit          TEXT    NOT NULL DEFAULT 'each',
+      cost_price    REAL    NOT NULL DEFAULT 0,
+      selling_price REAL    NOT NULL DEFAULT 0,
+      tax_rate      REAL    NOT NULL DEFAULT 16,
+      reorder_level INTEGER NOT NULL DEFAULT 10,
+      active        INTEGER NOT NULL DEFAULT 1,
+      created_at    TEXT    NOT NULL DEFAULT (datetime('now')),
+      updated_at    TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_products_sku      ON products(sku);
+    CREATE INDEX IF NOT EXISTS idx_products_barcode  ON products(barcode);
+    CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);
+    CREATE INDEX IF NOT EXISTS idx_products_name     ON products(name);
+
+    CREATE TABLE IF NOT EXISTS inventory (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      product_id INTEGER NOT NULL UNIQUE REFERENCES products(id),
+      quantity   INTEGER NOT NULL DEFAULT 0,
+      location   TEXT,
+      updated_at TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS stock_movements (
+      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      product_id      INTEGER NOT NULL REFERENCES products(id),
+      movement_type   TEXT    NOT NULL
+                        CHECK(movement_type IN ('sale','purchase','adjustment','return','damage','initial')),
+      quantity_change INTEGER NOT NULL,
+      quantity_before INTEGER NOT NULL,
+      quantity_after  INTEGER NOT NULL,
+      reference_id    INTEGER,
+      reference_type  TEXT,
+      notes           TEXT,
+      user_id         INTEGER REFERENCES users(id),
+      created_at      TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_stock_product ON stock_movements(product_id);
+    CREATE INDEX IF NOT EXISTS idx_stock_date    ON stock_movements(created_at);
+
+    CREATE TABLE IF NOT EXISTS customers (
+      id             INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_code  TEXT    NOT NULL UNIQUE,
+      full_name      TEXT    NOT NULL,
+      phone          TEXT,
+      email          TEXT,
+      address        TEXT,
+      city           TEXT,
+      loyalty_points INTEGER NOT NULL DEFAULT 0,
+      credit_limit   REAL    NOT NULL DEFAULT 0,
+      notes          TEXT,
+      active         INTEGER NOT NULL DEFAULT 1,
+      created_at     TEXT    NOT NULL DEFAULT (datetime('now')),
+      last_purchase  TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_customers_code ON customers(customer_code);
+    CREATE INDEX IF NOT EXISTS idx_customers_name ON customers(full_name);
+
+    CREATE TABLE IF NOT EXISTS sales (
+      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      receipt_no      TEXT    NOT NULL UNIQUE,
+      customer_id     INTEGER REFERENCES customers(id),
+      user_id         INTEGER NOT NULL REFERENCES users(id),
+      sale_date       TEXT    NOT NULL DEFAULT (datetime('now')),
+      subtotal        REAL    NOT NULL DEFAULT 0,
+      tax_amount      REAL    NOT NULL DEFAULT 0,
+      discount_amount REAL    NOT NULL DEFAULT 0,
+      total_amount    REAL    NOT NULL DEFAULT 0,
+      cost_total      REAL    NOT NULL DEFAULT 0,
+      payment_method  TEXT    NOT NULL
+                        CHECK(payment_method IN ('cash','card','mobile_money','credit')),
+      amount_paid     REAL    NOT NULL DEFAULT 0,
+      change_amount   REAL    NOT NULL DEFAULT 0,
+      status          TEXT    NOT NULL DEFAULT 'completed'
+                        CHECK(status IN ('completed','voided','refunded')),
+      notes           TEXT,
+      created_at      TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_sales_date     ON sales(sale_date);
+    CREATE INDEX IF NOT EXISTS idx_sales_customer ON sales(customer_id);
+    CREATE INDEX IF NOT EXISTS idx_sales_user     ON sales(user_id);
+    CREATE INDEX IF NOT EXISTS idx_sales_status   ON sales(status);
+
+    CREATE TABLE IF NOT EXISTS sale_items (
+      id               INTEGER PRIMARY KEY AUTOINCREMENT,
+      sale_id          INTEGER NOT NULL REFERENCES sales(id),
+      product_id       INTEGER NOT NULL REFERENCES products(id),
+      quantity         INTEGER NOT NULL,
+      unit_price       REAL    NOT NULL,
+      cost_price       REAL    NOT NULL,
+      discount_percent REAL    NOT NULL DEFAULT 0,
+      tax_rate         REAL    NOT NULL DEFAULT 0,
+      line_total       REAL    NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_sale_items_sale    ON sale_items(sale_id);
+    CREATE INDEX IF NOT EXISTS idx_sale_items_product ON sale_items(product_id);
+
+    CREATE TABLE IF NOT EXISTS purchase_orders (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      po_number     TEXT    NOT NULL UNIQUE,
+      supplier_id   INTEGER NOT NULL REFERENCES suppliers(id),
+      user_id       INTEGER NOT NULL REFERENCES users(id),
+      status        TEXT    NOT NULL DEFAULT 'draft'
+                      CHECK(status IN ('draft','sent','received','cancelled')),
+      order_date    TEXT    NOT NULL DEFAULT (datetime('now')),
+      expected_date TEXT,
+      received_date TEXT,
+      total_amount  REAL    NOT NULL DEFAULT 0,
+      notes         TEXT,
+      created_at    TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS po_items (
+      id                INTEGER PRIMARY KEY AUTOINCREMENT,
+      po_id             INTEGER NOT NULL REFERENCES purchase_orders(id),
+      product_id        INTEGER NOT NULL REFERENCES products(id),
+      quantity_ordered  INTEGER NOT NULL,
+      quantity_received INTEGER NOT NULL DEFAULT 0,
+      unit_cost         REAL    NOT NULL,
+      line_total        REAL    NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS settings (
+      key        TEXT PRIMARY KEY,
+      value      TEXT NOT NULL,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
 }
 
 migrate();
-
-/** Idempotent column additions for databases created by earlier versions. */
-function addColumnIfMissing(table, column, definition) {
-  const cols = db.prepare(`PRAGMA table_info(${table})`).all().map(c => c.name);
-  if (!cols.includes(column)) {
-    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
-  }
-}
-// Link a guardian (parent user) to a learner for the read-only parent portal.
-addColumnIfMissing('students', 'guardian_user_id', 'INTEGER REFERENCES users(id)');
-// District scope for District Education Officers (which district they oversee).
-addColumnIfMissing('users', 'district', 'TEXT');
-// Counseling reminder tracking (so a session/follow-up is only reminded once).
-addColumnIfMissing('counseling', 'reminded_scheduled', 'INTEGER NOT NULL DEFAULT 0');
-addColumnIfMissing('counseling', 'reminded_followup', 'INTEGER NOT NULL DEFAULT 0');
-// Guardian consent for messaging/data processing (Data Protection Act).
-addColumnIfMissing('students', 'consent_status', "TEXT NOT NULL DEFAULT 'pending'");
-addColumnIfMissing('students', 'consent_date', 'TEXT');
-addColumnIfMissing('students', 'consent_by', 'INTEGER REFERENCES users(id)');
-addColumnIfMissing('students', 'consent_method', 'TEXT');
-// Per-learner QR check-in token (Platinum biometric/QR attendance).
-addColumnIfMissing('students', 'qr_token', 'TEXT');
 
 module.exports = db;

@@ -1,51 +1,37 @@
 'use strict';
-
-/**
- * Central configuration. Everything is overridable via environment variables so
- * the same build can run on a developer laptop, a school server, or the
- * Government of Zambia Smart Zambia / data-centre deployment without code edits.
- */
 const path = require('path');
 
 module.exports = {
-  port: Number(process.env.PORT || 3000),
-  host: process.env.HOST || '0.0.0.0',
+  port:         parseInt(process.env.PORT || '3000', 10),
+  host:         process.env.HOST || '0.0.0.0',
+  db:           process.env.POS_DB || path.join(__dirname, '../data/pos.db'),
+  env:          process.env.NODE_ENV || 'development',
+  sessionTtlMs: parseInt(process.env.SESSION_TTL_MS || String(8 * 60 * 60 * 1000), 10),
 
-  // Database lives on disk so data survives restarts. In production this path
-  // should point at an encrypted volume.
-  dbFile: process.env.SEWSMS_DB || path.join(__dirname, '..', 'data', 'sewsms.db'),
-
-  // Session token lifetime (ms). Default 12 hours (a school day + buffer).
-  sessionTtlMs: Number(process.env.SESSION_TTL_MS || 12 * 60 * 60 * 1000),
-
-  // Messaging gateway. "mock" logs to the outbox table only (zero airtime cost,
-  // fully demonstrable). For go-live, set MESSAGING_PROVIDER to a real adapter:
-  //   - "africastalking": Africa's Talking SMS (common Zambian aggregator)
-  //   - "http": a generic JSON HTTP gateway (Zamtel / MTN / Airtel bulk SMS)
-  // and supply the matching credentials. No other code changes are required.
-  messaging: {
-    provider: process.env.MESSAGING_PROVIDER || 'mock',
-    senderId: process.env.SMS_SENDER_ID || 'SAFEGIRL',
-    // Generic HTTP gateway
-    apiKey: process.env.SMS_API_KEY || '',
-    apiUrl: process.env.SMS_API_URL || '',
-    // Africa's Talking
-    atUsername: process.env.AT_USERNAME || '',
-    atApiKey: process.env.AT_API_KEY || '',
-    atApiUrl: process.env.AT_API_URL || 'https://api.africastalking.com/version1/messaging',
-    // Shared secret used to authenticate inbound delivery-report webhooks.
-    webhookSecret: process.env.SMS_WEBHOOK_SECRET || ''
+  business: {
+    name:          process.env.BUSINESS_NAME    || 'HardWare Plus',
+    address:       process.env.BUSINESS_ADDRESS || '23 Cairo Road, Lusaka, Zambia',
+    phone:         process.env.BUSINESS_PHONE   || '+260 211 234 567',
+    email:         process.env.BUSINESS_EMAIL   || 'sales@hardwareplus.co.zm',
+    tagline:       process.env.BUSINESS_TAGLINE || 'Your Complete Hardware Solution',
+    tin:           process.env.TIN_NUMBER       || 'TIN-0000000000',
+    vatNumber:     process.env.VAT_NUMBER       || 'VAT-000000000',
+    receiptFooter: process.env.RECEIPT_FOOTER   || 'Thank you for your business!',
   },
 
-  // How often (ms) the counseling reminder dispatcher runs. Default hourly.
-  reminderIntervalMs: Number(process.env.REMINDER_INTERVAL_MS || 60 * 60 * 1000),
+  tax: {
+    vat:     parseFloat(process.env.VAT_RATE || '16'),
+    vatName: process.env.VAT_NAME || 'VAT',
+  },
 
-  // Risk-engine thresholds (see riskEngine.js). Kept here so District Education
-  // Officers / M&E teams can tune policy without touching logic.
-  risk: {
-    consecutiveAbsenceFlag: Number(process.env.RISK_CONSECUTIVE || 3),
-    monthlyAbsenceFlag: Number(process.env.RISK_MONTHLY || 5),
-    mediumScore: Number(process.env.RISK_MEDIUM || 30),
-    highScore: Number(process.env.RISK_HIGH || 60)
-  }
+  currency: {
+    code:   process.env.CURRENCY        || 'ZMW',
+    symbol: process.env.CURRENCY_SYMBOL || 'K',
+  },
+
+  pos: {
+    receiptPrefix:  process.env.RECEIPT_PREFIX || 'RCP',
+    poPrefix:       process.env.PO_PREFIX      || 'PO',
+    customerPrefix: process.env.CUST_PREFIX    || 'CUST',
+  },
 };

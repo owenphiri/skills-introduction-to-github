@@ -1,4 +1,4 @@
-name: CI
+name: HardWare Plus POS — CI
 
 on:
   push:
@@ -9,13 +9,15 @@ jobs:
   test:
     name: Test (Node ${{ matrix.node }})
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     strategy:
       matrix:
         node: ['22.x']
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Use Node.js ${{ matrix.node }}
+      - name: Set up Node.js ${{ matrix.node }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}

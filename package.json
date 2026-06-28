@@ -1,22 +1,20 @@
 {
-  "name": "safegirl-edutrack",
-  "version": "0.1.0",
-  "description": "SafeGirl EduTrack System (SEWSMS) — School Early Warning & Student Welfare Management System aligned to Zambia's Keeping Girls in School (KGS) programme.",
+  "name": "hardware-plus-pos",
+  "version": "1.0.0",
+  "description": "HardWare Plus — Complete Hardware Shop Point of Sale System with advanced analytics, inventory management, purchase orders and KPI dashboards.",
   "type": "commonjs",
   "main": "server/app.js",
   "scripts": {
     "start": "node --experimental-sqlite server/app.js",
-    "seed": "node --experimental-sqlite server/seed.js",
-    "dev": "node --experimental-sqlite --watch server/app.js",
-    "test": "node --experimental-sqlite --test --test-reporter=spec \"test/*.test.js\"",
-    "icons": "node scripts/genicons.js"
+    "seed":  "node --experimental-sqlite server/seed.js",
+    "dev":   "node --experimental-sqlite --watch server/app.js",
+    "test":  "node --experimental-sqlite --test --test-reporter=spec \"test/*.test.js\""
   },
   "engines": {
     "node": ">=22.5.0"
   },
   "dependencies": {
-    "express": "^4.19.2",
-    "qrcode": "^1.5.4"
+    "express": "^4.19.2"
   },
   "license": "MIT"
 }

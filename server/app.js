@@ -1,820 +1,664 @@
 'use strict';
 
 /**
- * SafeGirl EduTrack — application server.
- * Wires together auth, students, attendance, performance, counseling,
- * messaging, awareness and analytics into a single REST API, and serves the
- * web dashboard from /public.
+ * HardWare Plus — Point of Sale System
+ * Complete REST API covering auth, products, inventory, customers, sales,
+ * purchase orders, reports & settings. Serves the dashboard from /public.
  */
-const path = require('path');
-const crypto = require('crypto');
+const path    = require('path');
+const crypto  = require('crypto');
+const http    = require('http');
 const express = require('express');
-const QRCode = require('qrcode');
-const config = require('./config');
-const db = require('./db');
-const auth = require('./auth');
-const messaging = require('./messaging');
-const riskEngine = require('./riskEngine');
-const templates = require('./templates');
-const security = require('./security');
-const scope = require('./scope');
-const features = require('./features');
-const reminders = require('./reminders');
+const db      = require('./db');
+const config  = require('./config');
+const { hashPassword, verifyPassword, createSession, destroySession, authenticate, requireRole } = require('./auth');
 
 const app = express();
-app.set('trust proxy', true); // correct req.ip behind a load balancer / reverse proxy
-app.use(security.securityHeaders);
-app.use(express.json({ limit: '1mb' }));
-app.use(express.urlencoded({ extended: false })); // aggregator delivery webhooks post form data
-app.use(express.static(path.join(__dirname, '..', 'public')));
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
 
-// Throttle authentication attempts per IP to blunt credential-stuffing.
-const loginLimiter = security.rateLimit({ windowMs: 15 * 60_000, max: 20 });
-// General API ceiling per IP.
-app.use('/api', security.rateLimit({ windowMs: 60_000, max: 300 }));
-
-// Small async wrapper so route handlers can throw / await safely.
-const wrap = fn => (req, res) =>
-  Promise.resolve(fn(req, res)).catch(err => {
-    console.error(err);
-    res.status(err.status || 500).json({ error: err.message || 'Internal error' });
+// Security headers
+app.use((_req, res, next) => {
+  res.set({
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options':        'DENY',
+    'Referrer-Policy':        'no-referrer',
   });
+  next();
+});
 
-/* ------------------------------------------------------------------ AUTH -- */
+// ─────────────────────────── AUTH ─────────────────────────────────────────────
 
-app.post('/api/auth/login', loginLimiter, wrap((req, res) => {
+app.post('/api/auth/login', (req, res) => {
   const { username, password } = req.body || {};
-  const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
-  if (!user || !auth.verifyPassword(password, user.password_hash)) {
-    security.audit(req, 'login.failed', username ? `user:${username}` : null);
-    return res.status(401).json({ error: 'Invalid username or password' });
-  }
-  const token = auth.createSession(user.id);
-  req.user = user;
-  security.audit(req, 'login.success', `user:${user.id}`);
+  if (!username || !password) return res.status(400).json({ error: 'username and password required' });
+  const user = db.prepare('SELECT * FROM users WHERE username = ? AND active = 1').get(username);
+  if (!user || !verifyPassword(password, user.password_hash))
+    return res.status(401).json({ error: 'Invalid credentials' });
+  const token = createSession(user.id);
+  db.prepare("UPDATE users SET last_login = datetime('now') WHERE id = ?").run(user.id);
+  const settings = Object.fromEntries(
+    db.prepare('SELECT key, value FROM settings').all().map(r => [r.key, r.value])
+  );
   res.json({
     token,
-    user: {
-      id: user.id, full_name: user.full_name, role: user.role, username: user.username,
-      package: features.schoolPackage(user.school_id),
-      features: features.featuresForUser(user)
-    }
+    user: { id: user.id, username: user.username, full_name: user.full_name, role: user.role, email: user.email, phone: user.phone },
+    settings,
   });
-}));
+});
 
-app.post('/api/auth/logout', auth.authenticate, wrap((req, res) => {
-  auth.destroySession(req.token);
+app.post('/api/auth/logout', authenticate, (req, res) => {
+  destroySession(req.token);
   res.json({ ok: true });
-}));
+});
 
-app.get('/api/auth/me', auth.authenticate, wrap((req, res) => res.json({
-  user: {
-    ...req.user,
-    package: features.schoolPackage(req.user.school_id),
-    features: features.featuresForUser(req.user)
-  }
-})));
+app.get('/api/auth/me', authenticate, (req, res) => {
+  const settings = Object.fromEntries(
+    db.prepare('SELECT key, value FROM settings').all().map(r => [r.key, r.value])
+  );
+  res.json({ user: req.user, settings });
+});
 
-/* ----------------------------------------------------------------- USERS -- */
+// ─────────────────────────── CATEGORIES ──────────────────────────────────────
 
-app.post('/api/users', auth.authenticate, auth.requireRole('admin'), wrap((req, res) => {
-  const { full_name, username, password, role, phone, school_id, district } = req.body || {};
-  if (!full_name || !username || !password || !role) {
-    return res.status(400).json({ error: 'full_name, username, password and role are required' });
-  }
-  const pwProblem = security.passwordProblem(password);
-  if (pwProblem) return res.status(400).json({ error: pwProblem });
+app.get('/api/categories', authenticate, (_req, res) => {
+  res.json(db.prepare('SELECT * FROM categories WHERE active=1 ORDER BY name').all());
+});
+
+app.post('/api/categories', authenticate, requireRole('admin','manager'), (req, res) => {
+  const { name, description = '', color = '#3B82F6' } = req.body;
+  if (!name) return res.status(400).json({ error: 'name required' });
   try {
-    const info = db.prepare(
-      'INSERT INTO users (full_name, username, password_hash, role, phone, school_id, district) VALUES (?, ?, ?, ?, ?, ?, ?)'
-    ).run(full_name, username, auth.hashPassword(password), role, phone || null, school_id || null, district || null);
-    security.audit(req, 'user.create', `user:${info.lastInsertRowid}`, `role=${role}`);
-    res.status(201).json({ id: info.lastInsertRowid });
+    db.prepare('INSERT INTO categories (name,description,color) VALUES (?,?,?)').run(name, description, color);
+    const id = db.prepare('SELECT last_insert_rowid() AS id').get().id;
+    res.status(201).json(db.prepare('SELECT * FROM categories WHERE id=?').get(id));
+  } catch { res.status(409).json({ error: 'Category name already exists' }); }
+});
+
+app.put('/api/categories/:id', authenticate, requireRole('admin','manager'), (req, res) => {
+  const { name = null, description = null, color = null } = req.body;
+  db.prepare('UPDATE categories SET name=COALESCE(?,name), description=COALESCE(?,description), color=COALESCE(?,color) WHERE id=?')
+    .run(name, description, color, req.params.id);
+  res.json(db.prepare('SELECT * FROM categories WHERE id=?').get(req.params.id));
+});
+
+app.delete('/api/categories/:id', authenticate, requireRole('admin'), (req, res) => {
+  db.prepare('UPDATE categories SET active=0 WHERE id=?').run(req.params.id);
+  res.json({ ok: true });
+});
+
+// ─────────────────────────── SUPPLIERS ───────────────────────────────────────
+
+app.get('/api/suppliers', authenticate, (_req, res) => {
+  res.json(db.prepare('SELECT * FROM suppliers WHERE active=1 ORDER BY name').all());
+});
+
+app.post('/api/suppliers', authenticate, requireRole('admin','manager'), (req, res) => {
+  const { name, contact_name='', email='', phone='', address='', city='', notes='' } = req.body;
+  if (!name) return res.status(400).json({ error: 'name required' });
+  db.prepare('INSERT INTO suppliers (name,contact_name,email,phone,address,city,notes) VALUES (?,?,?,?,?,?,?)')
+    .run(name, contact_name, email, phone, address, city, notes);
+  const id = db.prepare('SELECT last_insert_rowid() AS id').get().id;
+  res.status(201).json(db.prepare('SELECT * FROM suppliers WHERE id=?').get(id));
+});
+
+app.put('/api/suppliers/:id', authenticate, requireRole('admin','manager'), (req, res) => {
+  const { name = null, contact_name = null, email = null, phone = null, address = null, city = null, notes = null } = req.body;
+  db.prepare(`UPDATE suppliers SET
+    name=COALESCE(?,name), contact_name=COALESCE(?,contact_name), email=COALESCE(?,email),
+    phone=COALESCE(?,phone), address=COALESCE(?,address), city=COALESCE(?,city), notes=COALESCE(?,notes)
+    WHERE id=?`).run(name, contact_name, email, phone, address, city, notes, req.params.id);
+  res.json(db.prepare('SELECT * FROM suppliers WHERE id=?').get(req.params.id));
+});
+
+// ─────────────────────────── PRODUCTS ────────────────────────────────────────
+
+app.get('/api/products', authenticate, (req, res) => {
+  const { q, category_id, low_stock, active = '1' } = req.query;
+  let sql = `
+    SELECT p.*, c.name AS category_name, s.name AS supplier_name,
+           COALESCE(i.quantity,0) AS stock_qty
+    FROM products p
+    LEFT JOIN categories c ON c.id = p.category_id
+    LEFT JOIN suppliers  s ON s.id = p.supplier_id
+    LEFT JOIN inventory  i ON i.product_id = p.id
+    WHERE p.active = ?
+  `;
+  const params = [active === '0' ? 0 : 1];
+  if (q) { sql += ' AND (p.name LIKE ? OR p.sku LIKE ? OR p.barcode LIKE ?)'; params.push(`%${q}%`,`%${q}%`,`%${q}%`); }
+  if (category_id) { sql += ' AND p.category_id = ?'; params.push(category_id); }
+  if (low_stock === '1') { sql += ' AND COALESCE(i.quantity,0) <= p.reorder_level'; }
+  sql += ' ORDER BY p.name';
+  res.json(db.prepare(sql).all(...params));
+});
+
+app.get('/api/products/:id', authenticate, (req, res) => {
+  const row = db.prepare(`
+    SELECT p.*, c.name AS category_name, s.name AS supplier_name,
+           COALESCE(i.quantity,0) AS stock_qty
+    FROM products p
+    LEFT JOIN categories c ON c.id = p.category_id
+    LEFT JOIN suppliers  s ON s.id = p.supplier_id
+    LEFT JOIN inventory  i ON i.product_id = p.id
+    WHERE p.id = ?
+  `).get(req.params.id);
+  if (!row) return res.status(404).json({ error: 'Not found' });
+  res.json(row);
+});
+
+app.post('/api/products', authenticate, requireRole('admin','manager'), (req, res) => {
+  const { sku, barcode='', name, description='', category_id=null, supplier_id=null,
+          unit='each', cost_price=0, selling_price=0, tax_rate=16, reorder_level=10 } = req.body;
+  if (!sku || !name) return res.status(400).json({ error: 'sku and name required' });
+  try {
+    db.prepare(`INSERT INTO products (sku,barcode,name,description,category_id,supplier_id,unit,cost_price,selling_price,tax_rate,reorder_level)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?)`).run(sku,barcode||null,name,description,category_id,supplier_id,unit,cost_price,selling_price,tax_rate,reorder_level);
+    const id = db.prepare('SELECT last_insert_rowid() AS id').get().id;
+    db.prepare('INSERT INTO inventory (product_id,quantity) VALUES (?,0)').run(id);
+    res.status(201).json(db.prepare('SELECT * FROM products WHERE id=?').get(id));
   } catch (e) {
-    res.status(400).json({ error: 'Username already exists' });
+    res.status(409).json({ error: e.message.includes('UNIQUE') ? 'SKU or barcode already exists' : e.message });
   }
-}));
+});
 
-app.get('/api/users', auth.authenticate, auth.requireRole('admin'), wrap((req, res) => {
-  res.json(db.prepare('SELECT id, full_name, username, role, phone, created_at FROM users ORDER BY id').all());
-}));
+app.put('/api/products/:id', authenticate, requireRole('admin','manager'), (req, res) => {
+  const { sku = null, barcode = null, name = null, description = null, category_id = null, supplier_id = null, unit = null, cost_price = null, selling_price = null, tax_rate = null, reorder_level = null } = req.body;
+  db.prepare(`UPDATE products SET
+    sku=COALESCE(?,sku), barcode=COALESCE(?,barcode), name=COALESCE(?,name),
+    description=COALESCE(?,description), category_id=COALESCE(?,category_id),
+    supplier_id=COALESCE(?,supplier_id), unit=COALESCE(?,unit),
+    cost_price=COALESCE(?,cost_price), selling_price=COALESCE(?,selling_price),
+    tax_rate=COALESCE(?,tax_rate), reorder_level=COALESCE(?,reorder_level),
+    updated_at=datetime('now') WHERE id=?`).run(sku,barcode,name,description,category_id,supplier_id,
+    unit,cost_price,selling_price,tax_rate,reorder_level,req.params.id);
+  res.json(db.prepare('SELECT * FROM products WHERE id=?').get(req.params.id));
+});
 
-/* -------------------------------------------------------------- STUDENTS -- */
+app.delete('/api/products/:id', authenticate, requireRole('admin'), (req, res) => {
+  db.prepare("UPDATE products SET active=0, updated_at=datetime('now') WHERE id=?").run(req.params.id);
+  res.json({ ok: true });
+});
 
-const STUDENT_FIELDS = ['full_name', 'nrc', 'grade', 'gender', 'date_of_birth',
-  'parent_name', 'parent_phone', 'village', 'gps_lat', 'gps_lng',
-  'vulnerability_status', 'health_info', 'emergency_contact', 'school_id'];
+// ─────────────────────────── INVENTORY ───────────────────────────────────────
 
-app.post('/api/students', auth.authenticate, auth.requireRole('admin', 'teacher'), wrap((req, res) => {
-  const b = req.body || {};
-  if (!b.full_name || !b.grade || !b.gender) {
-    return res.status(400).json({ error: 'full_name, grade and gender are required' });
-  }
-  // A learner registered by school staff belongs to that staff member's school
-  // unless an admin explicitly assigns one.
-  if (b.school_id === undefined && req.user.school_id) b.school_id = req.user.school_id;
-  const cols = STUDENT_FIELDS.filter(f => b[f] !== undefined);
-  const info = db.prepare(
-    `INSERT INTO students (${cols.join(',')}) VALUES (${cols.map(() => '?').join(',')})`
-  ).run(...cols.map(c => b[c]));
-  security.audit(req, 'student.create', `student:${info.lastInsertRowid}`);
-  res.status(201).json(db.prepare('SELECT * FROM students WHERE id = ?').get(info.lastInsertRowid));
-}));
+app.get('/api/inventory', authenticate, (_req, res) => {
+  res.json(db.prepare(`
+    SELECT p.id AS product_id, p.sku, p.name, p.reorder_level,
+           c.name AS category, COALESCE(i.quantity,0) AS quantity,
+           i.location, i.updated_at,
+           p.cost_price, p.selling_price,
+           COALESCE(i.quantity,0) * p.cost_price AS stock_value
+    FROM products p
+    LEFT JOIN categories c ON c.id = p.category_id
+    LEFT JOIN inventory  i ON i.product_id = p.id
+    WHERE p.active=1 ORDER BY p.name
+  `).all());
+});
 
-app.get('/api/students', auth.authenticate, wrap((req, res) => {
-  const { grade, q } = req.query;
-  const sc = scope.schoolClause(req.user);
-  let sql = 'SELECT * FROM students WHERE active = 1' + sc.clause;
-  const params = [...sc.params];
-  if (grade) { sql += ' AND grade = ?'; params.push(grade); }
-  if (q) { sql += ' AND full_name LIKE ?'; params.push(`%${q}%`); }
+app.post('/api/inventory/adjust', authenticate, requireRole('admin','manager'), (req, res) => {
+  const { product_id, adjustment, notes = '' } = req.body;
+  if (!product_id || adjustment === undefined) return res.status(400).json({ error: 'product_id and adjustment required' });
+  const inv = db.prepare('SELECT quantity FROM inventory WHERE product_id=?').get(product_id);
+  if (!inv) return res.status(404).json({ error: 'Product not in inventory' });
+  const before = inv.quantity;
+  const after  = Math.max(0, before + parseInt(adjustment, 10));
+  db.prepare("UPDATE inventory SET quantity=?, updated_at=datetime('now') WHERE product_id=?").run(after, product_id);
+  db.prepare(`INSERT INTO stock_movements (product_id,movement_type,quantity_change,quantity_before,quantity_after,notes,user_id)
+    VALUES (?,?,?,?,?,?,?)`).run(product_id,'adjustment',after-before,before,after,notes,req.user.id);
+  res.json({ product_id, quantity_before: before, quantity_after: after });
+});
+
+app.get('/api/inventory/movements', authenticate, (req, res) => {
+  const { product_id, limit = 50 } = req.query;
+  let sql = `
+    SELECT sm.*, p.name AS product_name, p.sku, u.full_name AS user_name
+    FROM stock_movements sm
+    JOIN products p ON p.id = sm.product_id
+    LEFT JOIN users u ON u.id = sm.user_id
+  `;
+  const params = [];
+  if (product_id) { sql += ' WHERE sm.product_id = ?'; params.push(product_id); }
+  sql += ` ORDER BY sm.created_at DESC LIMIT ?`;
+  params.push(parseInt(limit,10));
+  res.json(db.prepare(sql).all(...params));
+});
+
+// ─────────────────────────── CUSTOMERS ───────────────────────────────────────
+
+app.get('/api/customers', authenticate, (req, res) => {
+  const { q } = req.query;
+  let sql = 'SELECT * FROM customers WHERE active=1';
+  const params = [];
+  if (q) { sql += ' AND (full_name LIKE ? OR phone LIKE ? OR customer_code LIKE ?)'; params.push(`%${q}%`,`%${q}%`,`%${q}%`); }
   sql += ' ORDER BY full_name';
   res.json(db.prepare(sql).all(...params));
-}));
+});
 
-app.get('/api/students/:id', auth.authenticate, wrap((req, res) => {
-  const student = db.prepare('SELECT * FROM students WHERE id = ?').get(req.params.id);
-  if (!student) return res.status(404).json({ error: 'Student not found' });
-  // Enforce school scope: a user may only view learners within their scope.
-  const allowed = scope.allowedSchoolIds(req.user);
-  if (allowed !== null && !allowed.includes(student.school_id)) {
-    return res.status(403).json({ error: 'This learner is outside your school/district scope' });
+app.get('/api/customers/:id', authenticate, (req, res) => {
+  const cust = db.prepare('SELECT * FROM customers WHERE id=?').get(req.params.id);
+  if (!cust) return res.status(404).json({ error: 'Not found' });
+  const sales = db.prepare(`
+    SELECT s.*, COUNT(si.id) AS item_count FROM sales s
+    LEFT JOIN sale_items si ON si.sale_id = s.id
+    WHERE s.customer_id=? AND s.status='completed'
+    GROUP BY s.id ORDER BY s.sale_date DESC LIMIT 20
+  `).all(req.params.id);
+  const stats = db.prepare(`
+    SELECT COUNT(*) AS total_orders, SUM(total_amount) AS lifetime_value,
+           AVG(total_amount) AS avg_order
+    FROM sales WHERE customer_id=? AND status='completed'
+  `).get(req.params.id);
+  res.json({ ...cust, sales, stats });
+});
+
+app.post('/api/customers', authenticate, (req, res) => {
+  const { full_name, phone='', email='', address='', city='', credit_limit=0, notes='' } = req.body;
+  if (!full_name) return res.status(400).json({ error: 'full_name required' });
+  const seq  = db.prepare('SELECT COUNT(*)+1 AS n FROM customers').get().n;
+  const code = `CUST${String(seq).padStart(4,'0')}`;
+  db.prepare(`INSERT INTO customers (customer_code,full_name,phone,email,address,city,credit_limit,notes)
+    VALUES (?,?,?,?,?,?,?,?)`).run(code,full_name,phone,email,address,city,credit_limit,notes);
+  const id = db.prepare('SELECT last_insert_rowid() AS id').get().id;
+  res.status(201).json(db.prepare('SELECT * FROM customers WHERE id=?').get(id));
+});
+
+app.put('/api/customers/:id', authenticate, (req, res) => {
+  const { full_name = null, phone = null, email = null, address = null, city = null, credit_limit = null, notes = null } = req.body;
+  db.prepare(`UPDATE customers SET
+    full_name=COALESCE(?,full_name), phone=COALESCE(?,phone), email=COALESCE(?,email),
+    address=COALESCE(?,address), city=COALESCE(?,city),
+    credit_limit=COALESCE(?,credit_limit), notes=COALESCE(?,notes)
+    WHERE id=?`).run(full_name,phone,email,address,city,credit_limit,notes,req.params.id);
+  res.json(db.prepare('SELECT * FROM customers WHERE id=?').get(req.params.id));
+});
+
+// ─────────────────────────── SALES ───────────────────────────────────────────
+
+app.get('/api/sales', authenticate, (req, res) => {
+  const { from, to, customer_id, user_id, status = 'completed', limit = 100, offset = 0 } = req.query;
+  let sql = `
+    SELECT s.*, c.full_name AS customer_name, u.full_name AS cashier_name,
+           COUNT(si.id) AS item_count
+    FROM sales s
+    LEFT JOIN customers c ON c.id = s.customer_id
+    LEFT JOIN users u ON u.id = s.user_id
+    LEFT JOIN sale_items si ON si.sale_id = s.id
+    WHERE s.status = ?
+  `;
+  const params = [status];
+  if (from) { sql += ' AND DATE(s.sale_date) >= ?'; params.push(from); }
+  if (to)   { sql += ' AND DATE(s.sale_date) <= ?'; params.push(to); }
+  if (customer_id) { sql += ' AND s.customer_id = ?'; params.push(customer_id); }
+  if (user_id)     { sql += ' AND s.user_id = ?';     params.push(user_id); }
+  sql += ` GROUP BY s.id ORDER BY s.sale_date DESC LIMIT ? OFFSET ?`;
+  params.push(parseInt(limit,10), parseInt(offset,10));
+  const rows = db.prepare(sql).all(...params);
+  const total = db.prepare(
+    `SELECT COUNT(DISTINCT s.id) AS n FROM sales s WHERE s.status=?${from?' AND DATE(s.sale_date)>=?':''}${to?' AND DATE(s.sale_date)<=?':''}`
+  ).get(...params.slice(0, params.length - 2)).n;
+  res.json({ rows, total });
+});
+
+app.get('/api/sales/:id', authenticate, (req, res) => {
+  const sale = db.prepare(`
+    SELECT s.*, c.full_name AS customer_name, c.phone AS customer_phone,
+           u.full_name AS cashier_name
+    FROM sales s
+    LEFT JOIN customers c ON c.id = s.customer_id
+    LEFT JOIN users u ON u.id = s.user_id
+    WHERE s.id = ?
+  `).get(req.params.id);
+  if (!sale) return res.status(404).json({ error: 'Not found' });
+  const items = db.prepare(`
+    SELECT si.*, p.name AS product_name, p.sku
+    FROM sale_items si JOIN products p ON p.id = si.product_id
+    WHERE si.sale_id = ?
+  `).all(req.params.id);
+  res.json({ ...sale, items });
+});
+
+app.post('/api/sales', authenticate, (req, res) => {
+  const { customer_id = null, items, payment_method, amount_paid, discount_amount = 0, notes = '' } = req.body;
+  if (!items || !items.length) return res.status(400).json({ error: 'items required' });
+  if (!payment_method) return res.status(400).json({ error: 'payment_method required' });
+
+  // Verify stock & calculate totals
+  let subtotal = 0, costTotal = 0;
+  const enriched = [];
+  for (const it of items) {
+    const prod = db.prepare('SELECT p.*,COALESCE(i.quantity,0) AS stock FROM products p LEFT JOIN inventory i ON i.product_id=p.id WHERE p.id=?').get(it.product_id);
+    if (!prod) return res.status(400).json({ error: `Product ${it.product_id} not found` });
+    if (prod.stock < it.quantity) return res.status(400).json({ error: `Insufficient stock for ${prod.name}` });
+    const lineTotal = parseFloat(((it.unit_price || prod.selling_price) * it.quantity * (1 - (it.discount_percent||0)/100)).toFixed(2));
+    subtotal  += lineTotal;
+    costTotal += prod.cost_price * it.quantity;
+    enriched.push({ ...it, unit_price: it.unit_price || prod.selling_price, cost_price: prod.cost_price, tax_rate: prod.tax_rate, line_total: lineTotal });
   }
-  const attendance = db.prepare(
-    'SELECT date, status FROM attendance WHERE student_id = ? ORDER BY date DESC LIMIT 30'
-  ).all(student.id);
-  const performance = db.prepare(
-    'SELECT term, subject, score FROM performance WHERE student_id = ? ORDER BY term DESC, subject'
-  ).all(student.id);
-  const counseling = db.prepare(
-    'SELECT * FROM counseling WHERE student_id = ? ORDER BY created_at DESC'
-  ).all(student.id);
-  res.json({ student, attendance, performance, counseling, risk: riskEngine.assess(student.id) });
-}));
+  subtotal   = parseFloat(subtotal.toFixed(2));
+  costTotal  = parseFloat(costTotal.toFixed(2));
+  const taxAmount    = parseFloat((subtotal * (config.tax.vat / 100)).toFixed(2));
+  const discountAmt  = parseFloat((discount_amount || 0).toFixed(2));
+  const totalAmount  = parseFloat((subtotal + taxAmount - discountAmt).toFixed(2));
+  const amountPaidN  = parseFloat((amount_paid || totalAmount).toFixed(2));
+  const changeAmount = parseFloat(Math.max(0, amountPaidN - totalAmount).toFixed(2));
 
-app.put('/api/students/:id', auth.authenticate, auth.requireRole('admin', 'teacher'), wrap((req, res) => {
-  const b = req.body || {};
-  const cols = STUDENT_FIELDS.filter(f => b[f] !== undefined);
-  if (cols.length === 0) return res.status(400).json({ error: 'No updatable fields supplied' });
-  db.prepare(`UPDATE students SET ${cols.map(c => `${c} = ?`).join(', ')} WHERE id = ?`)
-    .run(...cols.map(c => b[c]), req.params.id);
-  res.json(db.prepare('SELECT * FROM students WHERE id = ?').get(req.params.id));
-}));
+  const seq = db.prepare("SELECT COUNT(*)+1 AS n FROM sales").get().n;
+  const receiptNo = `RCP-${String(seq).padStart(5,'0')}`;
 
-/** Helper: enforce that the caller may act on this learner's school. */
-function assertStudentInScope(req, res, student) {
-  if (!student) { res.status(404).json({ error: 'Student not found' }); return false; }
-  const allowed = scope.allowedSchoolIds(req.user);
-  if (allowed !== null && !allowed.includes(student.school_id)) {
-    res.status(403).json({ error: 'This learner is outside your school/district scope' });
-    return false;
-  }
-  return true;
-}
+  db.prepare(`INSERT INTO sales (receipt_no,customer_id,user_id,subtotal,tax_amount,discount_amount,total_amount,cost_total,payment_method,amount_paid,change_amount,status,notes)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,'completed',?)`).run(
+    receiptNo, customer_id, req.user.id, subtotal, taxAmount, discountAmt, totalAmount, costTotal,
+    payment_method, amountPaidN, changeAmount, notes
+  );
+  const saleId = db.prepare('SELECT last_insert_rowid() AS id').get().id;
 
-/* -------------------------------------------------------- GUARDIAN CONSENT -- */
-
-/**
- * Record guardian consent for messaging / data processing (Data Protection Act).
- * Until consent is 'granted', the system will not transmit any SMS about the
- * learner (attempts are recorded as "blocked").
- */
-app.put('/api/students/:id/consent', auth.authenticate,
-  auth.requireRole('admin', 'teacher', 'counselor'), wrap((req, res) => {
-    const { status, method } = req.body || {};
-    if (!['pending', 'granted', 'withdrawn'].includes(status)) {
-      return res.status(400).json({ error: "status must be 'granted', 'withdrawn' or 'pending'" });
-    }
-    const student = db.prepare('SELECT * FROM students WHERE id = ?').get(req.params.id);
-    if (!assertStudentInScope(req, res, student)) return;
-    db.prepare(`UPDATE students SET consent_status = ?, consent_method = ?,
-        consent_date = CASE WHEN ? = 'pending' THEN NULL ELSE datetime('now') END,
-        consent_by = ? WHERE id = ?`)
-      .run(status, method || null, status, req.user.id, student.id);
-    security.audit(req, 'consent.update', `student:${student.id}`, `status=${status}`);
-    res.json(db.prepare('SELECT * FROM students WHERE id = ?').get(student.id));
-  }));
-
-/* ------------------------------------------------ QR / BIOMETRIC CHECK-IN -- */
-
-function ensureQrToken(studentId) {
-  const row = db.prepare('SELECT qr_token FROM students WHERE id = ?').get(studentId);
-  if (row && row.qr_token) return row.qr_token;
-  const token = crypto.randomBytes(8).toString('hex');
-  db.prepare('UPDATE students SET qr_token = ? WHERE id = ?').run(token, studentId);
-  return token;
-}
-
-/** Return a printable QR code (SVG) that encodes a learner's check-in token. */
-app.get('/api/students/:id/checkin-code', auth.authenticate,
-  auth.requireRole('admin', 'teacher'), features.requireFeature('biometric'), wrap(async (req, res) => {
-    const student = db.prepare('SELECT * FROM students WHERE id = ?').get(req.params.id);
-    if (!assertStudentInScope(req, res, student)) return;
-    const token = ensureQrToken(student.id);
-    const payload = `SAFEGIRL:${token}`;
-    const svg = await QRCode.toString(payload, { type: 'svg', margin: 1, width: 180 });
-    res.json({ student_id: student.id, full_name: student.full_name, token, payload, svg });
-  }));
-
-/** Fast attendance check-in by scanning/entering a learner's QR token. */
-app.post('/api/attendance/checkin', auth.authenticate,
-  auth.requireRole('admin', 'teacher'), features.requireFeature('biometric'), wrap(async (req, res) => {
-    let token = (req.body?.token || '').trim().replace(/^SAFEGIRL:/, '');
-    if (!token) return res.status(400).json({ error: 'token is required' });
-    const student = db.prepare('SELECT * FROM students WHERE qr_token = ?').get(token);
-    if (!student) return res.status(404).json({ error: 'Unrecognised check-in code' });
-    if (!assertStudentInScope(req, res, student)) return;
-    const day = new Date().toISOString().slice(0, 10);
-    db.prepare(`INSERT INTO attendance (student_id, date, status, marked_by)
-      VALUES (?, ?, 'present', ?)
-      ON CONFLICT(student_id, date) DO UPDATE SET status = 'present'`).run(student.id, day, req.user.id);
-    res.status(201).json({ student_id: student.id, full_name: student.full_name, grade: student.grade, status: 'present', date: day });
-  }));
-
-/* ------------------------------------------------------------ ATTENDANCE -- */
-
-/**
- * Mark attendance for one student/day. Automatically (a) notifies the parent
- * and (b) re-assesses risk, flagging via SMS when the student crosses into the
- * high-risk band. This is the "Smart Attendance Monitoring" module.
- */
-app.post('/api/attendance', auth.authenticate, auth.requireRole('admin', 'teacher'), wrap(async (req, res) => {
-  const { student_id, date, status, note, language = 'en', notify = true } = req.body || {};
-  if (!student_id || !status) return res.status(400).json({ error: 'student_id and status are required' });
-  const day = date || new Date().toISOString().slice(0, 10);
-
-  db.prepare(`
-    INSERT INTO attendance (student_id, date, status, marked_by, note)
-    VALUES (?, ?, ?, ?, ?)
-    ON CONFLICT(student_id, date) DO UPDATE SET status = excluded.status, note = excluded.note
-  `).run(student_id, day, status, req.user.id, note || null);
-
-  const student = db.prepare('SELECT * FROM students WHERE id = ?').get(student_id);
-  const out = { student_id, date: day, status, notifications: [] };
-
-  if (notify && student.parent_phone && (status === 'present' || status === 'absent')) {
-    const body = templates.render(status, language, { name: student.full_name });
-    const msg = await messaging.send({
-      studentId: student_id, phone: student.parent_phone,
-      category: 'attendance', body, language
-    });
-    out.notifications.push(msg);
-  }
-
-  // Re-assess and auto-escalate a freshly high-risk student.
-  const risk = riskEngine.assess(student_id);
-  out.risk = risk;
-  if (risk.level === 'high' && student.parent_phone) {
-    const alert = `SafeGirl: ${student.full_name} is now flagged HIGH RISK for dropout. The school will be in touch about support.`;
-    out.notifications.push(await messaging.send({
-      studentId: student_id, phone: student.parent_phone, category: 'system', body: alert, language
-    }));
-  }
-  res.status(201).json(out);
-}));
-
-/** Bulk register a whole class for a date in one request. */
-app.post('/api/attendance/bulk', auth.authenticate, auth.requireRole('admin', 'teacher'), wrap(async (req, res) => {
-  const { date, records = [], notify = true, language = 'en' } = req.body || {};
-  const day = date || new Date().toISOString().slice(0, 10);
-  const results = [];
-  for (const r of records) {
-    const stmt = db.prepare(`
-      INSERT INTO attendance (student_id, date, status, marked_by)
-      VALUES (?, ?, ?, ?)
-      ON CONFLICT(student_id, date) DO UPDATE SET status = excluded.status
-    `);
-    stmt.run(r.student_id, day, r.status, req.user.id);
-    const student = db.prepare('SELECT full_name, parent_phone FROM students WHERE id = ?').get(r.student_id);
-    if (notify && student?.parent_phone && (r.status === 'present' || r.status === 'absent')) {
-      await messaging.send({
-        studentId: r.student_id, phone: student.parent_phone, category: 'attendance',
-        body: templates.render(r.status, language, { name: student.full_name }), language
-      });
-    }
-    results.push({ student_id: r.student_id, status: r.status });
-  }
-  res.status(201).json({ date: day, count: results.length, records: results });
-}));
-
-/* ----------------------------------------------------------- PERFORMANCE -- */
-
-app.post('/api/performance', auth.authenticate, auth.requireRole('admin', 'teacher'), wrap(async (req, res) => {
-  const { student_id, term, subject, score, notify = false, language = 'en' } = req.body || {};
-  if (!student_id || !term || !subject || score == null) {
-    return res.status(400).json({ error: 'student_id, term, subject and score are required' });
-  }
-  db.prepare('INSERT INTO performance (student_id, term, subject, score, recorded_by) VALUES (?, ?, ?, ?, ?)')
-    .run(student_id, term, subject, score, req.user.id);
-
-  const out = { ok: true };
-  if (notify) {
-    const avg = db.prepare('SELECT AVG(score) AS a FROM performance WHERE student_id = ? AND term = ?')
-      .get(student_id, term).a;
-    const student = db.prepare('SELECT full_name, parent_phone FROM students WHERE id = ?').get(student_id);
-    if (student?.parent_phone) {
-      out.notification = await messaging.send({
-        studentId: student_id, phone: student.parent_phone, category: 'results',
-        body: templates.render('results', language, { name: student.full_name, avg: Math.round(avg) }), language
-      });
-    }
-  }
-  res.status(201).json(out);
-}));
-
-/* ------------------------------------------------------------ COUNSELING -- */
-
-app.post('/api/counseling', auth.authenticate, auth.requireRole('admin', 'counselor', 'teacher'),
-  features.requireFeature('counseling'), wrap((req, res) => {
-  const { student_id, type, notes, scheduled_date, follow_up_date, status } = req.body || {};
-  if (!student_id || !type) return res.status(400).json({ error: 'student_id and type are required' });
-  const info = db.prepare(`
-    INSERT INTO counseling (student_id, type, notes, counselor_id, scheduled_date, follow_up_date, status)
-    VALUES (?, ?, ?, ?, ?, ?, COALESCE(?, 'open'))
-  `).run(student_id, type, notes || null, req.user.id, scheduled_date || null, follow_up_date || null, status || null);
-  res.status(201).json(db.prepare('SELECT * FROM counseling WHERE id = ?').get(info.lastInsertRowid));
-}));
-
-app.put('/api/counseling/:id', auth.authenticate, auth.requireRole('admin', 'counselor'),
-  features.requireFeature('counseling'), wrap((req, res) => {
-  const { status, notes, follow_up_date } = req.body || {};
-  db.prepare('UPDATE counseling SET status = COALESCE(?, status), notes = COALESCE(?, notes), follow_up_date = COALESCE(?, follow_up_date) WHERE id = ?')
-    .run(status || null, notes || null, follow_up_date || null, req.params.id);
-  res.json(db.prepare('SELECT * FROM counseling WHERE id = ?').get(req.params.id));
-}));
-
-app.get('/api/counseling', auth.authenticate, auth.requireRole('admin', 'counselor', 'teacher'),
-  features.requireFeature('counseling'), wrap((req, res) => {
-  const sc = scope.schoolClause(req.user, 's.school_id');
-  res.json(db.prepare(`
-    SELECT c.*, s.full_name AS student_name, s.grade
-    FROM counseling c JOIN students s ON s.id = c.student_id
-    WHERE 1=1${sc.clause}
-    ORDER BY (c.scheduled_date IS NULL), c.scheduled_date DESC, c.created_at DESC LIMIT 200
-  `).all(...sc.params));
-}));
-
-/** Manually trigger the counseling reminder dispatcher (also runs on a timer). */
-app.post('/api/counseling/run-reminders', auth.authenticate, auth.requireRole('admin', 'counselor'),
-  features.requireFeature('counseling'), wrap(async (req, res) => {
-    const result = await reminders.runReminders({ language: req.body?.language || 'en' });
-    security.audit(req, 'counseling.reminders', null, `scheduled=${result.scheduled} followup=${result.followup}`);
-    res.json(result);
-  }));
-
-/* ------------------------------------------------------------- MESSAGING -- */
-
-/** Send an awareness / custom broadcast. */
-app.post('/api/messages/broadcast', auth.authenticate,
-  auth.requireRole('admin', 'counselor', 'district', 'community'), wrap(async (req, res) => {
-    const { category = 'awareness', body, language = 'en', grade, channel = 'sms' } = req.body || {};
-    if (!body) return res.status(400).json({ error: 'body is required' });
-    // Community leaders run awareness campaigns network-wide; school staff are
-    // scoped to their own school; district officers to their district.
-    const sc = req.user.role === 'community'
-      ? { clause: '', params: [] }
-      : scope.schoolClause(req.user, 'school_id');
-    let sql = "SELECT id, parent_phone FROM students WHERE active = 1 AND parent_phone IS NOT NULL AND parent_phone <> ''" + sc.clause;
-    const params = [...sc.params];
-    if (grade) { sql += ' AND grade = ?'; params.push(grade); }
-    const recipients = db.prepare(sql).all(...params);
-    let sent = 0;
-    for (const r of recipients) {
-      await messaging.send({ studentId: r.id, phone: r.parent_phone, category, body, language, channel });
-      sent++;
-    }
-    security.audit(req, 'message.broadcast', grade ? `grade:${grade}` : 'all', `sent=${sent} lang=${language}`);
-    res.json({ sent, recipients: recipients.length });
-  }));
-
-app.get('/api/messages', auth.authenticate, wrap((req, res) => {
-  const { category, limit = 100 } = req.query;
-  let sql = 'SELECT * FROM messages';
-  const params = [];
-  if (category) { sql += ' WHERE category = ?'; params.push(category); }
-  sql += ' ORDER BY created_at DESC LIMIT ?';
-  params.push(Number(limit));
-  res.json(db.prepare(sql).all(...params));
-}));
-
-/* ----------------------------------------------- TEMPLATE REVIEW WORKFLOW -- */
-
-/** List all message templates (grouped client-side by key), with review status. */
-app.get('/api/templates', auth.authenticate,
-  auth.requireRole('admin', 'counselor', 'reviewer'), wrap((req, res) => {
-    const rows = db.prepare(`
-      SELECT t.*, u.full_name AS reviewer_name
-      FROM message_templates t LEFT JOIN users u ON u.id = t.reviewer_id
-      ORDER BY t.key, t.language
-    `).all();
-    res.json(rows);
-  }));
-
-/** Items awaiting native-speaker review. */
-app.get('/api/templates/pending', auth.authenticate,
-  auth.requireRole('admin', 'counselor', 'reviewer'), wrap((req, res) => {
-    res.json(db.prepare(
-      "SELECT * FROM message_templates WHERE status IN ('draft','pending_review') ORDER BY language, key"
-    ).all());
-  }));
-
-/** Edit a translation's wording. Editing resets it to 'pending_review'. */
-app.put('/api/templates/:id', auth.authenticate,
-  auth.requireRole('admin', 'counselor', 'reviewer'), wrap((req, res) => {
-    const { body } = req.body || {};
-    if (!body) return res.status(400).json({ error: 'body is required' });
-    if (!/\{name\}|\{avg\}|\{date\}/.test(body) && /\{/.test(body)) {
-      return res.status(400).json({ error: 'Unknown placeholder. Use {name}, {avg} or {date} only.' });
-    }
-    const tpl = db.prepare('SELECT * FROM message_templates WHERE id = ?').get(req.params.id);
-    if (!tpl) return res.status(404).json({ error: 'Template not found' });
-    db.prepare(
-      "UPDATE message_templates SET body = ?, status = 'pending_review', reviewer_id = NULL, updated_at = datetime('now') WHERE id = ?"
-    ).run(body, req.params.id);
-    security.audit(req, 'template.edit', `template:${tpl.key}/${tpl.language}`);
-    res.json(db.prepare('SELECT * FROM message_templates WHERE id = ?').get(req.params.id));
-  }));
-
-/** Approve or reject a translation. English approval is allowed; a non-English
- *  template can be approved by any authorised reviewer (in production, restrict
- *  reviewers to verified native speakers of that language). */
-app.post('/api/templates/:id/review', auth.authenticate,
-  auth.requireRole('admin', 'counselor', 'reviewer'), wrap((req, res) => {
-    const { decision, note } = req.body || {};
-    if (!['approved', 'rejected'].includes(decision)) {
-      return res.status(400).json({ error: "decision must be 'approved' or 'rejected'" });
-    }
-    const tpl = db.prepare('SELECT * FROM message_templates WHERE id = ?').get(req.params.id);
-    if (!tpl) return res.status(404).json({ error: 'Template not found' });
-    db.prepare(
-      "UPDATE message_templates SET status = ?, reviewer_id = ?, review_note = ?, updated_at = datetime('now') WHERE id = ?"
-    ).run(decision, req.user.id, note || null, req.params.id);
-    security.audit(req, `template.${decision}`, `template:${tpl.key}/${tpl.language}`, note || null);
-    res.json(db.prepare('SELECT * FROM message_templates WHERE id = ?').get(req.params.id));
-  }));
-
-/* ------------------------------------------------------------- AWARENESS -- */
-
-app.get('/api/awareness', auth.authenticate, wrap((req, res) => {
-  const { language } = req.query;
-  const sql = language ? 'SELECT * FROM awareness WHERE language = ?' : 'SELECT * FROM awareness';
-  res.json((language ? db.prepare(sql).all(language) : db.prepare(sql).all()));
-}));
-
-/* ------------------------------------------------------- RISK & ANALYTICS -- */
-
-app.get('/api/risk/:studentId', auth.authenticate, features.requireFeature('ai_risk'), wrap((req, res) => {
-  const student = db.prepare('SELECT school_id FROM students WHERE id = ?').get(req.params.studentId);
-  if (!student) return res.status(404).json({ error: 'Student not found' });
-  const allowed = scope.allowedSchoolIds(req.user);
-  if (allowed !== null && !allowed.includes(student.school_id)) {
-    return res.status(403).json({ error: 'This learner is outside your school/district scope' });
-  }
-  res.json(riskEngine.assess(Number(req.params.studentId)));
-}));
-
-app.get('/api/risk', auth.authenticate, features.requireFeature('ai_risk'), wrap((req, res) =>
-  res.json(riskEngine.assessAll({
-    minLevel: req.query.minLevel || 'medium',
-    schoolIds: scope.allowedSchoolIds(req.user)
-  }))));
-
-/* ------------------------------------------------------- PARENT PORTAL -- */
-
-/**
- * Read-only portal for guardians. A parent only ever sees their own linked
- * children, and is NEVER shown the internal vulnerability score (it could
- * stigmatise the child) — only attendance, results and messages they received.
- */
-function childrenForGuardian(userId) {
-  return db.prepare(
-    'SELECT id, full_name, grade, gender FROM students WHERE guardian_user_id = ? AND active = 1'
-  ).all(userId);
-}
-
-app.get('/api/portal/children', auth.authenticate, auth.requireRole('parent'), wrap((req, res) => {
-  const kids = childrenForGuardian(req.user.id).map(c => {
-    const since = new Date(); since.setDate(since.getDate() - 30);
-    const att = db.prepare(`
-      SELECT SUM(status='present') AS present, SUM(status='late') AS late, COUNT(*) AS total
-      FROM attendance WHERE student_id = ? AND date >= ?
-    `).get(c.id, since.toISOString().slice(0, 10));
-    const recent = db.prepare(`
-      SELECT AVG(score) AS avg FROM performance WHERE student_id = ?
-        AND term = (SELECT term FROM performance WHERE student_id = ? ORDER BY term DESC LIMIT 1)
-    `).get(c.id, c.id);
-    return {
-      ...c,
-      attendanceRate: att.total ? Math.round((att.present + 0.5 * att.late) / att.total * 100) : null,
-      recentAverage: recent.avg != null ? Math.round(recent.avg) : null
-    };
+  const insertItem = db.prepare(`INSERT INTO sale_items (sale_id,product_id,quantity,unit_price,cost_price,discount_percent,tax_rate,line_total)
+    VALUES (?,?,?,?,?,?,?,?)`);
+  enriched.forEach(it => {
+    insertItem.run(saleId, it.product_id, it.quantity, it.unit_price, it.cost_price, it.discount_percent||0, it.tax_rate, it.line_total);
+    const inv = db.prepare('SELECT quantity FROM inventory WHERE product_id=?').get(it.product_id);
+    const before = inv ? inv.quantity : 0;
+    const after  = Math.max(0, before - it.quantity);
+    db.prepare("UPDATE inventory SET quantity=?, updated_at=datetime('now') WHERE product_id=?").run(after, it.product_id);
+    db.prepare(`INSERT INTO stock_movements (product_id,movement_type,quantity_change,quantity_before,quantity_after,reference_id,reference_type,user_id)
+      VALUES (?,?,?,?,?,?,?,?)`).run(it.product_id,'sale',-it.quantity,before,after,saleId,'sale',req.user.id);
   });
-  res.json(kids);
-}));
 
-app.get('/api/portal/children/:id', auth.authenticate, auth.requireRole('parent'), wrap((req, res) => {
-  const child = db.prepare(
-    'SELECT id, full_name, grade, gender, village FROM students WHERE id = ? AND guardian_user_id = ?'
-  ).get(req.params.id, req.user.id);
-  if (!child) return res.status(404).json({ error: 'Child not found for this guardian' });
-  const attendance = db.prepare(
-    'SELECT date, status FROM attendance WHERE student_id = ? ORDER BY date DESC LIMIT 30'
-  ).all(child.id);
-  const performance = db.prepare(
-    'SELECT term, subject, score FROM performance WHERE student_id = ? ORDER BY term DESC, subject'
-  ).all(child.id);
-  const messages = db.prepare(
-    'SELECT category, body, created_at FROM messages WHERE student_id = ? ORDER BY created_at DESC LIMIT 30'
-  ).all(child.id);
-  res.json({ child, attendance, performance, messages });
-}));
+  if (customer_id) {
+    db.prepare("UPDATE customers SET last_purchase=datetime('now'), loyalty_points=loyalty_points+? WHERE id=?")
+      .run(Math.floor(totalAmount/10), customer_id);
+  }
 
-/** Headline dashboard analytics (school-wide — not for individual guardians). */
-app.get('/api/analytics/summary', auth.authenticate,
-  auth.requireRole('admin', 'teacher', 'counselor', 'district', 'community'), wrap((req, res) => {
-  const today = new Date().toISOString().slice(0, 10);
-  const allowed = scope.allowedSchoolIds(req.user);
-  const sStud = scope.schoolClause(req.user, 'school_id');  // direct on students
-  const sJoin = scope.schoolClause(req.user, 's.school_id'); // via join
+  const sale = db.prepare('SELECT * FROM sales WHERE id=?').get(saleId);
+  const saleItems = db.prepare('SELECT si.*,p.name AS product_name,p.sku FROM sale_items si JOIN products p ON p.id=si.product_id WHERE si.sale_id=?').all(saleId);
+  let customer = null;
+  if (customer_id) customer = db.prepare('SELECT * FROM customers WHERE id=?').get(customer_id);
+  const settings = Object.fromEntries(db.prepare('SELECT key,value FROM settings').all().map(r=>[r.key,r.value]));
+  res.status(201).json({ ...sale, items: saleItems, customer, cashier_name: req.user.full_name, settings });
+});
 
-  const totalStudents = db.prepare('SELECT COUNT(*) AS n FROM students WHERE active = 1' + sStud.clause).get(...sStud.params).n;
-  const girls = db.prepare("SELECT COUNT(*) AS n FROM students WHERE active = 1 AND gender = 'F'" + sStud.clause).get(...sStud.params).n;
+app.post('/api/sales/:id/void', authenticate, requireRole('admin','manager'), (req, res) => {
+  const sale = db.prepare('SELECT * FROM sales WHERE id=?').get(req.params.id);
+  if (!sale) return res.status(404).json({ error: 'Not found' });
+  if (sale.status !== 'completed') return res.status(400).json({ error: 'Only completed sales can be voided' });
+  db.prepare("UPDATE sales SET status='voided' WHERE id=?").run(sale.id);
+  // Reverse stock
+  const items = db.prepare('SELECT * FROM sale_items WHERE sale_id=?').all(sale.id);
+  items.forEach(it => {
+    const inv = db.prepare('SELECT quantity FROM inventory WHERE product_id=?').get(it.product_id);
+    const before = inv ? inv.quantity : 0;
+    const after  = before + it.quantity;
+    db.prepare("UPDATE inventory SET quantity=?, updated_at=datetime('now') WHERE product_id=?").run(after, it.product_id);
+    db.prepare(`INSERT INTO stock_movements (product_id,movement_type,quantity_change,quantity_before,quantity_after,reference_id,reference_type,user_id,notes)
+      VALUES (?,?,?,?,?,?,?,?,?)`).run(it.product_id,'return',it.quantity,before,after,sale.id,'void',req.user.id,'Sale voided');
+  });
+  res.json({ ok: true });
+});
 
-  const todayRows = db.prepare(
-    'SELECT a.status, COUNT(*) AS n FROM attendance a JOIN students s ON s.id = a.student_id WHERE a.date = ?'
-    + sJoin.clause + ' GROUP BY a.status').all(today, ...sJoin.params);
-  const todayMap = Object.fromEntries(todayRows.map(r => [r.status, r.n]));
-  const marked = todayRows.reduce((s, r) => s + r.n, 0);
-  const attendanceRateToday = marked ? Math.round(((todayMap.present || 0) + 0.5 * (todayMap.late || 0)) / marked * 100) : null;
+// ─────────────────────────── PURCHASE ORDERS ─────────────────────────────────
 
-  const atRisk = riskEngine.assessAll({ minLevel: 'medium', schoolIds: allowed });
-  const high = atRisk.filter(a => a.level === 'high').length;
-  const medium = atRisk.filter(a => a.level === 'medium').length;
+app.get('/api/purchase-orders', authenticate, requireRole('admin','manager'), (req, res) => {
+  res.json(db.prepare(`
+    SELECT po.*, s.name AS supplier_name, u.full_name AS created_by_name
+    FROM purchase_orders po
+    JOIN suppliers s ON s.id = po.supplier_id
+    JOIN users u ON u.id = po.user_id
+    ORDER BY po.created_at DESC LIMIT 100
+  `).all());
+});
 
-  const interventions = db.prepare('SELECT COUNT(*) AS n FROM counseling c JOIN students s ON s.id = c.student_id WHERE 1=1' + sJoin.clause).get(...sJoin.params).n;
-  const resolved = db.prepare("SELECT COUNT(*) AS n FROM counseling c JOIN students s ON s.id = c.student_id WHERE c.status = 'resolved'" + sJoin.clause).get(...sJoin.params).n;
-  const messagesSent = db.prepare('SELECT COUNT(*) AS n FROM messages m JOIN students s ON s.id = m.student_id WHERE 1=1' + sJoin.clause).get(...sJoin.params).n;
+app.post('/api/purchase-orders', authenticate, requireRole('admin','manager'), (req, res) => {
+  const { supplier_id, items, expected_date='', notes='' } = req.body;
+  if (!supplier_id || !items?.length) return res.status(400).json({ error: 'supplier_id and items required' });
+  let total = 0;
+  items.forEach(it => { total += it.quantity_ordered * it.unit_cost; });
+  const seq    = db.prepare('SELECT COUNT(*)+1 AS n FROM purchase_orders').get().n;
+  const poNum  = `PO-${String(seq).padStart(5,'0')}`;
+  db.prepare(`INSERT INTO purchase_orders (po_number,supplier_id,user_id,expected_date,total_amount,notes) VALUES (?,?,?,?,?,?)`)
+    .run(poNum, supplier_id, req.user.id, expected_date, total, notes);
+  const poId = db.prepare('SELECT last_insert_rowid() AS id').get().id;
+  const insertPOItem = db.prepare('INSERT INTO po_items (po_id,product_id,quantity_ordered,unit_cost,line_total) VALUES (?,?,?,?,?)');
+  items.forEach(it => insertPOItem.run(poId, it.product_id, it.quantity_ordered, it.unit_cost, it.quantity_ordered*it.unit_cost));
+  res.status(201).json(db.prepare('SELECT * FROM purchase_orders WHERE id=?').get(poId));
+});
+
+app.post('/api/purchase-orders/:id/receive', authenticate, requireRole('admin','manager'), (req, res) => {
+  const po = db.prepare('SELECT * FROM purchase_orders WHERE id=?').get(req.params.id);
+  if (!po) return res.status(404).json({ error: 'Not found' });
+  const items = db.prepare('SELECT * FROM po_items WHERE po_id=?').all(po.id);
+  items.forEach(it => {
+    const qty   = it.quantity_ordered - it.quantity_received;
+    if (qty <= 0) return;
+    const inv   = db.prepare('SELECT quantity FROM inventory WHERE product_id=?').get(it.product_id);
+    const before = inv ? inv.quantity : 0;
+    const after  = before + qty;
+    db.prepare("UPDATE inventory SET quantity=?, updated_at=datetime('now') WHERE product_id=?").run(after, it.product_id);
+    db.prepare(`INSERT INTO stock_movements (product_id,movement_type,quantity_change,quantity_before,quantity_after,reference_id,reference_type,user_id)
+      VALUES (?,?,?,?,?,?,?,?)`).run(it.product_id,'purchase',qty,before,after,po.id,'po',req.user.id);
+    db.prepare('UPDATE po_items SET quantity_received=quantity_ordered WHERE id=?').run(it.id);
+  });
+  db.prepare("UPDATE purchase_orders SET status='received', received_date=datetime('now') WHERE id=?").run(po.id);
+  res.json({ ok: true });
+});
+
+// ─────────────────────────── REPORTS / DASHBOARD ─────────────────────────────
+
+app.get('/api/reports/dashboard', authenticate, (_req, res) => {
+  const today = new Date().toISOString().slice(0,10);
+  const yesterday = new Date(Date.now()-86_400_000).toISOString().slice(0,10);
+  const monthStart = today.slice(0,7) + '-01';
+
+  const todayStats = db.prepare(`
+    SELECT COUNT(*) AS transactions, COALESCE(SUM(total_amount),0) AS revenue,
+           COALESCE(SUM(total_amount-cost_total),0) AS profit
+    FROM sales WHERE DATE(sale_date)=? AND status='completed'`).get(today);
+
+  const yestStats = db.prepare(`
+    SELECT COALESCE(SUM(total_amount),0) AS revenue, COUNT(*) AS transactions
+    FROM sales WHERE DATE(sale_date)=? AND status='completed'`).get(yesterday);
+
+  const monthStats = db.prepare(`
+    SELECT COALESCE(SUM(total_amount),0) AS revenue,
+           COALESCE(SUM(total_amount-cost_total),0) AS profit,
+           COUNT(*) AS transactions
+    FROM sales WHERE DATE(sale_date) >= ? AND status='completed'`).get(monthStart);
+
+  const lowStock = db.prepare(`
+    SELECT COUNT(*) AS n FROM products p LEFT JOIN inventory i ON i.product_id=p.id
+    WHERE p.active=1 AND COALESCE(i.quantity,0) <= p.reorder_level`).get().n;
+
+  const outOfStock = db.prepare(`
+    SELECT COUNT(*) AS n FROM products p LEFT JOIN inventory i ON i.product_id=p.id
+    WHERE p.active=1 AND COALESCE(i.quantity,0) = 0`).get().n;
+
+  const totalCustomers = db.prepare('SELECT COUNT(*) AS n FROM customers WHERE active=1').get().n;
+  const totalProducts  = db.prepare('SELECT COUNT(*) AS n FROM products WHERE active=1').get().n;
+
+  const inventoryValue = db.prepare(`
+    SELECT COALESCE(SUM(i.quantity*p.cost_price),0) AS value
+    FROM inventory i JOIN products p ON p.id=i.product_id WHERE p.active=1`).get().value;
+
+  // Revenue trend last 30 days
+  const trend = db.prepare(`
+    SELECT DATE(sale_date) AS date, SUM(total_amount) AS revenue, COUNT(*) AS transactions
+    FROM sales WHERE DATE(sale_date) >= date('now','-29 days') AND status='completed'
+    GROUP BY DATE(sale_date) ORDER BY date`).all();
+
+  // Category sales this month
+  const catSales = db.prepare(`
+    SELECT c.name AS category, c.color, SUM(si.line_total) AS revenue
+    FROM sale_items si
+    JOIN products p ON p.id=si.product_id
+    JOIN categories c ON c.id=p.category_id
+    JOIN sales s ON s.id=si.sale_id
+    WHERE DATE(s.sale_date) >= ? AND s.status='completed'
+    GROUP BY c.id ORDER BY revenue DESC`).all(monthStart);
+
+  // Top products last 30 days
+  const topProducts = db.prepare(`
+    SELECT p.name, p.sku, SUM(si.quantity) AS units_sold, SUM(si.line_total) AS revenue
+    FROM sale_items si JOIN products p ON p.id=si.product_id JOIN sales s ON s.id=si.sale_id
+    WHERE DATE(s.sale_date) >= date('now','-29 days') AND s.status='completed'
+    GROUP BY p.id ORDER BY revenue DESC LIMIT 10`).all();
+
+  // Hourly distribution today
+  const hourly = db.prepare(`
+    SELECT strftime('%H',sale_date) AS hour, COUNT(*) AS count, SUM(total_amount) AS revenue
+    FROM sales WHERE DATE(sale_date)=? AND status='completed'
+    GROUP BY hour ORDER BY hour`).all(today);
+
+  // Payment methods this month
+  const payMethods = db.prepare(`
+    SELECT payment_method, COUNT(*) AS count, SUM(total_amount) AS total
+    FROM sales WHERE DATE(sale_date) >= ? AND status='completed'
+    GROUP BY payment_method`).all(monthStart);
+
+  // Recent 10 sales
+  const recentSales = db.prepare(`
+    SELECT s.id, s.receipt_no, s.sale_date, s.total_amount, s.payment_method, s.status,
+           c.full_name AS customer_name, u.full_name AS cashier_name
+    FROM sales s
+    LEFT JOIN customers c ON c.id=s.customer_id
+    LEFT JOIN users u ON u.id=s.user_id
+    ORDER BY s.sale_date DESC LIMIT 10`).all();
+
+  // Low stock products
+  const lowStockItems = db.prepare(`
+    SELECT p.id, p.sku, p.name, p.reorder_level, COALESCE(i.quantity,0) AS quantity, c.name AS category
+    FROM products p
+    LEFT JOIN inventory i ON i.product_id=p.id
+    LEFT JOIN categories c ON c.id=p.category_id
+    WHERE p.active=1 AND COALESCE(i.quantity,0) <= p.reorder_level
+    ORDER BY COALESCE(i.quantity,0) ASC LIMIT 10`).all();
 
   res.json({
-    totalStudents, girls,
-    attendanceRateToday, markedToday: marked,
-    risk: { high, medium, low: totalStudents - high - medium },
-    interventions, resolvedInterventions: resolved,
-    messagesSent
+    kpis: {
+      today: { ...todayStats, avg_order: todayStats.transactions ? todayStats.revenue/todayStats.transactions : 0 },
+      yesterday: yestStats,
+      month: monthStats,
+      low_stock: lowStock,
+      out_of_stock: outOfStock,
+      total_customers: totalCustomers,
+      total_products: totalProducts,
+      inventory_value: inventoryValue,
+    },
+    trend,
+    catSales,
+    topProducts,
+    hourly,
+    payMethods,
+    recentSales,
+    lowStockItems,
   });
-}));
+});
 
-/* --------------------------------------------------------------- REPORTS -- */
-
-/** Minimal RFC-4180 CSV serialiser. */
-function toCSV(headers, rows) {
-  const esc = v => {
-    const s = v == null ? '' : String(v);
-    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
-  };
-  return [headers.join(','), ...rows.map(r => r.map(esc).join(','))].join('\r\n');
-}
-
-function sendCSV(res, filename, headers, rows) {
-  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-  res.send(toCSV(headers, rows));
-}
-
-/** At-risk learners report (CSV) — for District Education Office returns. */
-app.get('/api/reports/at-risk.csv', auth.authenticate,
-  auth.requireRole('admin', 'counselor', 'district'), features.requireFeature('analytics'), wrap((req, res) => {
-    const list = riskEngine.assessAll({
-      minLevel: req.query.minLevel || 'medium', schoolIds: scope.allowedSchoolIds(req.user)
-    });
-    sendCSV(res, 'at-risk-learners.csv',
-      ['Name', 'Grade', 'Sex', 'Village', 'Score', 'Level', 'AttendanceRate%', 'TopFactor', 'PrimaryAction'],
-      list.map(a => [
-        a.student.full_name, a.student.grade, a.student.gender, a.student.village,
-        a.score, a.level, a.metrics.attendanceRate,
-        a.factors[0]?.label || '', a.recommendations[0] || ''
-      ]));
-  }));
-
-/** Attendance summary per learner over a window (CSV). */
-app.get('/api/reports/attendance.csv', auth.authenticate,
-  auth.requireRole('admin', 'teacher', 'district'), features.requireFeature('analytics'), wrap((req, res) => {
-    const days = Math.min(180, Number(req.query.days) || 30);
-    const since = new Date(); since.setDate(since.getDate() - days);
-    const sinceISO = since.toISOString().slice(0, 10);
-    const sc = scope.schoolClause(req.user, 's.school_id');
-    const rows = db.prepare(`
-      SELECT s.full_name, s.grade,
-        SUM(a.status = 'present') AS present,
-        SUM(a.status = 'absent')  AS absent,
-        SUM(a.status = 'late')    AS late,
-        COUNT(a.id)               AS total
-      FROM students s LEFT JOIN attendance a
-        ON a.student_id = s.id AND a.date >= ?
-      WHERE s.active = 1${sc.clause}
-      GROUP BY s.id ORDER BY s.grade, s.full_name
-    `).all(sinceISO, ...sc.params);
-    sendCSV(res, `attendance-${days}d.csv`,
-      ['Name', 'Grade', 'Present', 'Absent', 'Late', 'Total', 'Rate%'],
-      rows.map(r => [r.full_name, r.grade, r.present, r.absent, r.late, r.total,
-        r.total ? Math.round((r.present + 0.5 * r.late) / r.total * 100) : '']));
-  }));
-
-/* --------------------------------------------------------------- AUDIT -- */
-
-app.get('/api/audit', auth.authenticate, auth.requireRole('admin'), wrap((req, res) => {
-  res.json(db.prepare('SELECT * FROM audit_log ORDER BY id DESC LIMIT 200').all());
-}));
-
-/** Daily attendance-rate trend for the dashboard chart. */
-app.get('/api/analytics/attendance-trend', auth.authenticate, wrap((req, res) => {
-  const days = Math.min(60, Number(req.query.days) || 14);
-  const sc = scope.schoolClause(req.user, 's.school_id');
+app.get('/api/reports/monthly', authenticate, (_req, res) => {
   const rows = db.prepare(`
-    SELECT a.date AS date,
-      SUM(a.status = 'present') AS present,
-      SUM(a.status = 'late')    AS late,
-      COUNT(*)                  AS total
-    FROM attendance a JOIN students s ON s.id = a.student_id
-    WHERE a.date >= date('now', ?)${sc.clause}
-    GROUP BY a.date ORDER BY a.date
-  `).all(`-${days} days`, ...sc.params);
-  res.json(rows.map(r => ({
-    date: r.date,
-    rate: r.total ? Math.round((r.present + 0.5 * r.late) / r.total * 100) : null
-  })));
-}));
+    SELECT strftime('%Y-%m',sale_date) AS month,
+           SUM(total_amount) AS revenue,
+           SUM(total_amount-cost_total) AS profit,
+           COUNT(*) AS transactions
+    FROM sales WHERE status='completed'
+    GROUP BY month ORDER BY month DESC LIMIT 13
+  `).all().reverse();
+  res.json(rows);
+});
 
-/** Geo-located at-risk learners for GIS mapping (only those with coordinates). */
-app.get('/api/analytics/gis', auth.authenticate,
-  auth.requireRole('admin', 'counselor', 'district'), features.requireFeature('gis'), wrap((req, res) => {
-    const list = riskEngine.assessAll({ minLevel: 'low', schoolIds: scope.allowedSchoolIds(req.user) });
-    res.json(list
-      .map(a => {
-        const s = db.prepare('SELECT gps_lat, gps_lng FROM students WHERE id = ?').get(a.studentId);
-        return { ...a, gps_lat: s.gps_lat, gps_lng: s.gps_lng };
-      })
-      .filter(a => a.gps_lat != null && a.gps_lng != null));
-  }));
+app.get('/api/reports/sales-summary', authenticate, (req, res) => {
+  const { from, to } = req.query;
+  const params = [];
+  let where = "status='completed'";
+  if (from) { where += ' AND DATE(sale_date) >= ?'; params.push(from); }
+  if (to)   { where += ' AND DATE(sale_date) <= ?'; params.push(to); }
 
-/**
- * Term-over-term academic analytics: overall averages & pass rates per term,
- * per-subject trend lines, top/low performers and the steepest decliners.
- */
-app.get('/api/analytics/academic', auth.authenticate,
-  auth.requireRole('admin', 'teacher', 'counselor', 'district'), features.requireFeature('academic_reports'), wrap((req, res) => {
-    const sc = scope.schoolClause(req.user, 's.school_id');
-    const J = 'performance p JOIN students s ON s.id = p.student_id';
-    const terms = db.prepare(`SELECT DISTINCT p.term FROM ${J} WHERE 1=1${sc.clause} ORDER BY p.term`)
-      .all(...sc.params).map(r => r.term);
+  const summary = db.prepare(`
+    SELECT COUNT(*) AS transactions, SUM(total_amount) AS revenue,
+           SUM(cost_total) AS cost, SUM(total_amount-cost_total) AS profit,
+           AVG(total_amount) AS avg_order, SUM(discount_amount) AS total_discount,
+           SUM(tax_amount) AS total_tax
+    FROM sales WHERE ${where}`).get(...params);
 
-    const overall = db.prepare(`
-      SELECT p.term AS term, ROUND(AVG(p.score), 1) AS avg,
-        ROUND(100.0 * SUM(p.score >= 50) / COUNT(*), 1) AS passRate,
-        COUNT(*) AS entries
-      FROM ${J} WHERE 1=1${sc.clause} GROUP BY p.term ORDER BY p.term
-    `).all(...sc.params);
+  const byDay = db.prepare(`
+    SELECT DATE(sale_date) AS date, SUM(total_amount) AS revenue, COUNT(*) AS transactions
+    FROM sales WHERE ${where} GROUP BY DATE(sale_date) ORDER BY date`).all(...params);
 
-    const subjects = db.prepare(`SELECT DISTINCT p.subject FROM ${J} WHERE 1=1${sc.clause} ORDER BY p.subject`)
-      .all(...sc.params).map(r => r.subject);
-    const bySubject = subjects.map(subject => ({
-      subject,
-      byTerm: terms.map(term => {
-        const row = db.prepare(`SELECT ROUND(AVG(p.score),1) AS avg FROM ${J} WHERE p.subject = ? AND p.term = ?${sc.clause}`)
-          .get(subject, term, ...sc.params);
-        return { term, avg: row.avg };
-      })
-    }));
+  const byCategory = db.prepare(`
+    SELECT c.name AS category, SUM(si.line_total) AS revenue, SUM(si.quantity) AS units
+    FROM sale_items si
+    JOIN products p ON p.id=si.product_id
+    JOIN categories c ON c.id=p.category_id
+    JOIN sales s ON s.id=si.sale_id
+    WHERE s.${where} GROUP BY c.id ORDER BY revenue DESC`).all(...params);
 
-    const latest = terms[terms.length - 1];
-    const perStudentLatest = latest ? db.prepare(`
-      SELECT s.id, s.full_name, s.grade, ROUND(AVG(p.score),1) AS avg
-      FROM ${J} WHERE p.term = ?${sc.clause} GROUP BY s.id ORDER BY avg DESC
-    `).all(latest, ...sc.params) : [];
+  const topProds = db.prepare(`
+    SELECT p.name, p.sku, SUM(si.quantity) AS units, SUM(si.line_total) AS revenue
+    FROM sale_items si JOIN products p ON p.id=si.product_id JOIN sales s ON s.id=si.sale_id
+    WHERE s.${where} GROUP BY p.id ORDER BY revenue DESC LIMIT 20`).all(...params);
 
-    // Steepest term-over-term decline (last two terms).
-    let decliners = [];
-    if (terms.length >= 2) {
-      const prev = terms[terms.length - 2];
-      const a = db.prepare(`SELECT p.student_id AS student_id, AVG(p.score) AS avg FROM ${J} WHERE p.term = ?${sc.clause} GROUP BY p.student_id`).all(prev, ...sc.params);
-      const b = db.prepare(`SELECT p.student_id AS student_id, AVG(p.score) AS avg FROM ${J} WHERE p.term = ?${sc.clause} GROUP BY p.student_id`).all(latest, ...sc.params);
-      const prevMap = Object.fromEntries(a.map(r => [r.student_id, r.avg]));
-      decliners = b.map(r => {
-        const drop = (prevMap[r.student_id] ?? r.avg) - r.avg;
-        const s = db.prepare('SELECT full_name, grade FROM students WHERE id = ?').get(r.student_id);
-        return { ...s, drop: Math.round(drop), from: Math.round(prevMap[r.student_id] ?? r.avg), to: Math.round(r.avg) };
-      }).filter(r => r.drop > 0).sort((x, y) => y.drop - x.drop).slice(0, 5);
-    }
+  const byCashier = db.prepare(`
+    SELECT u.full_name, COUNT(*) AS transactions, SUM(s.total_amount) AS revenue
+    FROM sales s JOIN users u ON u.id=s.user_id
+    WHERE s.${where} GROUP BY s.user_id ORDER BY revenue DESC`).all(...params);
 
-    res.json({
-      terms, overall, bySubject,
-      topPerformers: perStudentLatest.slice(0, 5),
-      lowPerformers: perStudentLatest.slice(-5).reverse(),
-      decliners,
-      latestTerm: latest
-    });
-  }));
+  const byPayment = db.prepare(`
+    SELECT payment_method, COUNT(*) AS count, SUM(total_amount) AS total
+    FROM sales WHERE ${where} GROUP BY payment_method`).all(...params);
 
-/* --------------------------------------------------- SCHOOLS & DISTRICT -- */
+  res.json({ summary, byDay, byCategory, topProds, byCashier, byPayment });
+});
 
-/** List schools within the caller's scope. */
-app.get('/api/schools', auth.authenticate, wrap((req, res) => {
-  if (req.user.role === 'admin') {
-    return res.json(db.prepare('SELECT * FROM schools ORDER BY district, name').all());
+// ─────────────────────────── SETTINGS ────────────────────────────────────────
+
+app.get('/api/settings', authenticate, (_req, res) => {
+  const rows = db.prepare('SELECT key,value FROM settings').all();
+  res.json(Object.fromEntries(rows.map(r=>[r.key,r.value])));
+});
+
+app.put('/api/settings', authenticate, requireRole('admin'), (req, res) => {
+  const stmt = db.prepare("INSERT INTO settings (key,value,updated_at) VALUES (?,?,datetime('now')) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at");
+  Object.entries(req.body).forEach(([k,v]) => stmt.run(k, String(v)));
+  const rows = db.prepare('SELECT key,value FROM settings').all();
+  res.json(Object.fromEntries(rows.map(r=>[r.key,r.value])));
+});
+
+// ─────────────────────────── USERS (admin) ───────────────────────────────────
+
+app.get('/api/users', authenticate, requireRole('admin'), (_req, res) => {
+  res.json(db.prepare('SELECT id,username,full_name,role,email,phone,active,created_at,last_login FROM users ORDER BY full_name').all());
+});
+
+app.post('/api/users', authenticate, requireRole('admin'), (req, res) => {
+  const { username, password, full_name, role='cashier', email='', phone='' } = req.body;
+  if (!username || !password || !full_name) return res.status(400).json({ error: 'username, password and full_name required' });
+  try {
+    db.prepare('INSERT INTO users (username,password_hash,full_name,role,email,phone) VALUES (?,?,?,?,?,?)')
+      .run(username, hashPassword(password), full_name, role, email, phone);
+    const id = db.prepare('SELECT last_insert_rowid() AS id').get().id;
+    res.status(201).json(db.prepare('SELECT id,username,full_name,role,email,phone,active FROM users WHERE id=?').get(id));
+  } catch { res.status(409).json({ error: 'Username already exists' }); }
+});
+
+app.put('/api/users/:id', authenticate, requireRole('admin'), (req, res) => {
+  const { full_name = null, role = null, email = null, phone = null, active = null, password } = req.body;
+  if (password) {
+    db.prepare('UPDATE users SET password_hash=? WHERE id=?').run(hashPassword(password), req.params.id);
   }
-  if (req.user.role === 'district' && req.user.district) {
-    return res.json(db.prepare('SELECT * FROM schools WHERE district = ? ORDER BY name').all(req.user.district));
-  }
-  if (req.user.school_id) {
-    return res.json(db.prepare('SELECT * FROM schools WHERE id = ?').all(req.user.school_id));
-  }
-  res.json([]);
-}));
+  db.prepare(`UPDATE users SET
+    full_name=COALESCE(?,full_name), role=COALESCE(?,role), email=COALESCE(?,email),
+    phone=COALESCE(?,phone), active=COALESCE(?,active) WHERE id=?`).run(full_name,role,email,phone,active,req.params.id);
+  res.json(db.prepare('SELECT id,username,full_name,role,email,phone,active FROM users WHERE id=?').get(req.params.id));
+});
 
-/** Register a new school (admin). */
-app.post('/api/schools', auth.authenticate, auth.requireRole('admin'), wrap((req, res) => {
-  const { name, district, province, package: pkg } = req.body || {};
-  if (!name || !district) return res.status(400).json({ error: 'name and district are required' });
-  const info = db.prepare('INSERT INTO schools (name, district, province, package) VALUES (?, ?, ?, COALESCE(?, ?))')
-    .run(name, district, province || null, pkg || null, 'bronze');
-  security.audit(req, 'school.create', `school:${info.lastInsertRowid}`, `${name} (${district})`);
-  res.status(201).json(db.prepare('SELECT * FROM schools WHERE id = ?').get(info.lastInsertRowid));
-}));
+// ─────────────────────────── STATIC + START ──────────────────────────────────
 
-/**
- * Per-school breakdown for the District Education Officer / national dashboard.
- * Scoped: admin sees all schools, a district officer sees only their district.
- */
-app.get('/api/analytics/by-school', auth.authenticate,
-  auth.requireRole('admin', 'district'), wrap((req, res) => {
-    const allowed = scope.allowedSchoolIds(req.user); // null for admin
-    let schools = allowed === null
-      ? db.prepare('SELECT * FROM schools ORDER BY district, name').all()
-      : (allowed.length
-          ? db.prepare(`SELECT * FROM schools WHERE id IN (${allowed.map(() => '?').join(',')}) ORDER BY name`).all(...allowed)
-          : []);
-    const today = new Date().toISOString().slice(0, 10);
-    const rows = schools.map(school => {
-      const students = db.prepare('SELECT COUNT(*) AS n FROM students WHERE active = 1 AND school_id = ?').get(school.id).n;
-      const girls = db.prepare("SELECT COUNT(*) AS n FROM students WHERE active = 1 AND gender = 'F' AND school_id = ?").get(school.id).n;
-      const atRisk = riskEngine.assessAll({ minLevel: 'medium', schoolIds: [school.id] });
-      const high = atRisk.filter(a => a.level === 'high').length;
-      const medium = atRisk.filter(a => a.level === 'medium').length;
-      const att = db.prepare(`
-        SELECT SUM(a.status='present') AS present, SUM(a.status='late') AS late, COUNT(*) AS total
-        FROM attendance a JOIN students s ON s.id = a.student_id
-        WHERE a.date = ? AND s.school_id = ?
-      `).get(today, school.id);
-      return {
-        id: school.id, name: school.name, district: school.district, package: school.package,
-        students, girls, high, medium,
-        attendanceToday: att.total ? Math.round((att.present + 0.5 * att.late) / att.total * 100) : null
-      };
-    });
-    res.json(rows);
-  }));
-
-/* --------------------------------------------------------------- WEBHOOKS -- */
-
-/**
- * Inbound SMS delivery-report webhook (called by the aggregator, e.g. Africa's
- * Talking). Public endpoint — protected by a shared secret when configured.
- * Updates the outbox so the dashboard shows true delivered/failed status.
- */
-app.post('/api/webhooks/sms/delivery', wrap((req, res) => {
-  if (config.messaging.webhookSecret) {
-    const provided = req.get('X-Webhook-Secret') || req.query.token;
-    if (provided !== config.messaging.webhookSecret) {
-      return res.status(401).json({ error: 'Invalid webhook secret' });
-    }
-  }
-  const b = req.body || {};
-  const updated = messaging.applyDeliveryReport({
-    providerRef: b.id || b.messageId || b.provider_ref,
-    status: b.status
-  });
-  res.json({ ok: true, updated });
-}));
-
-/* ----------------------------------------------------------------- MISC -- */
-
-app.get('/api/health', (req, res) => res.json({ status: 'ok', service: 'safegirl-edutrack', time: new Date().toISOString() }));
-
-// SPA fallback for non-API routes.
-app.get(/^(?!\/api).*/, (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'index.html')));
+app.use(express.static(path.join(__dirname, '../public')));
+app.get('*', (_req, res) => res.sendFile(path.join(__dirname, '../public/index.html')));
 
 if (require.main === module) {
-  app.listen(config.port, config.host, () => {
-    console.log(`SafeGirl EduTrack running at http://${config.host}:${config.port}`);
-    console.log(`Messaging provider: ${config.messaging.provider}`);
+  const server = http.createServer(app);
+  server.listen(config.port, config.host, () => {
+    console.log(`HardWare Plus POS running at http://${config.host}:${config.port}`);
   });
-  // Counseling reminder dispatcher — runs on startup and on a timer.
-  reminders.runReminders().then(r => {
-    if (r.scheduled + r.followup > 0) console.log(`Reminders dispatched: ${JSON.stringify(r)}`);
-  }).catch(err => console.error('reminder run failed:', err.message));
-  setInterval(() => {
-    reminders.runReminders().catch(err => console.error('reminder run failed:', err.message));
-  }, config.reminderIntervalMs).unref();
 }
 
 module.exports = app;

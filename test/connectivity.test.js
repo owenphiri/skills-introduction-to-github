@@ -6,105 +6,127 @@ const h = require('./helpers');
 before(h.start);
 after(h.stop);
 
-/* ------------------------------------------------ package-tier gating ---- */
+// ── Purchase Orders ─────────────────────────────────────────────────────────
 
-async function makeSilverTeacher(admin) {
-  // School id 3 is "Lusaka Girls Secondary" (silver) in the seed.
-  const u = await h.req('POST', '/api/users', {
-    token: admin,
-    body: { full_name: 'Silver Teacher', username: 'silverteacher', password: 'Passw0rd', role: 'teacher', school_id: 3 }
+test('manager can create a purchase order', async () => {
+  const token = await h.login('manager');
+  const { data: suppliers } = await h.req('GET', '/api/suppliers', { token });
+  const { data: inv } = await h.req('GET', '/api/inventory', { token });
+  const product = inv[0];
+
+  const { status, data } = await h.req('POST', '/api/purchase-orders', {
+    token,
+    body: {
+      supplier_id: suppliers[0].id,
+      items: [{ product_id: product.product_id, quantity_ordered: 50, unit_cost: product.cost_price }],
+      notes: 'Test purchase order'
+    }
   });
-  assert.equal(u.status, 201);
-  return h.login('silverteacher', 'Passw0rd');
-}
-
-test('login reports the school package and enabled features', async () => {
-  const teacher = await h.login('teacher'); // platinum school
-  const me = (await h.req('GET', '/api/auth/me', { token: teacher })).data.user;
-  assert.equal(me.package, 'platinum');
-  assert.ok(me.features.includes('gis') && me.features.includes('counseling'));
+  assert.equal(status, 201);
+  assert.ok(data.po_number.startsWith('PO-'), 'PO number must have PO- prefix');
+  assert.ok(data.total_amount > 0, 'PO total must be positive');
 });
 
-test('a silver-tier school is gated out of gold/platinum features (402)', async () => {
-  const admin = await h.login('admin');
-  const silver = await makeSilverTeacher(admin);
-
-  const me = (await h.req('GET', '/api/auth/me', { token: silver })).data.user;
-  assert.equal(me.package, 'silver');
-  assert.ok(me.features.includes('academic_reports'), 'silver includes academic reports');
-  assert.ok(!me.features.includes('ai_risk'), 'silver excludes AI risk');
-  assert.ok(!me.features.includes('counseling'), 'silver excludes counseling');
-
-  // AI risk (gold) → 402 Payment Required with upgrade info.
-  const risk = await h.req('GET', '/api/risk', { token: silver });
-  assert.equal(risk.status, 402);
-  assert.equal(risk.data.requiredTier, 'gold');
-  assert.equal(risk.data.currentTier, 'silver');
-
-  // Counseling (gold) → 402.
-  const couns = await h.req('POST', '/api/counseling', {
-    token: silver, body: { student_id: 12, type: 'session', notes: 'x' }
-  });
-  assert.equal(couns.status, 402);
-
-  // Academic reports (silver) → allowed.
-  const acad = await h.req('GET', '/api/analytics/academic', { token: silver });
-  assert.equal(acad.status, 200);
+test('purchase order list is accessible to manager and admin', async () => {
+  for (const role of ['manager', 'admin']) {
+    const token = await h.login(role);
+    const { status, data } = await h.req('GET', '/api/purchase-orders', { token });
+    assert.equal(status, 200, `${role} should be able to list purchase orders`);
+    assert.ok(Array.isArray(data));
+  }
 });
 
-test('admin and district bypass tier gating', async () => {
-  const admin = await h.login('admin');
-  assert.equal((await h.req('GET', '/api/risk', { token: admin })).status, 200);
-  const district = await h.login('district');
-  assert.equal((await h.req('GET', '/api/risk', { token: district })).status, 200);
+test('receiving a purchase order increases inventory by the ordered quantity', async () => {
+  const token = await h.login('manager');
+  const { data: suppliers } = await h.req('GET', '/api/suppliers', { token });
+  const { data: inv } = await h.req('GET', '/api/inventory', { token });
+  const product = inv[0];
+  const stockBefore = product.quantity;
+
+  const { data: po } = await h.req('POST', '/api/purchase-orders', {
+    token,
+    body: {
+      supplier_id: suppliers[0].id,
+      items: [{ product_id: product.product_id, quantity_ordered: 20, unit_cost: 100 }]
+    }
+  });
+
+  const received = await h.req('POST', `/api/purchase-orders/${po.id}/receive`, { token });
+  assert.equal(received.status, 200);
+  assert.ok(received.data.ok);
+
+  const { data: invAfter } = await h.req('GET', '/api/inventory', { token });
+  const after = invAfter.find(p => p.product_id === product.product_id);
+  assert.equal(after.quantity, stockBefore + 20);
 });
 
-/* ------------------------------------------- counseling reminders -------- */
+test('receiving creates stock_movement records of type purchase', async () => {
+  const token = await h.login('manager');
+  const { data: suppliers } = await h.req('GET', '/api/suppliers', { token });
+  const { data: inv } = await h.req('GET', '/api/inventory', { token });
+  const product = inv[1]; // use a different product index to avoid cross-test interference
 
-test('reminder dispatcher sends due reminders once (idempotent)', async () => {
-  const counselor = await h.login('counselor');
-  const today = new Date().toISOString().slice(0, 10);
-  await h.req('POST', '/api/counseling', {
-    token: counselor,
-    body: { student_id: 1, type: 'parent_meeting', scheduled_date: today, follow_up_date: today, notes: 'Due today' }
+  const { data: po } = await h.req('POST', '/api/purchase-orders', {
+    token,
+    body: {
+      supplier_id: suppliers[0].id,
+      items: [{ product_id: product.product_id, quantity_ordered: 15, unit_cost: 50 }]
+    }
   });
+  await h.req('POST', `/api/purchase-orders/${po.id}/receive`, { token });
 
-  const first = await h.req('POST', '/api/counseling/run-reminders', { token: counselor, body: {} });
-  assert.equal(first.status, 200);
-  assert.ok(first.data.scheduled >= 1 && first.data.followup >= 1);
-
-  // Running again must not re-send (flags already set).
-  const second = await h.req('POST', '/api/counseling/run-reminders', { token: counselor, body: {} });
-  assert.equal(second.data.scheduled, 0);
-  assert.equal(second.data.followup, 0);
+  const { data: movements } = await h.req(
+    'GET', `/api/inventory/movements?product_id=${product.product_id}`, { token }
+  );
+  const purchaseMove = movements.find(m => m.movement_type === 'purchase' && m.reference_id === po.id);
+  assert.ok(purchaseMove, 'receiving a PO must create a purchase movement');
+  assert.equal(purchaseMove.quantity_change, 15);
 });
 
-/* ------------------------------------------- SMS delivery webhook -------- */
+test('cashier cannot access purchase orders', async () => {
+  const token = await h.login('cashier1');
+  const list = await h.req('GET', '/api/purchase-orders', { token });
+  assert.equal(list.status, 403);
 
-test('delivery-report webhook reconciles the outbox', async () => {
-  const teacher = await h.login('teacher');
-  // Generate a message (attendance notification).
-  await h.req('POST', '/api/attendance', { token: teacher, body: { student_id: 2, status: 'present' } });
-  const latest = (await h.req('GET', '/api/messages?limit=1', { token: teacher })).data[0];
-  assert.ok(latest.provider_ref, 'mock provider should set a provider_ref');
-
-  // Post a delivery report as the aggregator would (form-encoded).
-  const res = await fetch(h.url('/api/webhooks/sms/delivery'), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ id: latest.provider_ref, status: 'Success' }).toString()
+  const create = await h.req('POST', '/api/purchase-orders', {
+    token, body: { supplier_id: 1, items: [{ product_id: 1, quantity_ordered: 1, unit_cost: 10 }] }
   });
-  const out = await res.json();
-  assert.equal(out.updated, true);
+  assert.equal(create.status, 403);
+});
 
-  const after = (await h.req('GET', '/api/messages?limit=1', { token: teacher })).data[0];
-  assert.equal(after.delivery_status, 'delivered');
+test('purchase order creation requires supplier_id and non-empty items', async () => {
+  const token = await h.login('manager');
 
-  // Unknown reference → no update.
-  const miss = await fetch(h.url('/api/webhooks/sms/delivery'), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ id: 'does-not-exist', status: 'Success' }).toString()
+  const noSupplier = await h.req('POST', '/api/purchase-orders', {
+    token, body: { items: [{ product_id: 1, quantity_ordered: 1, unit_cost: 10 }] }
   });
-  assert.equal((await miss.json()).updated, false);
+  assert.equal(noSupplier.status, 400);
+
+  const noItems = await h.req('POST', '/api/purchase-orders', {
+    token, body: { supplier_id: 1, items: [] }
+  });
+  assert.equal(noItems.status, 400);
+});
+
+// ── Multi-payment-method sales ───────────────────────────────────────────────
+
+test('sales with different payment methods all succeed', async () => {
+  const token = await h.login('cashier1');
+  const { data: inv } = await h.req('GET', '/api/inventory', { token });
+  const product = inv.find(p => p.quantity > 10);
+  assert.ok(product, 'need a product with at least 10 units for this test');
+
+  for (const method of ['cash', 'card', 'mobile_money']) {
+    const { status, data } = await h.req('POST', '/api/sales', {
+      token,
+      body: {
+        items: [{ product_id: product.product_id, quantity: 1 }],
+        payment_method: method,
+        amount_paid: 9999
+      }
+    });
+    assert.equal(status, 201, `sale with payment_method="${method}" must succeed`);
+    assert.equal(data.payment_method, method);
+    assert.ok(data.receipt_no.startsWith('RCP-'));
+  }
 });

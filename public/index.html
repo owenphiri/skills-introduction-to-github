@@ -3,48 +3,18 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SafeGirl EduTrack — Protecting Girls, Promoting Education</title>
-  <meta name="theme-color" content="#145c33" />
-  <meta name="description" content="School Early Warning & Student Welfare Management System — Keeping Girls in School." />
+  <title>HardWare Plus — Point of Sale System</title>
+  <meta name="theme-color" content="#1E40AF" />
+  <meta name="description" content="HardWare Plus POS — Complete Hardware Shop Point of Sale & Analytics System" />
   <link rel="manifest" href="/manifest.webmanifest" />
-  <link rel="apple-touch-icon" href="/assets/icon-192.png" />
-  <link rel="icon" type="image/png" href="/assets/icon-192.png" />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231E40AF'/><text y='.9em' font-size='80' x='10'>🔧</text></svg>" />
   <link rel="stylesheet" href="/styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
-  <!-- LOGIN -->
-  <div id="login" class="login-wrap">
-    <div class="login-card">
-      <div class="brand">
-        <span class="logo">🎓</span>
-        <h1>SafeGirl <span>EduTrack</span></h1>
-      </div>
-      <p class="tagline">Protecting Girls · Promoting Education · Building Futures</p>
-      <p class="kgs">Aligned to Zambia's <strong>Keeping Girls in School (KGS)</strong> programme</p>
-      <form id="loginForm">
-        <input id="username" placeholder="Username" autocomplete="username" required />
-        <input id="password" type="password" placeholder="Password" autocomplete="current-password" required />
-        <button type="submit">Sign in</button>
-        <p class="hint">Demo logins (password: <code>password</code>): admin · teacher · counselor · district</p>
-        <p id="loginError" class="error"></p>
-      </form>
-    </div>
-  </div>
-
-  <!-- APP -->
-  <div id="app" class="hidden">
-    <header class="topbar">
-      <div class="brand-sm"><span class="logo">🎓</span> SafeGirl <b>EduTrack</b></div>
-      <nav id="nav"></nav>
-      <div class="user-box">
-        <span id="userLabel"></span>
-        <button id="logoutBtn" class="ghost">Logout</button>
-      </div>
-    </header>
-    <main id="view"></main>
-    <footer class="footer">SEWSMS · School Early Warning &amp; Student Welfare Management System · Republic of Zambia</footer>
-  </div>
-
+  <div id="root"></div>
+  <div id="modal-overlay" class="modal-overlay hidden"></div>
+  <div id="notify-container" class="notify-container"></div>
   <script src="/app.js"></script>
 </body>
 </html>

@@ -1,17 +1,18 @@
 'use strict';
-/* Shared test bootstrap: point the app at a throwaway DB, seed it, start it. */
-const fs = require('fs');
-const os = require('os');
+/* Shared test bootstrap: point the app at a throwaway DB, seed it, start it.
+   Each test file runs in its own subprocess (node --test), so the env var
+   and module cache are fully isolated — no cross-file DB contention. */
+const fs   = require('fs');
+const os   = require('os');
 const path = require('path');
 
 // Must be set BEFORE requiring any server module (config reads env at load).
-const dbFile = path.join(os.tmpdir(), `sewsms-test-${process.pid}-${Date.now()}.db`);
-process.env.SEWSMS_DB = dbFile;
-process.env.MESSAGING_PROVIDER = 'mock';
+const dbFile = path.join(os.tmpdir(), `pos-test-${process.pid}-${Date.now()}.db`);
+process.env.POS_DB   = dbFile;
 process.env.NODE_ENV = 'test';
 
-require('../server/seed');             // populates the throwaway DB
-const app = require('../server/app');  // express app (does not auto-listen)
+require('../server/seed');            // populates the throwaway DB
+const app = require('../server/app'); // express app (does NOT auto-listen)
 
 let server, base;
 
@@ -28,8 +29,8 @@ async function stop() {
   }
 }
 
-async function req(method, path, { token, body } = {}) {
-  const res = await fetch(base + path, {
+async function req(method, urlPath, { token, body } = {}) {
+  const res = await fetch(base + urlPath, {
     method,
     headers: {
       'Content-Type': 'application/json',
@@ -41,11 +42,19 @@ async function req(method, path, { token, body } = {}) {
   return { status: res.status, data };
 }
 
-async function login(username, password = 'password') {
-  const { data } = await req('POST', '/api/auth/login', { body: { username, password } });
+const PASSWORDS = {
+  admin:    'Admin123!',
+  manager:  'Manager123!',
+  cashier1: 'Cashier123!',
+  cashier2: 'Cashier123!',
+};
+
+async function login(username, password) {
+  const pw = password ?? PASSWORDS[username] ?? 'Admin123!';
+  const { data } = await req('POST', '/api/auth/login', { body: { username, password: pw } });
   return data.token;
 }
 
-function url(path = '') { return base + path; }
+function url(p = '') { return base + p; }
 
 module.exports = { start, stop, req, login, url };
