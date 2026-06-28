@@ -1,0 +1,66 @@
+name: VoltexAI CI
+
+on:
+  push:
+    branches: ["**"]
+    paths: ["voltexai/**", ".github/workflows/voltexai-ci.yml"]
+  pull_request:
+    paths: ["voltexai/**", ".github/workflows/voltexai-ci.yml"]
+
+jobs:
+  backend:
+    name: Backend (FastAPI)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: voltexai/backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: voltexai/backend/requirements.txt
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Import + route smoke test
+        working-directory: voltexai
+        run: |
+          python -c "
+          from fastapi.testclient import TestClient
+          from backend.main import app
+          c = TestClient(app)
+          assert c.get('/health').status_code == 200
+          assert c.get('/api/markets/instruments').status_code == 200
+          assert c.get('/api/signals/board/top').status_code == 200
+          assert c.get('/api/directory/prop-firms').json()['count'] > 0
+          assert c.get('/api/directory/brokers').json()['count'] > 0
+          assert c.get('/api/fund/summary').status_code == 200
+          assert c.get('/api/markets/candles/AAPL?timeframe=M15&count=20').json()['count'] == 20
+          st = c.get('/api/markets/status').json()
+          assert 'active_primary' in st and 'oanda_stream' in st
+          assert c.get('/api/trade/account').status_code == 401  # auth required
+          from backend.services.execution_service import OandaBroker, RoutingBroker
+          assert OandaBroker()._inst('EURUSD') == 'EUR_USD'
+          vm = RoutingBroker().venue_map()
+          assert set(vm) == {'forex','metals','indices','energy','stocks','crypto'}
+          print('backend OK')
+          "
+
+  frontend:
+    name: Frontend (Vite/React)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: voltexai/frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: voltexai/frontend/package-lock.json
+      - name: Install
+        run: npm install
+      - name: Build
+        run: npm run build

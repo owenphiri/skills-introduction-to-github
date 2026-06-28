@@ -1,0 +1,54 @@
+# VoltexAI — Render.com blueprint (one-click deploy of API + web + Postgres).
+# Push to GitHub, then in Render: New > Blueprint > pick this repo.
+databases:
+  - name: voltexai-db
+    plan: free
+    databaseName: voltexai
+    user: voltexai
+
+services:
+  - type: web
+    name: voltexai-api
+    runtime: python
+    plan: free
+    rootDir: voltexai/backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: voltexai-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: CLAUDE_MODEL
+        value: claude-sonnet-4-5
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: FLW_SECRET_KEY
+        sync: false
+      - key: FLW_WEBHOOK_HASH
+        sync: false
+      - key: FRONTEND_URL
+        value: https://voltexai-web.onrender.com
+
+  - type: web
+    name: voltexai-web
+    runtime: static
+    rootDir: voltexai/frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://voltexai-api.onrender.com
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

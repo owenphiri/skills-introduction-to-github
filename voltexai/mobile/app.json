@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "VoltexAI",
+    "slug": "voltexai",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "voltexai",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0a0e1a",
+    "splash": {
+      "backgroundColor": "#0a0e1a",
+      "resizeMode": "contain"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": { "supportsTablet": true, "bundleIdentifier": "com.primeaxis.voltexai" },
+    "android": {
+      "package": "com.primeaxis.voltexai",
+      "adaptiveIcon": { "backgroundColor": "#0a0e1a" }
+    },
+    "extra": {
+      "apiUrl": "https://api.voltexai.app"
+    }
+  }
+}

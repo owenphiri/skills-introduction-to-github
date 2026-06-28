@@ -1,0 +1,20 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.db
+backend/.env
+backend/voltexai.db
+
+# Node / Vite
+node_modules/
+frontend/dist/
+frontend/.env.local
+
+# Expo / mobile
+mobile/node_modules/
+mobile/.expo/
+mobile/dist/
+
+# OS
+.DS_Store
