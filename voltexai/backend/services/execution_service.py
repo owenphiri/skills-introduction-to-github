@@ -690,3 +690,84 @@ def get_broker():
             _oanda = OandaBroker()
         return _oanda
     return _paper
+
+
+async def reconcile(db: Session, user: User) -> dict:
+    """Cross-venue reconciliation: per-venue statements, a consolidated total, and
+    net per-symbol exposure with discrepancy flags (errors, off-route positions,
+    or a symbol split across venues). Works for the router and single brokers."""
+    broker = get_broker()
+    if isinstance(broker, RoutingBroker):
+        venues = broker._participating()
+        route_for = broker.venue_map()
+    else:
+        venues = [(broker.name, broker)]
+        route_for = {}
+
+    venue_reports = []
+    consolidated = {"cash": 0.0, "equity": 0.0, "realized_pnl": 0.0,
+                    "unrealized_pnl": 0.0, "market_value": 0.0, "positions": 0}
+    by_symbol: dict[str, dict] = {}
+    discrepancies: list[dict] = []
+
+    for vname, vb in venues:
+        rep = {"venue": vname, "is_live": getattr(vb, "is_live", False),
+               "status": "ok"}
+        try:
+            acc = await vb.get_account(db, user)
+            positions = await vb.get_positions(db, user)
+        except HTTPException as e:
+            rep.update(status="error", error=e.detail)
+            discrepancies.append({"type": "venue_unreachable", "venue": vname,
+                                  "detail": e.detail})
+            venue_reports.append(rep)
+            continue
+
+        # an idle paper book under a live router isn't worth reconciling
+        if vname == "paper" and isinstance(broker, RoutingBroker) and \
+                (broker.alpaca or broker.oanda) and broker._idle_paper(acc):
+            rep.update(status="idle")
+            venue_reports.append(rep)
+            continue
+
+        rep["account"] = acc
+        rep["positions"] = positions
+        venue_reports.append(rep)
+        for k in ("cash", "equity", "realized_pnl", "unrealized_pnl", "market_value"):
+            consolidated[k] += acc.get(k) or 0.0
+        consolidated["positions"] += len(positions)
+
+        for p in positions:
+            sym = p["symbol"]
+            agg = by_symbol.setdefault(sym, {"symbol": sym, "net_qty": 0.0,
+                                             "unrealized_pnl": 0.0, "venues": []})
+            agg["net_qty"] += p["qty"]
+            agg["unrealized_pnl"] += p["unrealized_pnl"]
+            agg["venues"].append(vname)
+            # off-route: position sitting somewhere other than its routing target
+            inst = get_instrument(sym)
+            target = route_for.get(inst["asset_class"]) if inst else None
+            if target and target != vname:
+                discrepancies.append({"type": "off_route_position", "symbol": sym,
+                                      "venue": vname, "expected_venue": target})
+
+    for sym, agg in by_symbol.items():
+        agg["net_qty"] = round(agg["net_qty"], 6)
+        agg["unrealized_pnl"] = round(agg["unrealized_pnl"], 2)
+        if len(set(agg["venues"])) > 1:
+            discrepancies.append({"type": "symbol_split_across_venues",
+                                  "symbol": sym, "venues": agg["venues"]})
+
+    for k in ("cash", "equity", "realized_pnl", "unrealized_pnl", "market_value"):
+        consolidated[k] = round(consolidated[k], 2)
+
+    return {
+        "broker": broker.name,
+        "is_live": getattr(broker, "is_live", False),
+        "venues": venue_reports,
+        "consolidated": consolidated,
+        "exposure_by_symbol": sorted(by_symbol.values(),
+                                     key=lambda x: abs(x["unrealized_pnl"]), reverse=True),
+        "discrepancies": discrepancies,
+        "reconciled": len(discrepancies) == 0,
+    }

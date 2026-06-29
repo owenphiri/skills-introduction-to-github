@@ -43,11 +43,32 @@ export default function Signup() {
   }
 
   return (
-    <div className="vx-auth-page">
+    <div className="vx-auth-page vx-signup-split">
+      <aside className="vx-join-panel">
+        <span className="vx-eyebrow">⚡ Join the winning team</span>
+        <h2>Stop guessing. <span className="vx-grad">Start trading with an edge.</span></h2>
+        <p className="vx-join-sub">
+          Africa's AI trading terminal puts pro-grade signals, live markets and a real
+          trade desk in your pocket — funded by mobile money, built for you.
+        </p>
+        <ul className="vx-join-benefits">
+          <li>🧠 <b>AI that mentors you</b> — Claude-powered analysis & ICT/SMC academy</li>
+          <li>⚡ <b>Signals that mean business</b> — ranked setups with entry, stop & targets</li>
+          <li>💹 <b>Trade risk-free today</b> — paper desk with $100k, go live when you're ready</li>
+          <li>📈 <b>Real-time markets</b> — forex, crypto, metals, indices & stocks</li>
+          <li>💳 <b>Pay your way</b> — MTN, Airtel, M-Pesa or card</li>
+        </ul>
+        <div className="vx-join-proof">
+          <span>Free forever plan</span><span>·</span>
+          <span>No card required</span><span>·</span>
+          <span>30-second signup</span>
+        </div>
+      </aside>
+
       <div className="vx-auth-card vx-auth-card--wide">
         <header className="vx-auth-header">
-          <h1>Join VoltexAI</h1>
-          <p className="vx-auth-tag">Free plan · 10 AI calls/day · upgrade anytime</p>
+          <h1>Create your free account</h1>
+          <p className="vx-auth-tag">⚡ You're 30 seconds from the terminal — no card, cancel anytime</p>
         </header>
 
         <form onSubmit={onSubmit} className="vx-form">
@@ -96,8 +117,12 @@ export default function Signup() {
           {error && <div className="vx-error">{error}</div>}
 
           <button type="submit" disabled={busy} className="vx-btn-primary">
-            {busy ? "Creating account…" : "Create free account"}
+            {busy ? "Creating account…" : "Claim my free account →"}
           </button>
+          <p className="vx-join-microcopy">
+            Join traders across Zambia, Nigeria, Kenya, Ghana & South Africa. Trade smart,
+            trade safe, trade consistently.
+          </p>
         </form>
 
         <div className="vx-auth-links">

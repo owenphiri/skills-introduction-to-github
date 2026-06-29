@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import User, PlanTier
 from ..middleware.auth_middleware import get_current_user
-from ..services.execution_service import get_broker
+from ..services.execution_service import get_broker, reconcile
 from ..config import settings
 
 logger = logging.getLogger(__name__)
@@ -70,6 +70,14 @@ async def account(user: User = Depends(get_current_user), db: Session = Depends(
     return await get_broker().get_account(db, user)
 
 
+@router.get("/reconciliation")
+async def reconciliation(user: User = Depends(get_current_user),
+                         db: Session = Depends(get_db)):
+    """Cross-venue statement: per-venue books, consolidated totals, net per-symbol
+    exposure and any discrepancies (errors, off-route or split positions)."""
+    return await reconcile(db, user)
+
+
 @router.get("/positions")
 async def positions(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return {"positions": await get_broker().get_positions(db, user)}
@@ -85,6 +93,14 @@ async def orders(limit: int = 50, user: User = Depends(get_current_user),
 async def place_order(data: OrderIn, user: User = Depends(get_current_user),
                       db: Session = Depends(get_db)):
     _require_paid(user)
+    broker = get_broker()
+    # optional KYC gate: only blocks real-money venues, never paper/practice
+    if settings.REQUIRE_KYC_FOR_LIVE and getattr(broker, "is_live", False):
+        from ..routes.kyc_routes import get_kyc_status
+        if get_kyc_status(db, user) != "approved":
+            raise HTTPException(403,
+                "Identity verification (KYC) is required before live trading. "
+                "Submit your details at /api/kyc/submit.")
     if data.type == "limit" and not data.limit_price:
         raise HTTPException(400, "limit_price is required for limit orders")
     return await get_broker().place_order(
