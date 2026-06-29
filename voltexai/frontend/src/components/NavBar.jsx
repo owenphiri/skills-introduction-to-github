@@ -7,6 +7,7 @@ const LINKS = [
   { to: "/markets", label: "Markets" },
   { to: "/signals", label: "Signals" },
   { to: "/trade", label: "Trade" },
+  { to: "/reconciliation", label: "Reconcile" },
   { to: "/terminal", label: "AI Terminal" },
   { to: "/prop-firms", label: "Prop Firms" },
   { to: "/brokers", label: "Brokers" },

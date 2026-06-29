@@ -47,6 +47,8 @@ voltexai/
 | 🏦 **Prop Firms** | Compare FTMO, FundedNext, FundingPips, The5ers, HolaPrime & more — splits, rules, payouts |
 | 🏛️ **Brokers** | Regulated brokers with Africa-friendly funding (M-Pesa, local bank), spreads, leverage |
 | 💼 **Managed AUM** | Investor pitch deck, equity curve, mandates, allocation, enquiry capture |
+| 🧾 **Reconciliation** | Cross-venue statement: consolidated cash/equity/P&L, net exposure per symbol, automatic discrepancy flags (`/api/trade/reconciliation`) |
+| ✉️ **Email + KYC** | Transactional email (console/SMTP/Resend) for verify, welcome & reset; KYC submit/review flow with optional live-trading gate |
 | 💳 **Payments** | Stripe (cards/USD) + Flutterwave (MTN/Airtel/M-Pesa, ZMW/NGN/KES) with webhooks |
 | 📱 **Web + Mobile** | Installable PWA (offline shell) + native Expo app sharing the same API |
 
@@ -88,6 +90,12 @@ docker compose up --build       # web :8080 · api :8000 · Postgres
 cd mobile && npm install && npx expo start
 ```
 
+**Tests**
+```bash
+cd backend && pip install -r requirements-dev.txt
+cd .. && pytest          # 31 tests: markets, signals, execution, router, auth, KYC, API
+```
+
 See **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** for Render/Docker/Expo production deploys
 and **[docs/PITCH_DECK.md](docs/PITCH_DECK.md)** for the investor story.
 
@@ -101,8 +109,10 @@ WS   /api/markets/stream
 GET  /api/signals | /signals/{s} | /signals/board/top
 GET  /api/directory/prop-firms | /brokers
 GET  /api/fund/summary | /performance | /pitch        POST /api/fund/enquire
-GET  /api/trade/account | /positions | /orders | /broker             (auth)
+GET  /api/trade/account | /positions | /orders | /broker | /reconciliation  (auth)
 POST /api/trade/orders | /orders/{id}/cancel                         (auth, paid)
+POST /api/auth/verify   GET /api/kyc/status   POST /api/kyc/submit          (auth)
+POST /api/kyc/{user_id}/decision                                    (auth, admin)
 POST /api/auth/register | /login | /refresh           GET  /api/auth/me   (auth)
 POST /api/ai/chat | /stream | /signal | /analyze-chart                (auth)
 POST /api/payments/stripe/checkout | /flutterwave/checkout            (auth)

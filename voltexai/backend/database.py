@@ -26,5 +26,5 @@ def get_db():
 def init_db():
     """Create tables at startup. In production use Alembic migrations instead."""
     from .models import (user, subscription, conversation, payment,  # noqa: F401
-                         trading)
+                         trading, kyc)
     Base.metadata.create_all(bind=engine)

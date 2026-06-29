@@ -33,6 +33,10 @@ export const authService = {
     return api.post("/api/auth/reset", { token, new_password });
   },
 
+  async verify(token) {
+    return api.post("/api/auth/verify", { token });
+  },
+
   isAuthenticated() {
     return !!tokenStore.access;
   },

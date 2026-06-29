@@ -55,6 +55,18 @@ class Settings(BaseSettings):
     OANDA_ACCOUNT_ID: str = os.getenv("OANDA_ACCOUNT_ID", "")
     OANDA_ENVIRONMENT: str = os.getenv("OANDA_ENVIRONMENT", "practice")  # practice | live
 
+    # --- Email (transactional) ---
+    # console = log to stdout (dev default); smtp = SMTP server; resend = Resend HTTP API
+    EMAIL_PROVIDER: str = os.getenv("EMAIL_PROVIDER", "console")
+    EMAIL_FROM: str = os.getenv("EMAIL_FROM", "VoltexAI <no-reply@voltexai.app>")
+    SMTP_HOST: str = os.getenv("SMTP_HOST", "")
+    SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587"))
+    SMTP_USER: str = os.getenv("SMTP_USER", "")
+    SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "")
+    SMTP_TLS: bool = os.getenv("SMTP_TLS", "true").lower() == "true"
+    RESEND_API_KEY: str = os.getenv("RESEND_API_KEY", "")
+    REQUIRE_KYC_FOR_LIVE: bool = os.getenv("REQUIRE_KYC_FOR_LIVE", "false").lower() == "true"
+
     # Stripe (international cards / USD)
     STRIPE_SECRET_KEY: str = os.getenv("STRIPE_SECRET_KEY", "")
     STRIPE_PUBLISHABLE_KEY: str = os.getenv("STRIPE_PUBLISHABLE_KEY", "")

@@ -4,6 +4,7 @@ from .payment import Payment, PaymentStatus
 from .conversation import Conversation, Message
 from .trading import (BrokerAccount, Position, Order,
                       OrderSide, OrderType, OrderStatus)
+from .kyc import KycRecord, KycStatus
 
 __all__ = [
     "User", "UserRole",
@@ -12,4 +13,5 @@ __all__ = [
     "Conversation", "Message",
     "BrokerAccount", "Position", "Order",
     "OrderSide", "OrderType", "OrderStatus",
+    "KycRecord", "KycStatus",
 ]

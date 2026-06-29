@@ -19,9 +19,10 @@ from ..models import User
 from ..services.auth_service import (
     hash_password, verify_password,
     create_access_token, create_refresh_token, create_reset_token,
-    decode_token,
+    create_verification_token, decode_token,
 )
 from ..services.subscription_service import get_or_create_free
+from ..services import email_service
 from ..middleware.auth_middleware import get_current_user
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -108,7 +109,33 @@ def register(data: RegisterIn, db: Session = Depends(get_db)):
     db.refresh(user)
     get_or_create_free(db, user)
     db.refresh(user)
+    # fire-and-forget transactional emails (best-effort)
+    try:
+        email_service.send_verification_email(
+            user.email, user.full_name, create_verification_token(user.id))
+        email_service.send_welcome_email(user.email, user.full_name)
+    except Exception:
+        pass
     return _issue_tokens(user)
+
+
+class VerifyIn(BaseModel):
+    token: str
+
+
+@router.post("/verify")
+def verify_email(data: VerifyIn, db: Session = Depends(get_db)):
+    try:
+        payload = decode_token(data.token, expected_type="verify")
+        user_id = int(payload["sub"])
+    except (JWTError, KeyError, ValueError):
+        raise HTTPException(400, "Invalid or expired verification token")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(404, "User not found")
+    user.is_verified = True
+    db.commit()
+    return {"message": "Email verified", "is_verified": True}
 
 
 @router.post("/login", response_model=TokenPair)
@@ -155,10 +182,7 @@ def forgot_password(data: ForgotIn, db: Session = Depends(get_db)):
     # Always 202 to avoid email enumeration
     if user:
         token = create_reset_token(user.id)
-        # TODO: send transactional email with reset link
-        # send_email(user.email, "Reset your VoltexAI password",
-        #            f"{settings.FRONTEND_URL}/reset?token={token}")
-        print(f"[dev] password reset token for {user.email}: {token}")
+        email_service.send_password_reset_email(user.email, token)
     return {"message": "If that email exists, a reset link has been sent"}
 
 

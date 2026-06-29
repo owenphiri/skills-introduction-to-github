@@ -6,9 +6,10 @@ from .signal_routes import router as signal_router
 from .directory_routes import router as directory_router
 from .fund_routes import router as fund_router
 from .trade_routes import router as trade_router
+from .kyc_routes import router as kyc_router
 
 __all__ = [
     "auth_router", "ai_router", "payment_router",
     "market_router", "signal_router", "directory_router", "fund_router",
-    "trade_router",
+    "trade_router", "kyc_router",
 ]

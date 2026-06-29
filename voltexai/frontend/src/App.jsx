@@ -20,6 +20,9 @@ import Pricing from "./pages/Pricing";
 import Account from "./pages/Account";
 import Terminal from "./pages/Terminal";
 import Trade from "./pages/Trade";
+import Reconciliation from "./pages/Reconciliation";
+import Verify from "./pages/Verify";
+import Kyc from "./pages/Kyc";
 
 import "./voltexai.css";
 
@@ -41,6 +44,7 @@ export default function App() {
           <Route path="/signup" element={<Signup />} />
           <Route path="/forgot" element={<Forgot />} />
           <Route path="/reset" element={<Reset />} />
+          <Route path="/verify" element={<Verify />} />
           <Route path="/pricing" element={<Pricing />} />
 
           {/* Protected */}
@@ -57,6 +61,22 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <Trade />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reconciliation"
+            element={
+              <ProtectedRoute>
+                <Reconciliation />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/kyc"
+            element={
+              <ProtectedRoute>
+                <Kyc />
               </ProtectedRoute>
             }
           />

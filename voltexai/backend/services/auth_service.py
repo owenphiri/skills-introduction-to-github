@@ -51,6 +51,13 @@ def create_reset_token(user_id: int) -> str:
     )
 
 
+def create_verification_token(user_id: int) -> str:
+    return _encode(
+        {"sub": str(user_id), "type": "verify"},
+        timedelta(days=3),
+    )
+
+
 def decode_token(token: str, expected_type: Optional[str] = None) -> dict:
     """Returns the payload dict. Raises JWTError on failure / wrong type."""
     payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
