@@ -1,0 +1,14 @@
+{
+  "name": "musenga-mis",
+  "version": "5.4.0",
+  "description": "Musenga Day Secondary School — Management Information System. Self-contained single-file HTML/CSS/JS app (localStorage-backed, offline-capable), deployed as a static site.",
+  "private": true,
+  "scripts": {
+    "validate": "node scripts/validate.js",
+    "test": "npm run validate"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "license": "MIT"
+}
