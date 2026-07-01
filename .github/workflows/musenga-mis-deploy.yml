@@ -1,0 +1,79 @@
+name: Musenga MIS — Deploy to Vercel
+
+on:
+  push:
+    branches: [main]
+    paths: ['musenga-mis/**', '.github/workflows/musenga-mis-deploy.yml']
+  pull_request:
+    paths: ['musenga-mis/**', '.github/workflows/musenga-mis-deploy.yml']
+
+# Avoid two deploys racing for the same ref.
+concurrency:
+  group: musenga-mis-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Build & deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check Vercel secrets are configured
+        id: check
+        run: |
+          if [ -n "${{ secrets.VERCEL_TOKEN }}" ] && [ -n "${{ secrets.VERCEL_ORG_ID }}" ] && [ -n "${{ secrets.VERCEL_PROJECT_ID }}" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Vercel secrets (VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID) are not set on this repo, so this job is skipping the actual deploy. See musenga-mis/docs/DEPLOYMENT.md to wire it up, or connect the repo in the Vercel dashboard instead (no secrets needed for that path)."
+          fi
+
+      - name: Install Vercel CLI
+        if: steps.check.outputs.configured == 'true'
+        run: npm install -g vercel@latest
+
+      - name: Pull Vercel project settings
+        if: steps.check.outputs.configured == 'true'
+        working-directory: musenga-mis
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          vercel pull --yes \
+            --environment=${{ github.event_name == 'pull_request' && 'preview' || 'production' }} \
+            --token="${{ secrets.VERCEL_TOKEN }}"
+
+      - name: Build project artifacts
+        if: steps.check.outputs.configured == 'true'
+        working-directory: musenga-mis
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          vercel build ${{ github.event_name != 'pull_request' && '--prod' || '' }} --token="${{ secrets.VERCEL_TOKEN }}"
+
+      - name: Deploy to Vercel
+        if: steps.check.outputs.configured == 'true'
+        id: deploy
+        working-directory: musenga-mis
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          url=$(vercel deploy --prebuilt ${{ github.event_name != 'pull_request' && '--prod' || '' }} --token="${{ secrets.VERCEL_TOKEN }}")
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Deployed to: $url"
+
+      - name: Comment deployment URL on PR
+        if: steps.check.outputs.configured == 'true' && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `Preview deployed for Musenga MIS: ${{ steps.deploy.outputs.url }}`
+            })

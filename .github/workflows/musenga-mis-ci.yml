@@ -1,0 +1,37 @@
+name: Musenga MIS — CI
+
+on:
+  push:
+    branches: ['**']
+    paths: ['musenga-mis/**', '.github/workflows/musenga-mis-ci.yml']
+  pull_request:
+    paths: ['musenga-mis/**', '.github/workflows/musenga-mis-ci.yml']
+
+jobs:
+  validate:
+    name: Validate static app
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: musenga-mis
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+
+      - name: Validate index.html
+        run: npm run validate
+
+      - name: Check bundle size stays reasonable
+        run: |
+          size=$(stat -c%s public/index.html)
+          echo "public/index.html is $size bytes"
+          max=$((5 * 1024 * 1024))
+          if [ "$size" -gt "$max" ]; then
+            echo "::error::public/index.html exceeds 5MB ($size bytes) — investigate before deploying"
+            exit 1
+          fi
