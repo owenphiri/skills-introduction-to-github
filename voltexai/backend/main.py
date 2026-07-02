@@ -7,10 +7,12 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 
 from .config import settings
-from .database import init_db
+from .database import init_db, engine
+from .middleware.hardening import SecurityHeadersMiddleware, RequestContextMiddleware
 from .routes import (auth_router, ai_router, payment_router,
                      market_router, signal_router, directory_router, fund_router,
                      trade_router, kyc_router)
@@ -26,6 +28,8 @@ async def lifespan(_: FastAPI):
                 settings.ENVIRONMENT)
     init_db()
     logger.info("Database ready")
+    for w in settings.validate_runtime():
+        logger.warning("CONFIG: %s", w)
     from .services import data_providers
     ps = data_providers.provider_status()
     logger.info("Market data: configured=%s active=%s (twelvedata_key=%s finnhub_key=%s)",
@@ -48,13 +52,19 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Middleware order: last-added runs outermost. Security headers wrap everything,
+# then request-context (id/timing/catch-all), CORS, and GZip innermost.
+app.add_middleware(GZipMiddleware, minimum_size=1024)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=settings.cors_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Request-ID", "X-Response-Time-ms"],
 )
+app.add_middleware(RequestContextMiddleware)
+app.add_middleware(SecurityHeadersMiddleware, hsts=settings.is_production)
 
 app.include_router(auth_router)
 app.include_router(ai_router)
@@ -75,4 +85,21 @@ def root():
 
 @app.get("/health")
 def health():
-    return {"status": "healthy", "env": settings.ENVIRONMENT}
+    return {"status": "healthy", "env": settings.ENVIRONMENT,
+            "version": settings.APP_VERSION}
+
+
+@app.get("/health/ready")
+def readiness():
+    """Deep readiness probe: verifies the DB is reachable. 503 if not."""
+    from sqlalchemy import text
+    checks = {"database": "ok"}
+    healthy = True
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+    except Exception as e:
+        checks["database"] = f"error: {type(e).__name__}"
+        healthy = False
+    body = {"status": "ready" if healthy else "not_ready", "checks": checks}
+    return JSONResponse(status_code=200 if healthy else 503, content=body)

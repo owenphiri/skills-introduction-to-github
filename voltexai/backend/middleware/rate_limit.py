@@ -3,11 +3,12 @@ VoltexAI - Rate limiting
 Simple in-process counters keyed by (user_id, date). For production replace with Redis
 INCR + TTL. Logic is wrapped behind one function so swap is one-file.
 """
-from collections import defaultdict
+import time
+from collections import defaultdict, deque
 from datetime import date
 from threading import Lock
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException, Request, status
 
 from ..config import settings
 from ..models import User, PlanTier
@@ -15,6 +16,31 @@ from ..models import User, PlanTier
 
 _COUNTERS: dict[tuple[int, str], int] = defaultdict(int)
 _LOCK = Lock()
+
+# --- brute-force throttle for unauthenticated endpoints (per client IP) ---
+_ATTEMPTS: dict[str, deque] = defaultdict(deque)
+_ATTEMPT_LOCK = Lock()
+
+
+def throttle(request: Request, action: str, limit: int = 10,
+             window_s: int = 60) -> None:
+    """Sliding-window per-IP limiter for auth endpoints. Raises 429 when exceeded.
+    In-process only; swap for Redis in a multi-instance deployment."""
+    if not settings.AUTH_THROTTLE_ENABLED:
+        return
+    ip = request.client.host if request.client else "unknown"
+    key = f"{action}:{ip}"
+    now = time.time()
+    with _ATTEMPT_LOCK:
+        q = _ATTEMPTS[key]
+        while q and now - q[0] > window_s:
+            q.popleft()
+        if len(q) >= limit:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Too many attempts. Please wait a minute and try again.",
+            )
+        q.append(now)
 
 
 def _limit_for(user: User) -> int:

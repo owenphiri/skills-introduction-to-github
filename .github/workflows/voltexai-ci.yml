@@ -1,4 +1,4 @@
-name: VoltexAI CI
+name: VoltexAI CI/CD
 
 on:
   push:
@@ -7,9 +7,14 @@ on:
   pull_request:
     paths: ["voltexai/**", ".github/workflows/voltexai-ci.yml"]
 
+# Cancel superseded runs on the same ref to save minutes.
+concurrency:
+  group: voltexai-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   backend:
-    name: Backend (FastAPI)
+    name: Backend tests (pytest)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -28,7 +33,7 @@ jobs:
         run: pytest
 
   frontend:
-    name: Frontend (Vite/React)
+    name: Frontend build (Vite/React)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -44,3 +49,56 @@ jobs:
         run: npm install
       - name: Build
         run: npm run build
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: voltexai-web-dist
+          path: voltexai/frontend/dist
+          retention-days: 7
+
+  quality:
+    name: Security & quality audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: npm audit (high+)
+        working-directory: voltexai/frontend
+        run: npm audit --audit-level=high || true    # advisory, non-blocking
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: pip dependency check
+        working-directory: voltexai/backend
+        run: |
+          pip install -r requirements.txt
+          pip check || true                           # advisory, non-blocking
+
+  deploy:
+    name: Deploy web to Vercel (production)
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    # Only deploy from main, and only when the repo opts in via a variable.
+    # Set repo variable ENABLE_VERCEL_DEPLOY=true and the three VERCEL_* secrets.
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.ENABLE_VERCEL_DEPLOY == 'true'
+    defaults:
+      run:
+        working-directory: voltexai/frontend
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+      - name: Pull Vercel environment
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Build
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Deploy
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
