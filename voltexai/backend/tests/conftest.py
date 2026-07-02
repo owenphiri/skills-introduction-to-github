@@ -18,6 +18,7 @@ os.environ.update(
     EMAIL_PROVIDER="console",
     JWT_SECRET="test-secret-key-at-least-32-characters-long",
     ENVIRONMENT="test",
+    AUTH_THROTTLE_ENABLED="false",   # don't throttle the fixtures' many registrations
 )
 
 from fastapi.testclient import TestClient  # noqa: E402

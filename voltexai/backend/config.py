@@ -90,13 +90,38 @@ class Settings(BaseSettings):
     RATE_TRADER: int = 250
     RATE_ELITE: int = 2000
 
-    # CORS
+    # Brute-force throttle on unauthenticated auth endpoints (disable in tests)
+    AUTH_THROTTLE_ENABLED: bool = os.getenv("AUTH_THROTTLE_ENABLED", "true").lower() == "true"
+
+    # CORS — defaults + comma-separated CORS_ORIGINS env (e.g. your Vercel URL)
     CORS_ORIGINS: list = ["http://localhost:5173", "http://localhost:3000",
                           "https://voltexai.app", "https://app.voltexai.com"]
+    EXTRA_CORS_ORIGINS: str = os.getenv("CORS_ORIGINS", "")
 
     class Config:
         env_file = ".env"
         case_sensitive = True
+
+    # ---- derived helpers ----
+    @property
+    def is_production(self) -> bool:
+        return self.ENVIRONMENT.lower() in ("production", "prod")
+
+    def cors_origins(self) -> list[str]:
+        extra = [o.strip() for o in self.EXTRA_CORS_ORIGINS.split(",") if o.strip()]
+        return list(dict.fromkeys(self.CORS_ORIGINS + extra))
+
+    def validate_runtime(self) -> list[str]:
+        """Return a list of production misconfiguration warnings (never raises)."""
+        warnings: list[str] = []
+        if self.is_production:
+            if "change-me" in self.JWT_SECRET or len(self.JWT_SECRET) < 32:
+                warnings.append("JWT_SECRET is weak or default — set a 32+ char secret.")
+            if self.DATABASE_URL.startswith("sqlite"):
+                warnings.append("DATABASE_URL is SQLite — use managed Postgres in prod.")
+            if not self.ANTHROPIC_API_KEY:
+                warnings.append("ANTHROPIC_API_KEY not set — AI Terminal disabled.")
+        return warnings
 
 
 @lru_cache()

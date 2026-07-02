@@ -96,8 +96,19 @@ cd backend && pip install -r requirements-dev.txt
 cd .. && pytest          # 31 tests: markets, signals, execution, router, auth, KYC, API
 ```
 
-See **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** for Render/Docker/Expo production deploys
-and **[docs/PITCH_DECK.md](docs/PITCH_DECK.md)** for the investor story.
+See **[docs/GO_LIVE.md](docs/GO_LIVE.md)** for the full CI/CD runbook (Vercel + Render +
+GitHub Actions), **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** for Docker/Expo, and
+**[docs/PITCH_DECK.md](docs/PITCH_DECK.md)** for the investor story.
+
+## Production-ready
+
+- **CI/CD:** GitHub Actions runs `pytest` (38 tests) + Vite build + a security audit on
+  every push, and auto-deploys the web app to **Vercel** from `main` (API auto-deploys
+  via Render). Concurrency cancels stale runs.
+- **Hardened API:** security headers, GZip, per-request id + timing, a global JSON error
+  handler (no stack-trace leaks), a `/health/ready` DB probe, startup config validation,
+  and per-IP brute-force throttling on auth.
+- **Resilient web:** installable PWA with an offline shell and a React error boundary.
 
 ---
 

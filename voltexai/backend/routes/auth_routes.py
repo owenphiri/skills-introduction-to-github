@@ -9,7 +9,7 @@ POST /api/auth/forgot       - email a reset token
 POST /api/auth/reset        - submit reset token + new password
 """
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
 from jose import JWTError
@@ -23,6 +23,7 @@ from ..services.auth_service import (
 )
 from ..services.subscription_service import get_or_create_free
 from ..services import email_service
+from ..middleware.rate_limit import throttle
 from ..middleware.auth_middleware import get_current_user
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -94,7 +95,8 @@ def _issue_tokens(user: User) -> TokenPair:
 
 # ---------- routes ----------
 @router.post("/register", response_model=TokenPair, status_code=201)
-def register(data: RegisterIn, db: Session = Depends(get_db)):
+def register(data: RegisterIn, request: Request, db: Session = Depends(get_db)):
+    throttle(request, "register", limit=8, window_s=300)
     if db.query(User).filter(User.email == data.email.lower()).first():
         raise HTTPException(409, "Email already registered")
     user = User(
@@ -139,7 +141,8 @@ def verify_email(data: VerifyIn, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=TokenPair)
-def login(data: LoginIn, db: Session = Depends(get_db)):
+def login(data: LoginIn, request: Request, db: Session = Depends(get_db)):
+    throttle(request, "login", limit=10, window_s=60)
     user = db.query(User).filter(User.email == data.email.lower()).first()
     if not user or not verify_password(data.password, user.password_hash):
         raise HTTPException(401, "Invalid email or password")
@@ -177,7 +180,8 @@ def me(user: User = Depends(get_current_user)):
 
 
 @router.post("/forgot", status_code=202)
-def forgot_password(data: ForgotIn, db: Session = Depends(get_db)):
+def forgot_password(data: ForgotIn, request: Request, db: Session = Depends(get_db)):
+    throttle(request, "forgot", limit=5, window_s=300)
     user = db.query(User).filter(User.email == data.email.lower()).first()
     # Always 202 to avoid email enumeration
     if user:
