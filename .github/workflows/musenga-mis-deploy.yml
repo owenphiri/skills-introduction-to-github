@@ -3,9 +3,9 @@ name: Musenga MIS — Deploy to Vercel
 on:
   push:
     branches: [main]
-    paths: ['musenga-mis/**', '.github/workflows/musenga-mis-deploy.yml']
+    paths: ['Musenga-MIS/**', '.github/workflows/musenga-mis-deploy.yml']
   pull_request:
-    paths: ['musenga-mis/**', '.github/workflows/musenga-mis-deploy.yml']
+    paths: ['Musenga-MIS/**', '.github/workflows/musenga-mis-deploy.yml']
 
 # Avoid two deploys racing for the same ref.
 concurrency:
@@ -27,7 +27,7 @@ jobs:
             echo "configured=true" >> "$GITHUB_OUTPUT"
           else
             echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::Vercel secrets (VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID) are not set on this repo, so this job is skipping the actual deploy. See musenga-mis/docs/DEPLOYMENT.md to wire it up, or connect the repo in the Vercel dashboard instead (no secrets needed for that path)."
+            echo "::notice::Vercel secrets (VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID) are not set on this repo, so this job is skipping the actual deploy. See Musenga-MIS/docs/DEPLOYMENT.md to wire it up, or connect the repo in the Vercel dashboard instead (no secrets needed for that path)."
           fi
 
       - name: Install Vercel CLI
@@ -36,7 +36,7 @@ jobs:
 
       - name: Pull Vercel project settings
         if: steps.check.outputs.configured == 'true'
-        working-directory: musenga-mis
+        working-directory: Musenga-MIS
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
@@ -47,7 +47,7 @@ jobs:
 
       - name: Build project artifacts
         if: steps.check.outputs.configured == 'true'
-        working-directory: musenga-mis
+        working-directory: Musenga-MIS
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
@@ -57,7 +57,7 @@ jobs:
       - name: Deploy to Vercel
         if: steps.check.outputs.configured == 'true'
         id: deploy
-        working-directory: musenga-mis
+        working-directory: Musenga-MIS
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
@@ -77,3 +77,19 @@ jobs:
               repo: context.repo.repo,
               body: `Preview deployed for Musenga MIS: ${{ steps.deploy.outputs.url }}`
             })
+
+      # No production domain yet: leave the "PRODUCTION_DOMAIN" repo variable
+      # unset and this step no-ops. Once a domain is bought, set it under
+      # Settings -> Secrets and variables -> Actions -> Variables and every
+      # future deploy attaches it automatically -- no workflow edits needed.
+      - name: Attach production domain (if configured)
+        if: steps.check.outputs.configured == 'true' && github.event_name != 'pull_request' && vars.PRODUCTION_DOMAIN != ''
+        continue-on-error: true
+        working-directory: Musenga-MIS
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          echo "Linking ${{ vars.PRODUCTION_DOMAIN }} to this Vercel project..."
+          vercel domains add "${{ vars.PRODUCTION_DOMAIN }}" --token="${{ secrets.VERCEL_TOKEN }}" || \
+            echo "::warning::Could not auto-link ${{ vars.PRODUCTION_DOMAIN }} (it may need DNS verification first — see Musenga-MIS/docs/DEPLOYMENT.md)."

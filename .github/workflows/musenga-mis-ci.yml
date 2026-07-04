@@ -3,9 +3,9 @@ name: Musenga MIS — CI
 on:
   push:
     branches: ['**']
-    paths: ['musenga-mis/**', '.github/workflows/musenga-mis-ci.yml']
+    paths: ['Musenga-MIS/**', '.github/workflows/musenga-mis-ci.yml']
   pull_request:
-    paths: ['musenga-mis/**', '.github/workflows/musenga-mis-ci.yml']
+    paths: ['Musenga-MIS/**', '.github/workflows/musenga-mis-ci.yml']
 
 jobs:
   validate:
@@ -14,7 +14,7 @@ jobs:
     timeout-minutes: 5
     defaults:
       run:
-        working-directory: musenga-mis
+        working-directory: Musenga-MIS
     steps:
       - uses: actions/checkout@v4
 

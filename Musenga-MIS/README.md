@@ -15,22 +15,30 @@ admin points it at one.
 
 ## Quick start (local)
 
-No build step, no dependencies to run it — any static file server works:
+No build step, no dependencies — just a tiny static server so the app runs
+at a real `http://` origin (needed for the service worker/IndexedDB) instead
+of `file://`:
 
 ```bash
-cd musenga-mis
-npx serve public
-# or simply open public/index.html directly in a browser
+cd Musenga-MIS
+cp .env.example .env   # optional — override HOST/PORT, defaults to localhost:3000
+npm run dev
 ```
+
+`HOST`/`PORT` are read from `.env` (see `.env.example`) so development always
+targets `localhost` and nothing is hardcoded — the production domain is a
+separate, later concern (see CI/CD below).
 
 ## Project layout
 
 ```
-musenga-mis/
-  public/index.html   The entire application (markup, CSS and JS in one file)
-  vercel.json          Static hosting config: output dir, security headers, caching
-  scripts/validate.js  CI sanity check (well-formed HTML + inline <script> syntax)
-  docs/DEPLOYMENT.md   How this goes live on Vercel, incl. custom domain setup
+Musenga-MIS/
+  public/index.html      The entire application (markup, CSS and JS in one file)
+  vercel.json             Static hosting config: output dir, security headers, caching
+  scripts/dev-server.js   Local dev server (localhost, env-configurable HOST/PORT)
+  scripts/validate.js     CI sanity check (well-formed HTML + inline <script> syntax)
+  .env.example            HOST/PORT for dev; PRODUCTION_DOMAIN placeholder for later
+  docs/DEPLOYMENT.md      How this goes live on Vercel, incl. custom domain setup
 ```
 
 ## CI/CD
@@ -41,9 +49,12 @@ musenga-mis/
 - **CD** — `.github/workflows/musenga-mis-deploy.yml` builds and deploys to
   Vercel (production on `main`, a preview URL on every PR) once the
   `VERCEL_TOKEN` / `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID` repo secrets are set.
-  See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for the two ways to wire up
-  hosting (Vercel's own Git integration, or this GitHub Actions pipeline) and
-  for pointing a custom domain at the deployment.
+  It's reachable at the `*.vercel.app` URL Vercel assigns until a real domain
+  exists — at that point, set a `PRODUCTION_DOMAIN` repo **variable** (not a
+  secret) and every subsequent deploy attaches it automatically, no code or
+  workflow changes needed. See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for
+  the two ways to wire up hosting (Vercel's own Git integration, or this
+  GitHub Actions pipeline) and for the manual custom-domain/DNS steps.
 
 ## Data & privacy note
 
