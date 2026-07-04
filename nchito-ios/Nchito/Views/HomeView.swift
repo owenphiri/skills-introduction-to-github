@@ -5,6 +5,7 @@ struct HomeView: View {
     @State private var search = ""
     @State private var selectedCategory: GigCategory?
     @State private var selectedCity = "All Cities"
+    @State private var showPostGig = false
 
     private let cities = ["All Cities", "Lusaka", "Kitwe", "Ndola", "Livingstone", "Solwezi"]
 
@@ -43,12 +44,21 @@ struct HomeView: View {
             .navigationTitle("Gigs near you")
             .searchable(text: $search, prompt: "Search gigs…")
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .topBarLeading) {
                     Picker("City", selection: $selectedCity) {
                         ForEach(cities, id: \.self) { Text($0) }
                     }
                 }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showPostGig = true
+                    } label: {
+                        Label("Post a gig", systemImage: "plus.circle.fill")
+                            .foregroundStyle(Theme.copper)
+                    }
+                }
             }
+            .sheet(isPresented: $showPostGig) { PostGigView() }
             .navigationDestination(for: UUID.self) { id in
                 if let gig = state.gigs.first(where: { $0.id == id }) {
                     GigDetailView(gig: gig)

@@ -10,11 +10,13 @@ Nchito ("work" in Nyanja) is a hyperlocal marketplace that connects Zambians who
 
 | Tab | What it does |
 |---|---|
-| **Gigs** | Searchable, filterable feed of local gigs across 8 categories; boosted gigs are paid placements. |
+| **Gigs** | Searchable, filterable feed of local gigs across 8 categories; boosted gigs are paid placements. Post a gig via the ➕ toolbar button (escrow pricing, urgency flag, K25 boost upsell). |
 | **Quick Tasks** | Micro-tasks paying K10–K70 each — the zero-skill entry point and passive-earning feed. |
-| **Post** | Post a gig with escrow pricing, urgency flag and a K25 "boost to top" upsell. |
+| **Chats** | In-app messaging between posters and workers, with gig context on every thread; start a chat from any gig's "Message" button. |
 | **Wallet** | Live balance, transaction history, instant cash-out sheet to any of the 3 mobile-money providers. |
-| **Profile** | Ratings, NRC verification tier, skills, and the referral engine (K20/friend + 2% of their rewards). |
+| **Profile** | Ratings, NRC verification tier, skills, the referral engine (K20/friend + 2% of their rewards), and sign-out. |
+
+Before the tabs, users onboard and **sign in with phone + OTP** — no passwords or email. With `SupabaseConfig.swift` filled in this runs against Supabase GoTrue; left empty the app stays in demo mode (any number, code `123456`).
 
 Key mechanics already modelled in code: **10% platform commission** with escrow-protected payouts (`Gig.workerPayout`), boost monetization, referral earnings, and verification tiers.
 
@@ -24,15 +26,20 @@ Key mechanics already modelled in code: **10% platform commission** with escrow-
 nchito-ios/
 ├── project.yml              # XcodeGen spec — generates Nchito.xcodeproj
 ├── STRATEGY.md              # Niche research, monetization, go-to-market
+├── supabase/                # Backend: schema migration, RLS, seed data, setup guide
 └── Nchito/
-    ├── NchitoApp.swift      # Entry point (onboarding gate)
+    ├── NchitoApp.swift      # Entry point (onboarding → auth → tabs)
     ├── Theme.swift          # Zambian-flag palette + shared components
-    ├── Models/Models.swift  # Gig, MicroTask, Wallet, User domain models
+    ├── Models/              # Gig, MicroTask, Wallet, User, Chat domain models
     ├── Services/
     │   ├── AppState.swift        # Observable app state (swap for API client later)
+    │   ├── AuthService.swift     # Phone-OTP auth (Supabase GoTrue via URLSession)
+    │   ├── SupabaseConfig.swift  # Project URL + anon key (empty = demo mode)
     │   └── MockDataService.swift # Realistic Lusaka/Kitwe/Ndola seed data
-    └── Views/               # Onboarding, tabs, gig detail, post, wallet, profile
+    └── Views/               # Onboarding, auth, tabs, gig detail, post, chat, wallet, profile
 ```
+
+The Android port lives in [`../nchito-android/`](../nchito-android/) — same product spec in Jetpack Compose.
 
 ## Build & run
 
@@ -49,8 +56,10 @@ No third-party dependencies — pure SwiftUI, so it builds out of the box. The a
 
 ## Roadmap to production
 
-1. Phone-OTP auth + backend (Supabase/Firebase MVP) — replace `MockDataService`.
-2. Mobile-money escrow + disbursements via an aggregator (Flutterwave/Lenco or direct MTN & Airtel APIs).
-3. NRC verification (Smile ID), in-app chat, dispute flow.
-4. Push notifications for applications, awards and escrow releases.
-5. Android build (this spec, in Kotlin/Flutter) — ~90% of Zambian smartphones are Android.
+1. ~~Phone-OTP auth~~ ✅ (`AuthService` — demo mode until Supabase is configured)
+2. ~~Supabase backend schema~~ ✅ (`supabase/` — apply the migration, enable phone auth, fill in `SupabaseConfig`)
+3. ~~In-app chat~~ ✅ (mock transport; wire to Supabase Realtime per `supabase/README.md`)
+4. ~~Android build~~ ✅ ([`../nchito-android/`](../nchito-android/))
+5. Replace `MockDataService` reads/writes with Supabase queries (PostgREST) in `AppState`.
+6. Mobile-money escrow + disbursements via an aggregator (Flutterwave/Lenco or direct MTN & Airtel APIs) from Edge Functions.
+7. NRC verification (Smile ID), dispute flow, push notifications.

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ProfileView: View {
     @EnvironmentObject private var state: AppState
+    @EnvironmentObject private var auth: AuthService
     @State private var copiedReferral = false
 
     var body: some View {
@@ -65,6 +66,14 @@ struct ProfileView: View {
                     Label("Low-data mode", systemImage: "antenna.radiowaves.left.and.right")
                     Label("Help & safety", systemImage: "lifepreserver.fill")
                 }
+
+                Section {
+                    Button(role: .destructive) {
+                        auth.signOut()
+                    } label: {
+                        Label("Sign out (\(auth.signedInPhone))", systemImage: "rectangle.portrait.and.arrow.right")
+                    }
+                }
             }
             .navigationTitle("Profile")
         }
@@ -116,5 +125,7 @@ private struct FlowChips: View {
 }
 
 #Preview {
-    ProfileView().environmentObject(AppState())
+    ProfileView()
+        .environmentObject(AppState())
+        .environmentObject(AuthService())
 }

@@ -105,3 +105,38 @@ enum MockDataService {
                           note: "Kitchen party serving — Events by Mutale", date: .now.addingTimeInterval(-432000)),
     ]
 }
+
+// MARK: - Chat seed data
+
+extension MockDataService {
+
+    static let conversationBeautyHaven = Conversation(
+        id: UUID(), counterpartName: "Beauty Haven", counterpartRating: 4.7,
+        gigID: gigs[1].id, gigTitle: gigs[1].title,
+        lastActivity: .now.addingTimeInterval(-900))
+
+    static let conversationChanda = Conversation(
+        id: UUID(), counterpartName: "Chanda M.", counterpartRating: 4.9,
+        gigID: gigs[0].id, gigTitle: gigs[0].title,
+        lastActivity: .now.addingTimeInterval(-5400))
+
+    static let conversations: [Conversation] = [conversationBeautyHaven, conversationChanda]
+
+    static let messages: [ChatMessage] = [
+        ChatMessage(id: UUID(), conversationID: conversationBeautyHaven.id, isMine: false,
+                    body: "Hi Owen! I saw your application — do you have samples of poster work?",
+                    date: .now.addingTimeInterval(-3600)),
+        ChatMessage(id: UUID(), conversationID: conversationBeautyHaven.id, isMine: true,
+                    body: "Hello! Yes, I'll send 3 recent Canva designs I did for a barbershop and a boutique.",
+                    date: .now.addingTimeInterval(-3300)),
+        ChatMessage(id: UUID(), conversationID: conversationBeautyHaven.id, isMine: false,
+                    body: "These look great 👌 If I pick you, can you deliver by Thursday?",
+                    date: .now.addingTimeInterval(-900)),
+        ChatMessage(id: UUID(), conversationID: conversationChanda.id, isMine: false,
+                    body: "Are you available today before 15:00? It's a sealed envelope, Cairo Road pickup.",
+                    date: .now.addingTimeInterval(-7200)),
+        ChatMessage(id: UUID(), conversationID: conversationChanda.id, isMine: true,
+                    body: "Yes, I can pick up by 13:30 and deliver to Woodlands within the hour.",
+                    date: .now.addingTimeInterval(-5400)),
+    ]
+}

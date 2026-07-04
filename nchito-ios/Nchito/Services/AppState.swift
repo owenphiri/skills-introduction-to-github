@@ -13,6 +13,8 @@ final class AppState: ObservableObject {
     @Published var transactions: [WalletTransaction] = MockDataService.transactions
     @Published var appliedGigIDs: Set<UUID> = []
     @Published var payoutProvider: MobileMoneyProvider = .mtnMomo
+    @Published var conversations: [Conversation] = MockDataService.conversations
+    @Published var messages: [ChatMessage] = MockDataService.messages
 
     var walletBalance: Double {
         transactions.reduce(0) { $0 + $1.amountZMW }
@@ -45,6 +47,42 @@ final class AppState: ObservableObject {
                               note: task.title, date: .now),
             at: 0
         )
+    }
+
+    // MARK: - Chat
+    // Mock implementation. Production: insert into the `messages` table and
+    // receive the counterpart's replies via Supabase Realtime (see supabase/README.md).
+
+    func messages(in conversation: Conversation) -> [ChatMessage] {
+        messages.filter { $0.conversationID == conversation.id }
+            .sorted { $0.date < $1.date }
+    }
+
+    func send(_ body: String, in conversation: Conversation) {
+        let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        messages.append(ChatMessage(id: UUID(), conversationID: conversation.id,
+                                    isMine: true, body: trimmed, date: .now))
+        touch(conversation)
+    }
+
+    /// Returns the existing conversation for a gig or starts a new one —
+    /// used by the "Message poster" button on the gig detail screen.
+    func conversation(about gig: Gig) -> Conversation {
+        if let existing = conversations.first(where: { $0.gigID == gig.id }) {
+            return existing
+        }
+        let convo = Conversation(id: UUID(), counterpartName: gig.posterName,
+                                 counterpartRating: gig.posterRating,
+                                 gigID: gig.id, gigTitle: gig.title, lastActivity: .now)
+        conversations.insert(convo, at: 0)
+        return convo
+    }
+
+    private func touch(_ conversation: Conversation) {
+        if let i = conversations.firstIndex(where: { $0.id == conversation.id }) {
+            conversations[i].lastActivity = .now
+        }
     }
 
     // MARK: - Wallet

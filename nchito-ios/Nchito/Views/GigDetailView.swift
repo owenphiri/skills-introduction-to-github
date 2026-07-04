@@ -51,6 +51,17 @@ struct GigDetailView: View {
                                 .font(.caption)
                                 .foregroundStyle(Theme.copper)
                         }
+                        Spacer()
+                        NavigationLink {
+                            ChatThreadView(conversation: state.conversation(about: gig))
+                        } label: {
+                            Label("Message", systemImage: "bubble.left.fill")
+                                .font(.caption.weight(.semibold))
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(Theme.green.opacity(0.12), in: Capsule())
+                                .foregroundStyle(Theme.green)
+                        }
                     }
                 }
 

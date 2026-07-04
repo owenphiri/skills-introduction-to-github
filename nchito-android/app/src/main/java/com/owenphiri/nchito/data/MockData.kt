@@ -1,0 +1,84 @@
+package com.owenphiri.nchito.data
+
+// Same Lusaka/Kitwe/Ndola seed data as the iOS app's MockDataService.
+object MockData {
+
+    val gigs = listOf(
+        Gig(title = "Deliver documents from Cairo Road to Woodlands",
+            details = "Pick up a sealed envelope from an office on Cairo Road and deliver to Woodlands by 15:00. Must have own transport (bicycle or motorbike fine). Airtime allowance included.",
+            category = GigCategory.DELIVERY, payZMW = 150.0, city = "Lusaka",
+            area = "Cairo Road → Woodlands", posterName = "Chanda M.", posterRating = 4.9,
+            minutesAgo = 30, isUrgent = true, isBoosted = true, applicants = 3),
+        Gig(title = "Design 5 social media posters for a salon",
+            details = "New salon in Kabulonga needs 5 Canva/Photoshop posters for Facebook and TikTok. Brand colours provided. Deliver as PNG within 2 days.",
+            category = GigCategory.DIGITAL, payZMW = 400.0, city = "Lusaka",
+            area = "Remote", posterName = "Beauty Haven", posterRating = 4.7,
+            minutesAgo = 120, isBoosted = true, applicants = 8),
+        Gig(title = "Grade 9 Maths tutoring, 3 sessions per week",
+            details = "Looking for a patient tutor for my daughter preparing for Grade 9 exams. Sessions at our home in Riverside, Kitwe. K120 per 90-minute session, paid weekly.",
+            category = GigCategory.TUTORING, payZMW = 360.0, city = "Kitwe",
+            area = "Riverside", posterName = "Mrs. Banda", posterRating = 5.0,
+            minutesAgo = 180, applicants = 5),
+        Gig(title = "Fix leaking kitchen tap + replace 2 bulbs",
+            details = "Simple plumbing and electrical job in Northrise, Ndola. Parts already bought. Should take under an hour for someone experienced.",
+            category = GigCategory.REPAIRS, payZMW = 200.0, city = "Ndola",
+            area = "Northrise", posterName = "Joseph K.", posterRating = 4.5,
+            minutesAgo = 240, isUrgent = true, applicants = 2),
+        Gig(title = "Waiter/waitress for kitchen party (Saturday)",
+            details = "Need 2 smart, experienced servers for a kitchen party in Avondale, 12:00–18:00. Uniform provided. Meal included. Payment same day via MoMo.",
+            category = GigCategory.EVENTS, payZMW = 250.0, city = "Lusaka",
+            area = "Avondale", posterName = "Events by Mutale", posterRating = 4.8,
+            minutesAgo = 360, applicants = 11),
+        Gig(title = "Deep-clean 3-bedroom house before move-in",
+            details = "Full clean of an empty house in Ibex Hill: floors, windows, bathrooms, kitchen. Cleaning materials provided. Can be a 2-person team.",
+            category = GigCategory.HOME_SERVICES, payZMW = 500.0, city = "Lusaka",
+            area = "Ibex Hill", posterName = "Mwansa T.", posterRating = 4.4,
+            minutesAgo = 720, applicants = 9),
+    )
+
+    val microTasks = listOf(
+        MicroTask(title = "5-min survey: mobile money habits",
+                  kind = MicroTaskKind.SURVEY, rewardZMW = 15.0, minutes = 5, slotsLeft = 120),
+        MicroTask(title = "Test a new banking app and report 3 issues",
+                  kind = MicroTaskKind.APP_TEST, rewardZMW = 60.0, minutes = 20, slotsLeft = 25),
+        MicroTask(title = "Label 50 photos of Zambian road signs",
+                  kind = MicroTaskKind.DATA_LABEL, rewardZMW = 40.0, minutes = 25, slotsLeft = 80),
+        MicroTask(title = "Share a local business promo to your WhatsApp status",
+                  kind = MicroTaskKind.SOCIAL, rewardZMW = 10.0, minutes = 2, slotsLeft = 300),
+        MicroTask(title = "Mystery-shop a supermarket till and rate service",
+                  kind = MicroTaskKind.MYSTERY_SHOP, rewardZMW = 70.0, minutes = 30, slotsLeft = 10),
+    )
+
+    val transactions = listOf(
+        WalletTransaction(kind = TxKind.GIG_PAYOUT, amountZMW = 405.0,
+                          note = "Poster design gig — Beauty Haven"),
+        WalletTransaction(kind = TxKind.TASK_REWARD, amountZMW = 15.0,
+                          note = "Survey: mobile money habits"),
+        WalletTransaction(kind = TxKind.REFERRAL_BONUS, amountZMW = 20.0,
+                          note = "Friend joined with code OWEN260"),
+        WalletTransaction(kind = TxKind.CASH_OUT, amountZMW = -300.0,
+                          note = "Cash out to MTN MoMo •••0000"),
+    )
+
+    private val convoBeauty = Conversation(
+        counterpartName = "Beauty Haven", counterpartRating = 4.7,
+        gigId = gigs[1].id, gigTitle = gigs[1].title)
+    private val convoChanda = Conversation(
+        counterpartName = "Chanda M.", counterpartRating = 4.9,
+        gigId = gigs[0].id, gigTitle = gigs[0].title)
+
+    val conversations = listOf(convoBeauty, convoChanda)
+
+    val messages = listOf(
+        ChatMessage(conversationId = convoBeauty.id, isMine = false,
+                    body = "Hi! I saw your application — do you have samples of poster work?", time = "09:12"),
+        ChatMessage(conversationId = convoBeauty.id, isMine = true,
+                    body = "Hello! Yes, I'll send 3 recent Canva designs I did for a barbershop and a boutique.", time = "09:17"),
+        ChatMessage(conversationId = convoBeauty.id, isMine = false,
+                    body = "These look great 👌 If I pick you, can you deliver by Thursday?", time = "09:55"),
+        ChatMessage(conversationId = convoChanda.id, isMine = false,
+                    body = "Are you available today before 15:00? It's a sealed envelope, Cairo Road pickup.", time = "08:02"),
+        ChatMessage(conversationId = convoChanda.id, isMine = true,
+                    body = "Yes, I can pick up by 13:30 and deliver to Woodlands within the hour.", time = "08:31"),
+    )
+}
