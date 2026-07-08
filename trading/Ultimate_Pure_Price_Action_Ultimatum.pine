@@ -685,7 +685,13 @@ f_row(int r, string k, string v, color vc) =>
     table.cell(dash, 1, r, v, text_color = vc, text_size = dashTxtSize, text_halign = text.align_right)
     true
 
-if showDash and barstate.islast
+// Render on the last confirmed historical bar (instant on chart load) and on
+// every realtime calculation. This avoids barstate.islast, which triggers a
+// compiler warning in strategies that calculate only on confirmed bars —
+// enabling calc_on_every_tick instead would make realtime order fills diverge
+// from the backtest, which is worse than the warning.
+bool dashTick = barstate.islastconfirmedhistory or barstate.isrealtime
+if showDash and dashTick
     table.clear(dash, 0, 0, 1, 13)
     int r = 0
     table.cell(dash, 0, r, "UPPAU", text_color = color.new(color.white, 0), text_size = dashTxtSize, text_halign = text.align_left)
