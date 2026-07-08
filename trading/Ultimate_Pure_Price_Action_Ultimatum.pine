@@ -35,6 +35,8 @@
 //    3. In the dashboard's stats row, replace the win-rate expression that
 //       reads strategy.wintrades / strategy.closedtrades with `float wr = na`
 //       (those built-ins only exist in strategy scripts).
+//    4. Optionally uncomment the alertcondition() lines in SECTION 16 —
+//       they only work in indicator scripts (strategies use alert() instead).
 //  Everything else — visuals, alerts, dashboard, trade-management lines —
 //  is computed independently of the broker emulator.
 //
@@ -760,12 +762,20 @@ if tradeOn and tDir == 0 and strategy.position_size != 0
 // ============================================================================
 //  SECTION 16 — ALERTS
 // ============================================================================
-// Static alertconditions (pick these individually in the alert dialog):
-alertcondition(longFired,  "UPPAU: Long entry",   "UPPAU long entry signal")
-alertcondition(shortFired, "UPPAU: Short entry",  "UPPAU short entry signal")
-alertcondition(tpEvent,    "UPPAU: Take-profit hit", "UPPAU take-profit level hit")
-alertcondition(slEvent,    "UPPAU: Stop hit",     "UPPAU stop-loss / trail stop hit")
-alertcondition(regimeStr != regimeStr[1], "UPPAU: Regime change", "UPPAU market regime changed")
+// NOTE: alertcondition() has NO effect inside strategy() scripts — TradingView
+// ignores it there. In strategy mode, alerts are delivered by the alert()
+// calls below: create ONE alert on this script with the condition
+// "Any alert() function call" and you will receive entries, TP hits, stop
+// hits and regime changes with full dynamic detail.
+//
+// If you convert this script to indicator() (see header), uncomment the five
+// alertcondition() lines below to get individually selectable alert types in
+// the alert dialog:
+// alertcondition(longFired,  "UPPAU: Long entry",      "UPPAU long entry signal")
+// alertcondition(shortFired, "UPPAU: Short entry",     "UPPAU short entry signal")
+// alertcondition(tpEvent,    "UPPAU: Take-profit hit", "UPPAU take-profit level hit")
+// alertcondition(slEvent,    "UPPAU: Stop hit",        "UPPAU stop-loss / trail stop hit")
+// alertcondition(regimeStr != regimeStr[1], "UPPAU: Regime change", "UPPAU market regime changed")
 
 // Dynamic alert() messages (create ONE alert on "Any alert() function call"):
 if enableAlerts and barstate.isconfirmed
