@@ -37,16 +37,36 @@
 //       (those built-ins only exist in strategy scripts).
 //    4. Optionally uncomment the alertcondition() lines in SECTION 16 —
 //       they only work in indicator scripts (strategies use alert() instead).
+//    5. In the prop-firm module (Section 12), replace
+//       `float eqNow = strategy.equity` with `float eqNow = na` — the
+//       daily-loss / max-DD locks then disable cleanly.
 //  Everything else — visuals, alerts, dashboard, trade-management lines —
 //  is computed independently of the broker emulator.
 //
+//  PROP-FIRM COMPLIANCE (enforced in code, Section 12)
+//  ----------------------------------------------------
+//  • NO MARTINGALE: size is always riskCash / 1R of a static account input —
+//    it never grows after losses. pyramiding = 0 forbids adding to positions.
+//  • DAILY LOSS LOCK: new entries blocked once the day is down `dailyLossPct`
+//    (default 3%, set it below the firm's real daily limit).
+//  • MAX-DD LOCK: new entries stop once equity is `maxDDPct` under its peak
+//    (default 8% vs a typical 10% rule). A backtest that ever triggers this
+//    lock has failed the evaluation — treat it as a red flag.
+//  • Daily signal cap + cooldown keep the profit distribution flat enough
+//    for "consistency" rules.
+//
 //  ANTI-OVERFITTING NOTES (prop-firm focus)
 //  ----------------------------------------
+//  • PARAMETER BUDGET: when optimising, you may tune AT MOST FOUR inputs —
+//    swing pivot length, volatility multiplier, min confluence score, strong
+//    displacement. Everything else stays at defaults. More degrees of freedom
+//    than that and the backtest stops meaning anything.
 //  • Every default below is a ROUND, structural number (e.g. swing length 8,
 //    RR ladder 1/2/3/5/8). Resist the urge to tune to 2 decimal places on a
 //    single symbol — that is curve fitting, not edge.
-//  • All thresholds are expressed in ATR multiples, never absolute points,
-//    so one setting set generalises across symbols and timeframes.
+//  • All thresholds are expressed in ATR multiples — and auto-scaled by the
+//    volatility percentile (Section 2) — never absolute points, so one
+//    setting set generalises across symbols, volatility regimes, timeframes.
 //  • The signal engine is intentionally strict (confluence gate + regime
 //    filter + ULTIMATE gate + daily cap + cooldown). If you loosen it to get
 //    "more trades", you are trading noise. Target ≈ 1–3 signals/day on 24/7
@@ -109,6 +129,7 @@ showStruct    = input.bool(true,  "Show BOS / CHoCH lines",        group = grpS)
 grpV  = "② Volatility Engine (instrument-adaptive)"
 atrLen        = input.int(14,     "ATR length",                  minval = 5,   maxval = 100, group = grpV)
 volMult       = input.float(1.0,  "Volatility multiplier",       minval = 0.2, maxval = 5.0, step = 0.1, group = grpV, tooltip = "Global scaler for every ATR-based distance (stops, buffers, displacement). Raise for jumpy instruments, lower for slow ones.")
+autoVolScale  = input.bool(true,  "Auto-scale with volatility percentile", group = grpV, tooltip = "Multiplies every ATR distance by 0.75×–1.25× depending on where current ATR sits in its own 200-bar history: tighter in dead-calm conditions, wider in volatile ones. Stops, buffers, displacement thresholds and the RR-based targets built on them all adapt automatically.")
 slBufMult     = input.float(0.5,  "SL buffer (× ATR)",           minval = 0.0, maxval = 3.0, step = 0.1, group = grpV, tooltip = "Volatility buffer added beyond the protective swing.")
 maxSLatr      = input.float(3.0,  "Max initial risk (× ATR)",    minval = 0.5, maxval = 10,  step = 0.5, group = grpV, tooltip = "If the protective swing is farther than this, the stop is capped to keep risk sane.")
 
@@ -177,7 +198,10 @@ showTradeLines= input.bool(true,   "Show entry/SL/TP lines",     group = grpT)
 // ---- 1g. Risk ----------------------------------------------------------------------
 grpR  = "⑦ Risk (prop-firm)"
 acctSize      = input.float(10000, "Account size",               minval = 1, group = grpR)
-riskPct       = input.float(0.5,   "Risk per trade (%)",         minval = 0.05, maxval = 5.0, step = 0.05, group = grpR, tooltip = "0.25–1.0% recommended for prop-firm consistency rules.")
+riskPct       = input.float(0.5,   "Risk per trade (%)",         minval = 0.05, maxval = 5.0, step = 0.05, group = grpR, tooltip = "0.25–1.0% recommended for prop-firm consistency rules. Size is ALWAYS riskCash / 1R — it never increases after a loss (no martingale).")
+useLocks      = input.bool(true,   "Enforce daily-loss & max-DD locks", group = grpR, tooltip = "Hard compliance locks that block NEW entries (open trades keep being managed). Set the thresholds BELOW your prop firm's actual limits to leave a safety margin.")
+dailyLossPct  = input.float(3.0,   "Daily loss lock (%)",        minval = 0.5, maxval = 10.0, step = 0.5, group = grpR, tooltip = "New entries stop for the rest of the day once equity is down this % from the day's starting equity. Set below the firm's daily limit (e.g. 3% vs a 5% rule).")
+maxDDPct      = input.float(8.0,   "Max drawdown lock (%)",      minval = 1.0, maxval = 20.0, step = 0.5, group = grpR, tooltip = "New entries stop permanently once equity is this % below its all-time peak. If a backtest ever triggers this, the settings FAIL the prop test — fix the strategy, not the lock.")
 
 // ---- 1h. Dashboard & visuals --------------------------------------------------------
 grpD  = "⑧ Dashboard & Visuals"
@@ -201,8 +225,16 @@ tradeOn       = input.bool(true,  "Send orders to Strategy Tester", group = grpG
 //  SECTION 2 — CORE PRICE / VOLATILITY ENGINE
 // ============================================================================
 atrRaw  = ta.atr(atrLen)
-atrVal  = atrRaw * volMult                       // globally scaled volatility unit
-atrBase = ta.percentile_nearest_rank(atrRaw, 100, 50)   // median ATR of last 100 bars
+// Volatility percentile: where the current ATR sits inside its own last 200
+// bars (0 = dead calm, 100 = most volatile seen). This one number drives both
+// the automatic distance scaling below and the volatility-regime classifier.
+volPctRaw = ta.percentrank(atrRaw, 200)
+volPct01  = na(volPctRaw) ? 0.5 : volPctRaw / 100.0
+// Adaptive scale: 0.75× at the calm extreme -> 1.25× at the volatile extreme,
+// so every level, filter and risk distance in the script breathes with the
+// instrument. Disable via the input to use the fixed multiplier only.
+adaptFactor = autoVolScale ? 0.75 + 0.5 * volPct01 : 1.0
+atrVal  = atrRaw * volMult * adaptFactor         // globally scaled volatility unit
 body    = math.abs(close - open)
 rng     = high - low
 
@@ -454,19 +486,70 @@ bullDisp = (close > open and body >= dispMult * atrVal) or (close - close[3]) >=
 bearDisp = (close < open and body >= dispMult * atrVal) or (close[3] - close) >= velMult * atrVal
 
 // ============================================================================
-//  SECTION 10 — MARKET REGIME DETECTION (pure price)
+//  SECTION 10 — MARKET REGIME DETECTION v2 (100% pure price)
 // ============================================================================
-// Efficiency ratio (Kaufman): net travel / gross travel over N bars.
-erLen   = 20
+// Three independent price-action reads are fused into one classifier:
+//   (a) Swing Directional Index — the ADX alternative. Built purely from
+//       swing progression: of the last few swing highs and swing lows, what
+//       fraction stair-step in one direction? +1 = perfect HH/HL ladder,
+//       -1 = perfect LH/LL ladder, ~0 = overlapping chop.
+//   (b) Efficiency ratio — net travel / gross travel over N bars (how much
+//       of the movement actually went somewhere).
+//   (c) Range expansion — is the recent 5-bar range budget expanding vs the
+//       typical 5-bar budget of the last 20 bars? (breakout conditions)
+
+// ---- (a) Swing Directional Index -------------------------------------------
+var array<float> regHi = array.new<float>()
+var array<float> regLo = array.new<float>()
+if not na(ph)
+    array.push(regHi, ph)
+    if array.size(regHi) > 5
+        array.shift(regHi)
+if not na(pl)
+    array.push(regLo, pl)
+    if array.size(regLo) > 5
+        array.shift(regLo)
+
+// Count rising vs falling consecutive pairs in a chronological pivot list.
+f_swingPairs(array<float> pts) =>
+    int upN = 0
+    int dnN = 0
+    int i = 1
+    while i < array.size(pts)
+        if array.get(pts, i) > array.get(pts, i - 1)
+            upN += 1
+        else
+            dnN += 1
+        i += 1
+    [upN, dnN]
+
+[hiUp, hiDn] = f_swingPairs(regHi)
+[loUp, loDn] = f_swingPairs(regLo)
+int   sdPairs  = hiUp + hiDn + loUp + loDn
+float swingDir = sdPairs > 0 ? (hiUp + loUp - hiDn - loDn) / (sdPairs * 1.0) : 0.0
+
+// ---- (b) Efficiency ratio (Kaufman) -----------------------------------------
+erLen       = 20
 grossTravel = math.sum(math.abs(close - close[1]), erLen)
-er      = grossTravel > 0 ? math.abs(close - close[erLen]) / grossTravel : 0.0
+float erNum = math.abs(close - close[erLen])
+float er    = na(grossTravel) or grossTravel == 0 or na(erNum) ? 0.0 : erNum / grossTravel
 
-// Trend state: efficient directional travel OR clear structure bias.
-int regTrend = er >= 0.35 ? (close > close[erLen] ? 1 : -1) : er <= 0.20 ? 0 : structDir
+// ---- (c) Range expansion ------------------------------------------------------
+float win5     = math.sum(rng, 5)
+float win20avg = math.sum(rng, 20) / 4.0
+bool rangeExpanding = not na(win20avg) and win20avg > 0 and win5 / win20avg >= 1.25
 
-// Volatility state: current ATR vs its own 100-bar median.
-volRatio = na(atrBase) or atrBase == 0 ? 1.0 : atrRaw / atrBase
-int volState = volRatio >= 1.4 ? 1 : volRatio <= 0.7 ? -1 : 0
+// ---- Fusion: trend strength 0-100 (read it like ADX) --------------------------
+// 60%+ = clean trend, <=40 = chop. Swing progression carries more weight than
+// travel efficiency because structure is the primary object of this system.
+float trendStrength = 100.0 * math.min(1.0, 0.6 * math.abs(swingDir) + 0.4 * math.min(er / 0.4, 1.0))
+
+int dirBias  = swingDir > 0.15 ? 1 : swingDir < -0.15 ? -1 : structDir
+int regTrend = trendStrength >= 60 ? (dirBias != 0 ? dirBias : (close > nz(close[erLen], close) ? 1 : -1)) :
+     trendStrength <= 40 and not rangeExpanding ? 0 : structDir
+
+// ---- Volatility state: percentile-based (see Section 2) -----------------------
+int volState = na(volPctRaw) ? 0 : volPctRaw >= 80 ? 1 : volPctRaw <= 20 ? -1 : 0
 
 string regimeStr = (regTrend == 1 ? "TRENDING ▲" : regTrend == -1 ? "TRENDING ▼" : "RANGING") + (volState == 1 ? " · HIGH VOL" : volState == -1 ? " · LOW VOL" : "")
 color  regCol    = regTrend == 1 ? cBull : regTrend == -1 ? cBear : color.new(color.orange, 0)
@@ -588,8 +671,36 @@ if newDay
 var int lastSigBar = -100000
 bool paceOk = (bar_index - lastSigBar) >= cooldown and daySignals < maxPerDay
 
-bool longSignalRaw  = reqBull and scoreBull >= minScore and regimeBull and volOk and ultBull and not newsBlock and paceOk and dirMode != "Short only" and barstate.isconfirmed
-bool shortSignalRaw = reqBear and scoreBear >= minScore and regimeBear and volOk and ultBear and not newsBlock and paceOk and dirMode != "Long only"  and barstate.isconfirmed
+// ---------------------------------------------------------------------------
+// PROP-FIRM COMPLIANCE MODULE (risk discipline enforced in code)
+//   • NO MARTINGALE / NO GRID: position size is always riskCash / 1R of the
+//     static account input. It never scales up after a loss, and
+//     pyramiding = 0 in the declaration forbids adding to a position.
+//   • DAILY LOSS LOCK: once equity drops `dailyLossPct` below the day's
+//     starting equity, new entries are blocked until the next day.
+//   • MAX-DRAWDOWN LOCK: once equity sits `maxDDPct` below its all-time
+//     peak, new entries stop entirely. A backtest that triggers this lock
+//     has already failed the evaluation — treat it as a red flag, not a fix.
+//   • Set both thresholds BELOW the firm's real limits (e.g. 3% lock vs a 5%
+//     daily rule) so slippage on the final losing trade cannot breach them.
+//   Indicator conversion note: strategy.equity only exists in strategies —
+//   replace `eqNow = strategy.equity` with `eqNow = na` and the locks
+//   disable cleanly.
+// ---------------------------------------------------------------------------
+float eqNow = strategy.equity
+var float dayStartEq = na
+var float peakEq     = na
+if na(dayStartEq) or newDay
+    dayStartEq := eqNow
+peakEq := na(eqNow) ? peakEq : na(peakEq) ? eqNow : math.max(peakEq, eqNow)
+float dayPnLPct = na(eqNow) or na(dayStartEq) or dayStartEq <= 0 ? 0.0 : (eqNow - dayStartEq) / dayStartEq * 100
+float ddPct     = na(eqNow) or na(peakEq)     or peakEq     <= 0 ? 0.0 : (peakEq - eqNow) / peakEq * 100
+bool dailyLock  = useLocks and dayPnLPct <= -dailyLossPct
+bool ddLock     = useLocks and ddPct >= maxDDPct
+bool propOk     = not dailyLock and not ddLock
+
+bool longSignalRaw  = reqBull and scoreBull >= minScore and regimeBull and volOk and ultBull and not newsBlock and propOk and paceOk and dirMode != "Short only" and barstate.isconfirmed
+bool shortSignalRaw = reqBear and scoreBear >= minScore and regimeBear and volOk and ultBear and not newsBlock and propOk and paceOk and dirMode != "Long only"  and barstate.isconfirmed
 
 // ============================================================================
 //  SECTION 13 — TRADE STATE MACHINE (visual manager: SL / BE / TRAIL / TP1-5)
@@ -783,7 +894,7 @@ dashPos = switch dashPosIn
     => position.top_right
 dashTxtSize = dashSizeIn == "Tiny" ? size.tiny : dashSizeIn == "Small" ? size.small : size.normal
 
-var table dash = table.new(dashPos, 2, 16, bgcolor = color.new(color.black, 25), frame_color = color.new(color.gray, 55), frame_width = 1, border_color = color.new(color.gray, 75), border_width = 1)
+var table dash = table.new(dashPos, 2, 18, bgcolor = color.new(color.black, 25), frame_color = color.new(color.gray, 55), frame_width = 1, border_color = color.new(color.gray, 75), border_width = 1)
 
 f_row(int r, string k, string v, color vc) =>
     table.cell(dash, 0, r, k, text_color = color.new(color.white, 30), text_size = dashTxtSize, text_halign = text.align_left)
@@ -797,15 +908,15 @@ f_row(int r, string k, string v, color vc) =>
 // from the backtest, which is worse than the warning.
 bool dashTick = barstate.islastconfirmedhistory or barstate.isrealtime
 if showDash and dashTick
-    table.clear(dash, 0, 0, 1, 15)
+    table.clear(dash, 0, 0, 1, 17)
     int r = 0
     table.cell(dash, 0, r, "UPPAU", text_color = color.new(color.white, 0), text_size = dashTxtSize, text_halign = text.align_left)
     table.cell(dash, 1, r, syminfo.ticker + " · " + timeframe.period, text_color = color.new(color.white, 30), text_size = dashTxtSize, text_halign = text.align_right)
     r += 1
     if dashRegime
-        f_row(r, "Regime", regimeStr, regCol)
+        f_row(r, "Regime", regimeStr + " · " + str.tostring(trendStrength, "#") + "/100", regCol)
         r += 1
-        f_row(r, "Volatility", "ATR " + f_px(atrRaw) + " (" + str.tostring(atrRaw / close * 100, "#.##") + "% · x" + str.tostring(volRatio, "#.##") + ")", volState == 1 ? color.orange : volState == -1 ? color.new(color.gray, 20) : color.new(color.white, 20))
+        f_row(r, "Volatility", "ATR " + f_px(atrRaw) + " (" + str.tostring(atrRaw / close * 100, "#.##") + "% · P" + (na(volPctRaw) ? "—" : str.tostring(volPctRaw, "#")) + ")", volState == 1 ? color.orange : volState == -1 ? color.new(color.gray, 20) : color.new(color.white, 20))
         r += 1
         if useHTF
             f_row(r, "HTF bias (" + htfTF + ")", htfBull ? "BULLISH" : "BEARISH", htfBull ? cBull : cBear)
@@ -830,6 +941,8 @@ if showDash and dashTick
         r += 1
     if dashRisk
         f_row(r, "Risk / trade", str.tostring(riskPct, "#.##") + "% = " + str.tostring(riskCash, "#.##"), color.new(color.white, 20))
+        r += 1
+        f_row(r, "Day PnL / locks", str.tostring(dayPnLPct, "#.##") + "% · " + (dailyLock ? "DAY LOCK ⛔" : ddLock ? "DD LOCK ⛔" : "locks ok"), dailyLock or ddLock ? color.orange : dayPnLPct >= 0 ? cBull : cBear)
         r += 1
         if tDir != 0
             float liveR = tDir == 1 ? (close - tEntry) / tRisk : (tEntry - close) / tRisk
@@ -904,3 +1017,7 @@ if enableAlerts and barstate.isconfirmed
         alert("UPPAU " + syminfo.ticker + " " + exitTag + " @ " + f_px(exitPx), alert.freq_once_per_bar)
     if regimeStr != regimeStr[1]
         alert("UPPAU " + syminfo.ticker + " regime -> " + regimeStr, alert.freq_once_per_bar)
+    if dailyLock and not dailyLock[1]
+        alert("UPPAU " + syminfo.ticker + " DAILY-LOSS LOCK engaged (" + str.tostring(dayPnLPct, "#.##") + "%) — new entries halted until next day", alert.freq_once_per_bar)
+    if ddLock and not ddLock[1]
+        alert("UPPAU " + syminfo.ticker + " MAX-DRAWDOWN LOCK engaged (" + str.tostring(ddPct, "#.##") + "%) — trading halted", alert.freq_once_per_bar)
