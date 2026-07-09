@@ -48,9 +48,29 @@
 //  • All thresholds are expressed in ATR multiples, never absolute points,
 //    so one setting set generalises across symbols and timeframes.
 //  • The signal engine is intentionally strict (confluence gate + regime
-//    filter + daily cap + cooldown). If you loosen it to get "more trades",
-//    you are trading noise. Target ≈ 1–3 signals/day on 24/7 markets (LTF)
-//    or a few per week on H1+.
+//    filter + ULTIMATE gate + daily cap + cooldown). If you loosen it to get
+//    "more trades", you are trading noise. Target ≈ 1–3 signals/day on 24/7
+//    markets (LTF) or a few per week on H1+.
+//
+//  THE ULTIMATE GATE (group ⑤, on top of the confluence score)
+//  ------------------------------------------------------------
+//  1. MTF STRUCTURE ALIGNMENT — the HTF swing structure (same BOS state
+//     machine, run on the HTF) must agree with the trade direction AND price
+//     must sit on the right side of the HTF range mid.
+//  2. STRONG DISPLACEMENT — the signal bar itself must be a conviction
+//     candle: body > strongDispX × ATR, closing in the far 30% of its range.
+//  3. REJECTION AT KEY LEVEL — within the last few bars, price must have
+//     tapped an OB / FVG / broken level and closed back on the right side of
+//     its own range, proving the level held.
+//  Calibrating frequency to ≈2–3 signals/day on liquid symbols (EURUSD,
+//  NAS100) at M5–M15: if too FEW signals, lower "Strong displacement" toward
+//  1.2, widen "Rejection freshness" to 5, or set "Min confluence score" to 5.
+//  If too MANY, raise displacement to 1.8–2.0 and min score to 6.
+//
+//  NEWS FILTER (group ⑤b) — Pine has no economic-calendar feed, so this is a
+//  time-window blackout: new entries are blocked inside up to three
+//  user-defined windows (defaults bracket the usual US 08:30 / 10:00 / 14:00
+//  ET release slots). Open trades keep being managed during blackouts.
 //  • See the accompanying BACKTESTING_PROTOCOL.md for the full validation
 //    workflow (in-sample / out-of-sample / walk-forward / forward demo).
 //
@@ -120,6 +140,21 @@ maxPerDay     = input.int(3,      "Max signals per day",          minval = 1, ma
 cooldown      = input.int(15,     "Cooldown between signals (bars)", minval = 0, maxval = 200, group = grpX)
 dirMode       = input.string("Both", "Trade direction",           options = ["Both", "Long only", "Short only"], group = grpX)
 allowLowVol   = input.bool(false, "Allow signals in LOW-VOL regime", group = grpX, tooltip = "Compression usually precedes expansion — default is to stand aside.")
+// ---- Ultimate gate: strictest high-quality-only refinements ----------------
+reqHTFStruct  = input.bool(true,  "REQUIRE MTF structure alignment", group = grpX, tooltip = "Longs only when the HTF swing STRUCTURE is bullish AND price sits above the HTF range mid (and mirrored for shorts). This is a hard gate on top of the HTF-bias confluence point.")
+htfSwing      = input.int(5,      "HTF swing length (MTF gate)",    minval = 2, maxval = 20, group = grpX)
+reqStrongDisp = input.bool(true,  "REQUIRE strong displacement bar", group = grpX, tooltip = "The signal bar itself must be a conviction candle: directional body larger than the threshold below AND closing in the far 30% of its range.")
+strongDispX   = input.float(1.5,  "Strong displacement (× ATR)",    minval = 0.5, maxval = 6.0, step = 0.1, group = grpX)
+reqRejection  = input.bool(true,  "REQUIRE rejection at key level",  group = grpX, tooltip = "A bar within the freshness window must have tapped an OB/FVG/broken level and closed back in the top (long) / bottom (short) half of its range — proof the level actually held.")
+rejectWindow  = input.int(3,      "Rejection freshness (bars)",      minval = 1, maxval = 10, group = grpX)
+
+// ---- 1e-bis. News / high-impact time filter ---------------------------------
+grpN  = "⑤b News / Time Filter"
+useNewsFilter = input.bool(true,  "Block entries during news windows", group = grpN, tooltip = "Pine has no economic-calendar feed, so the blackout windows are time-based: set them around the scheduled releases you care about. Defaults bracket the usual US 08:30 / 10:00 / 14:00 ET slots (NFP, CPI, retail sales, ISM, FOMC). Open positions are still managed — only NEW entries are blocked.")
+newsTZ        = input.string("America/New_York", "News timezone",     group = grpN, tooltip = "IANA timezone the windows are defined in, e.g. America/New_York, Europe/London, UTC.")
+newsWin1      = input.session("0820-0850", "Blackout window 1",       group = grpN)
+newsWin2      = input.session("0955-1015", "Blackout window 2",       group = grpN)
+newsWin3      = input.session("1350-1430", "Blackout window 3",       group = grpN)
 
 // ---- 1f. Trade management --------------------------------------------------------
 grpT  = "⑥ Trade Management"
@@ -437,12 +472,43 @@ string regimeStr = (regTrend == 1 ? "TRENDING ▲" : regTrend == -1 ? "TRENDING 
 color  regCol    = regTrend == 1 ? cBull : regTrend == -1 ? cBear : color.new(color.orange, 0)
 
 // ============================================================================
-//  SECTION 11 — HTF BIAS (optional, pure price: position vs HTF range mid)
+//  SECTION 11 — HTF BIAS & MULTI-TIMEFRAME STRUCTURE ALIGNMENT (pure price)
 // ============================================================================
 // Non-repainting form: [1] + lookahead_on returns the last CONFIRMED HTF value.
 htfMid  = request.security(syminfo.tickerid, htfTF, math.avg(ta.highest(high, htfLen), ta.lowest(low, htfLen))[1], lookahead = barmerge.lookahead_on)
 htfBull = close > htfMid
 htfBear = close < htfMid
+
+// HTF swing-structure direction: the same pivot-break (BOS) state machine that
+// drives the chart timeframe, evaluated inside the HTF context. Returns
+// 1 = bullish structure, -1 = bearish, 0 = undefined (young data).
+f_structDir() =>
+    var int   sd = 0
+    var float sh = na
+    var float sl = na
+    var bool  hT = false
+    var bool  lT = false
+    float p_h = ta.pivothigh(high, htfSwing, htfSwing)
+    float p_l = ta.pivotlow(low,  htfSwing, htfSwing)
+    if not na(p_h)
+        sh := p_h
+        hT := false
+    if not na(p_l)
+        sl := p_l
+        lT := false
+    if not na(sh) and not hT and close > sh
+        hT := true
+        sd := 1
+    if not na(sl) and not lT and close < sl
+        lT := true
+        sd := -1
+    sd
+
+htfStruct = request.security(syminfo.tickerid, htfTF, f_structDir()[1], lookahead = barmerge.lookahead_on)
+
+// Full MTF alignment = HTF swing structure AND HTF range position agree.
+htfAlignBull = htfStruct == 1  and htfBull
+htfAlignBear = htfStruct == -1 and htfBear
 
 // ============================================================================
 //  SECTION 12 — CONFLUENCE SCORING & SIGNAL GATE
@@ -475,6 +541,45 @@ bool regimeBull = regTrend == 1 ? true : regTrend == -1 ? false : (bullSweepOk a
 bool regimeBear = regTrend == -1 ? true : regTrend == 1 ? false : (bearSweepOk and scoreBear >= minScore + 1)
 bool volOk      = volState != -1 or allowLowVol
 
+// ---------------------------------------------------------------------------
+// ULTIMATE GATE — the strictest layer, all three legs individually togglable.
+// Typical winning sequence it encodes: price taps a key level and REJECTS it
+// (wick holds, close back on the right side), then within a few bars a STRONG
+// DISPLACEMENT bar fires in the direction of full MULTI-TIMEFRAME alignment.
+// ---------------------------------------------------------------------------
+// Leg 1 — rejection at a key level (OB / FVG / broken structure level):
+//         the tap bar must close back in the top (long) / bottom (short) half
+//         of its own range, proving the level actually held.
+bool bullRejectNow = bullZoneOk and rng > 0 and (close - low)  / rng >= 0.55
+bool bearRejectNow = bearZoneOk and rng > 0 and (high - close) / rng >= 0.55
+var int lastBullRejBar = -100000
+var int lastBearRejBar = -100000
+if bullRejectNow
+    lastBullRejBar := bar_index
+if bearRejectNow
+    lastBearRejBar := bar_index
+bool bullRejectOk = (bar_index - lastBullRejBar) <= rejectWindow
+bool bearRejectOk = (bar_index - lastBearRejBar) <= rejectWindow
+
+// Leg 2 — strong displacement on the signal bar itself: conviction body
+//         (> strongDispX × ATR) closing in the far 30% of its range.
+bool bullStrongDisp = close > open and body >= strongDispX * atrVal and rng > 0 and (close - low)  / rng >= 0.7
+bool bearStrongDisp = close < open and body >= strongDispX * atrVal and rng > 0 and (high - close) / rng >= 0.7
+
+// Leg 3 — multi-timeframe structure alignment (computed in Section 11).
+bool ultBull = (not reqHTFStruct or htfAlignBull) and (not reqStrongDisp or bullStrongDisp) and (not reqRejection or bullRejectOk)
+bool ultBear = (not reqHTFStruct or htfAlignBear) and (not reqStrongDisp or bearStrongDisp) and (not reqRejection or bearRejectOk)
+
+// ---------------------------------------------------------------------------
+// News / high-impact time filter: block NEW entries inside the blackout
+// windows (open positions keep being managed). time() returns na outside
+// the session, a timestamp inside it.
+// ---------------------------------------------------------------------------
+bool inNews1 = not na(time(timeframe.period, newsWin1, newsTZ))
+bool inNews2 = not na(time(timeframe.period, newsWin2, newsTZ))
+bool inNews3 = not na(time(timeframe.period, newsWin3, newsTZ))
+bool newsBlock = useNewsFilter and (inNews1 or inNews2 or inNews3)
+
 // Overtrading guards: daily cap + cooldown.
 bool newDay = ta.change(time("D")) != 0
 var int daySignals = 0
@@ -483,8 +588,8 @@ if newDay
 var int lastSigBar = -100000
 bool paceOk = (bar_index - lastSigBar) >= cooldown and daySignals < maxPerDay
 
-bool longSignalRaw  = reqBull and scoreBull >= minScore and regimeBull and volOk and paceOk and dirMode != "Short only" and barstate.isconfirmed
-bool shortSignalRaw = reqBear and scoreBear >= minScore and regimeBear and volOk and paceOk and dirMode != "Long only"  and barstate.isconfirmed
+bool longSignalRaw  = reqBull and scoreBull >= minScore and regimeBull and volOk and ultBull and not newsBlock and paceOk and dirMode != "Short only" and barstate.isconfirmed
+bool shortSignalRaw = reqBear and scoreBear >= minScore and regimeBear and volOk and ultBear and not newsBlock and paceOk and dirMode != "Long only"  and barstate.isconfirmed
 
 // ============================================================================
 //  SECTION 13 — TRADE STATE MACHINE (visual manager: SL / BE / TRAIL / TP1-5)
@@ -678,7 +783,7 @@ dashPos = switch dashPosIn
     => position.top_right
 dashTxtSize = dashSizeIn == "Tiny" ? size.tiny : dashSizeIn == "Small" ? size.small : size.normal
 
-var table dash = table.new(dashPos, 2, 14, bgcolor = color.new(color.black, 25), frame_color = color.new(color.gray, 55), frame_width = 1, border_color = color.new(color.gray, 75), border_width = 1)
+var table dash = table.new(dashPos, 2, 16, bgcolor = color.new(color.black, 25), frame_color = color.new(color.gray, 55), frame_width = 1, border_color = color.new(color.gray, 75), border_width = 1)
 
 f_row(int r, string k, string v, color vc) =>
     table.cell(dash, 0, r, k, text_color = color.new(color.white, 30), text_size = dashTxtSize, text_halign = text.align_left)
@@ -692,7 +797,7 @@ f_row(int r, string k, string v, color vc) =>
 // from the backtest, which is worse than the warning.
 bool dashTick = barstate.islastconfirmedhistory or barstate.isrealtime
 if showDash and dashTick
-    table.clear(dash, 0, 0, 1, 13)
+    table.clear(dash, 0, 0, 1, 15)
     int r = 0
     table.cell(dash, 0, r, "UPPAU", text_color = color.new(color.white, 0), text_size = dashTxtSize, text_halign = text.align_left)
     table.cell(dash, 1, r, syminfo.ticker + " · " + timeframe.period, text_color = color.new(color.white, 30), text_size = dashTxtSize, text_halign = text.align_right)
@@ -711,6 +816,10 @@ if showDash and dashTick
         f_row(r, "Setup strength", f_stars(liveStars) + (scoreBull >= scoreBear ? " (bull)" : " (bear)"), liveStars >= 3 ? cBull : color.new(color.gray, 20))
         r += 1
         f_row(r, "Position", tDir == 1 ? "LONG" : tDir == -1 ? "SHORT" : "FLAT", tDir == 1 ? cBull : tDir == -1 ? cBear : color.new(color.gray, 20))
+        r += 1
+        string mtfTxt  = not reqHTFStruct ? "off" : htfAlignBull ? "aligned ▲" : htfAlignBear ? "aligned ▼" : "not aligned"
+        string newsTxt = not useNewsFilter ? "off" : newsBlock ? "BLACKOUT ⛔" : "clear"
+        f_row(r, "MTF / News", mtfTxt + " · " + newsTxt, newsBlock ? color.orange : color.new(color.white, 20))
         r += 1
     if dashLevels and tDir != 0
         f_row(r, "Entry", f_px(tEntry), color.new(color.white, 10))
