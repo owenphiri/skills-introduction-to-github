@@ -451,6 +451,11 @@ fieldset.form-field { border: 0; }
 .check:hover { border-color: var(--gold); }
 .check input { accent-color: var(--gold); width: 17px; height: 17px; flex-shrink: 0; }
 
+.rsvp-done { text-align: center; }
+.rsvp-done-title { font-family: var(--font-head); font-size: 1.35rem; color: var(--gold-light); margin-bottom: 0.6rem; }
+.rsvp-done p { margin-bottom: 0.9rem; }
+.rsvp-done .btn { margin-top: 0.4rem; }
+
 .form-status { min-height: 1.4em; margin-bottom: 0.8rem; font-weight: 700; }
 .form-status.ok { color: #7ede9c; }
 .form-status.err { color: #ff9d9d; }

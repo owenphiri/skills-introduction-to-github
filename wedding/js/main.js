@@ -121,16 +121,107 @@ $$(".reveal").forEach((el) => observer.observe(el));
 $("#waFloat").href = waLink(CONFIG.whatsappGreeting);
 $("#contactWhatsApp").href = waLink(CONFIG.whatsappGreeting);
 
-/* ---------- RSVP form → WhatsApp ---------- */
-$("#rsvpForm").addEventListener("submit", (e) => {
+/* ---------- RSVP form: draft autosave, remembered submission, WhatsApp delivery ---------- */
+const rsvpForm = $("#rsvpForm");
+const RSVP_DRAFT_KEY = "wedding_rsvp_draft";
+const RSVP_DATA_KEY = "wedding_rsvp_data";
+const RSVP_DONE_KEY = "wedding_rsvp_submitted";
+
+function readRsvpForm() {
+  return {
+    name: $("#rsvpName").value.trim(),
+    phone: $("#rsvpPhone").value.trim(),
+    email: $("#rsvpEmail").value.trim(),
+    guests: $("#rsvpGuests").value,
+    message: $("#rsvpMessage").value.trim(),
+    events: $$('#rsvpForm input[name="events"]:checked').map((c) => c.value),
+  };
+}
+
+function fillRsvpForm(data) {
+  if (!data) return;
+  $("#rsvpName").value = data.name || "";
+  $("#rsvpPhone").value = data.phone || "";
+  $("#rsvpEmail").value = data.email || "";
+  if (data.guests) $("#rsvpGuests").value = data.guests;
+  $("#rsvpMessage").value = data.message || "";
+  if (Array.isArray(data.events)) {
+    $$('#rsvpForm input[name="events"]').forEach((c) => {
+      c.checked = data.events.includes(c.value);
+    });
+  }
+}
+
+function lsGet(key) {
+  try {
+    return JSON.parse(localStorage.getItem(key));
+  } catch (_) {
+    return null;
+  }
+}
+function lsSet(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (_) { /* private browsing — autosave is best-effort */ }
+}
+
+// Auto-save a draft as the guest types, restore it when they come back.
+$$("#rsvpForm input, #rsvpForm select, #rsvpForm textarea").forEach((el) => {
+  el.addEventListener("input", () => lsSet(RSVP_DRAFT_KEY, readRsvpForm()));
+  el.addEventListener("change", () => lsSet(RSVP_DRAFT_KEY, readRsvpForm()));
+});
+
+// Success panel shown instead of the form once an RSVP has been sent.
+// Built with textContent (never innerHTML) so guest input can't inject markup.
+function showRsvpDone(data) {
+  let panel = $("#rsvpDone");
+  if (!panel) {
+    panel = document.createElement("div");
+    panel.id = "rsvpDone";
+    panel.className = "rsvp-form rsvp-done";
+    rsvpForm.after(panel);
+  }
+  panel.replaceChildren();
+
+  const h = document.createElement("p");
+  h.className = "rsvp-done-title";
+  h.textContent = `🎉 Thank you, ${data.name}! We can't wait to celebrate with you.`;
+  const sub = document.createElement("p");
+  const n = Number(data.guests) || 1;
+  sub.textContent =
+    `We've noted ${n} ${n === 1 ? "seat" : "seats"} for: ${(data.events || []).join(", ")}.`;
+  const hint = document.createElement("p");
+  hint.className = "form-hint";
+  hint.textContent =
+    "Your RSVP was sent to the couple on WhatsApp — if the chat didn't open, tap Update and send again.";
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "btn btn-outline";
+  btn.textContent = "Update my RSVP";
+  btn.addEventListener("click", () => {
+    localStorage.removeItem(RSVP_DONE_KEY);
+    fillRsvpForm(lsGet(RSVP_DATA_KEY));
+    panel.hidden = true;
+    rsvpForm.hidden = false;
+    $("#rsvpName").focus();
+  });
+
+  panel.append(h, sub, hint, btn);
+  panel.hidden = false;
+  rsvpForm.hidden = true;
+}
+
+// On load: returning guests see their confirmation; otherwise restore any draft.
+if (lsGet(RSVP_DONE_KEY) === true && lsGet(RSVP_DATA_KEY)) {
+  showRsvpDone(lsGet(RSVP_DATA_KEY));
+} else {
+  fillRsvpForm(lsGet(RSVP_DRAFT_KEY));
+}
+
+rsvpForm.addEventListener("submit", (e) => {
   e.preventDefault();
   const status = $("#rsvpStatus");
-  const name = $("#rsvpName").value.trim();
-  const phoneRaw = $("#rsvpPhone").value.trim();
-  const email = $("#rsvpEmail").value.trim();
-  const guests = $("#rsvpGuests").value;
-  const message = $("#rsvpMessage").value.trim();
-  const events = $$('#rsvpForm input[name="events"]:checked').map((c) => c.value);
+  const { name, phone: phoneRaw, email, guests, message, events } = readRsvpForm();
 
   $$("#rsvpForm input").forEach((i) => i.classList.remove("invalid"));
   status.className = "form-status";
@@ -169,6 +260,12 @@ $("#rsvpForm").addEventListener("submit", (e) => {
   status.textContent = "Opening WhatsApp — press Send to confirm your RSVP. 💛";
   status.classList.add("ok");
   window.open(waLink(lines.join("\n")), "_blank", "noopener");
+
+  const record = { ...readRsvpForm(), submitted_at: new Date().toISOString() };
+  lsSet(RSVP_DATA_KEY, record);
+  lsSet(RSVP_DONE_KEY, true);
+  localStorage.removeItem(RSVP_DRAFT_KEY);
+  showRsvpDone(record);
 });
 
 /* ---------- payment modal + Flutterwave ---------- */
