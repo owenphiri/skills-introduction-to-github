@@ -15,11 +15,20 @@ const CONFIG = {
   whatsappGreeting:
     "Hello! I'm interested in the wedding of Owen & Beauty. I'd like to know more about...",
 
+  // Payment provider: "flutterwave" (inline checkout popup) or
+  // "moneyunify" (direct USSD prompt, no popup). See wedding/README.md.
+  paymentProvider: "flutterwave",
+  paymentCurrency: "ZMW",
+
   // Flutterwave PUBLIC key (safe to expose — it is a publishable key).
   // Use your TEST key (FLWPUBK_TEST-…) while testing, then swap for the
-  // LIVE key (FLWPUBK-…) in production. See wedding/README.md.
+  // LIVE key (FLWPUBK-…) in production.
   flutterwavePublicKey: "FLWPUBK_TEST-REPLACE-ME-X",
-  paymentCurrency: "ZMW",
+
+  // MoneyUnify auth_id from https://dashboard.moneyunify.one — a public
+  // merchant identifier (it can only request payments INTO your account).
+  moneyUnifyAuthId: "pub_REPLACE-ME",
+  moneyUnifyApiBase: "https://api.moneyunify.one",
 };
 
 /* ---------- helpers ---------- */
@@ -227,6 +236,39 @@ $("#payForm").addEventListener("submit", (e) => {
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
     return fail($("#payEmail"), "That email address doesn't look right.");
 
+  const guest = { name, phone, email, network };
+  if (CONFIG.paymentProvider === "moneyunify") {
+    payWithMoneyUnify(guest, fail);
+  } else {
+    payWithFlutterwave(guest, fail);
+  }
+});
+
+function paySucceeded(guest, reference) {
+  payStatus.textContent =
+    "✅ Payment received! Your card is reserved — we'll confirm on WhatsApp.";
+  payStatus.className = "form-status ok";
+  try {
+    // Local receipt for the guest; authoritative record is the provider dashboard.
+    localStorage.setItem(
+      `payment_${reference}`,
+      JSON.stringify({ ...guest, tier: selectedTier, amount: selectedAmount, reference, at: new Date().toISOString() })
+    );
+  } catch (_) { /* private browsing — receipt still goes to WhatsApp */ }
+  // Let the couple know immediately, with the transaction reference.
+  window.open(
+    waLink(
+      `✅ *Card purchase* — Owen & Beauty Wedding\n` +
+        `*Name:* ${guest.name}\n*Card:* ${selectedTier} (K${selectedAmount})\n` +
+        `*Phone:* +${guest.phone}\n*Ref:* ${reference}`
+    ),
+    "_blank",
+    "noopener"
+  );
+}
+
+/* ----- Provider 1: Flutterwave inline checkout ----- */
+function payWithFlutterwave(guest, fail) {
   if (typeof window.FlutterwaveCheckout !== "function") {
     return fail(
       null,
@@ -253,11 +295,11 @@ $("#payForm").addEventListener("submit", (e) => {
     currency: CONFIG.paymentCurrency,
     payment_options: "mobilemoneyzambia",
     customer: {
-      email: email || `${phone}@guests.owenandbeauty.wedding`,
-      phone_number: phone,
-      name,
+      email: guest.email || `${guest.phone}@guests.owenandbeauty.wedding`,
+      phone_number: guest.phone,
+      name: guest.name,
     },
-    meta: { tier: selectedTier, network },
+    meta: { tier: selectedTier, network: guest.network },
     customizations: {
       title: "Owen & Beauty Wedding",
       description: `${selectedTier} — invitation card`,
@@ -266,19 +308,7 @@ $("#payForm").addEventListener("submit", (e) => {
     callback: (response) => {
       payBtn.disabled = false;
       if (response.status === "successful" || response.status === "completed") {
-        payStatus.textContent =
-          "✅ Payment received! Your card is reserved — we'll confirm on WhatsApp.";
-        payStatus.className = "form-status ok";
-        // Let the couple know immediately, with the transaction reference.
-        window.open(
-          waLink(
-            `✅ *Card purchase* — Owen & Beauty Wedding\n` +
-              `*Name:* ${name}\n*Card:* ${selectedTier} (K${selectedAmount})\n` +
-              `*Phone:* +${phone}\n*Ref:* ${response.tx_ref || txRef}`
-          ),
-          "_blank",
-          "noopener"
-        );
+        paySucceeded(guest, response.tx_ref || txRef);
       } else {
         payStatus.textContent =
           "Payment was not completed. You can try again or pay via WhatsApp below.";
@@ -289,4 +319,92 @@ $("#payForm").addEventListener("submit", (e) => {
       payBtn.disabled = false;
     },
   });
-});
+}
+
+/* ----- Provider 2: MoneyUnify direct charge (USSD prompt, no popup) ----- */
+async function payWithMoneyUnify(guest, fail) {
+  if (CONFIG.moneyUnifyAuthId.includes("REPLACE-ME")) {
+    return fail(
+      null,
+      "Online payments are not yet activated. Please use the WhatsApp option below."
+    );
+  }
+
+  const payBtn = $("#payBtn");
+  payBtn.disabled = true;
+  payStatus.className = "form-status ok";
+  payStatus.textContent = "Sending payment prompt to your phone…";
+
+  // MoneyUnify expects the local format, e.g. 0977123456.
+  const localPhone = "0" + guest.phone.slice(3);
+
+  const muFail = (msg) => {
+    payBtn.disabled = false;
+    fail(null, msg);
+  };
+
+  let initiated;
+  try {
+    const res = await fetch(`${CONFIG.moneyUnifyApiBase}/payments/request`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Accept: "application/json",
+      },
+      body: new URLSearchParams({
+        from_payer: localPhone,
+        amount: String(selectedAmount),
+        auth_id: CONFIG.moneyUnifyAuthId,
+      }),
+    });
+    initiated = await res.json();
+  } catch (_) {
+    return muFail("Payment service unreachable. Check your connection or use the WhatsApp option below.");
+  }
+
+  const transactionId = initiated?.data?.transaction_id;
+  if (initiated?.isError || !transactionId) {
+    return muFail(initiated?.message || "Could not start the payment. Please try again.");
+  }
+
+  payStatus.textContent =
+    "📲 Prompt sent — approve the payment on your phone with your PIN…";
+
+  // Poll every 3s, give the guest up to 2 minutes to approve.
+  const POLL_MS = 3000;
+  const MAX_ATTEMPTS = 40;
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    await new Promise((r) => setTimeout(r, POLL_MS));
+    let verify;
+    try {
+      const res = await fetch(`${CONFIG.moneyUnifyApiBase}/payments/verify`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Accept: "application/json",
+        },
+        body: new URLSearchParams({
+          transaction_id: transactionId,
+          auth_id: CONFIG.moneyUnifyAuthId,
+        }),
+      });
+      verify = await res.json();
+    } catch (_) {
+      continue; // transient network blip — keep polling until the deadline
+    }
+    const status = verify?.data?.status;
+    if (status === "successful") {
+      payBtn.disabled = false;
+      return paySucceeded(guest, transactionId);
+    }
+    if (status === "failed") {
+      return muFail("Payment failed or was declined. You can try again or pay via WhatsApp below.");
+    }
+    // "initiated"/"pending" (or an unexpected shape) — keep waiting.
+  }
+  muFail(
+    "We couldn't confirm the payment in time. If you approved it, message us on WhatsApp with ref " +
+      transactionId +
+      " and we'll verify it."
+  );
+}

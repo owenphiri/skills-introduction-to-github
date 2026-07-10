@@ -24,7 +24,13 @@ All configuration lives at the top of [`js/main.js`](js/main.js) in the `CONFIG`
 
 1. **WhatsApp number** — set `whatsappNumber` to the couple's real number in
    international format without `+`, e.g. `260977123456`.
-2. **Flutterwave public key** — set `flutterwavePublicKey`:
+2. **Payment provider** — set `paymentProvider` to `"flutterwave"` (default,
+   hosted checkout popup) or `"moneyunify"` (direct USSD prompt, no popup),
+   then configure the matching key below. Until a real key is set, the
+   payment form automatically falls back to the WhatsApp option, so the site
+   is safe to publish immediately.
+
+   **Option A — Flutterwave** — set `flutterwavePublicKey`:
    - Create an account at <https://dashboard.flutterwave.com> (Flutterwave is
      licensed in Zambia and supports ZMW mobile money).
    - **Sandbox first:** switch the dashboard to *Test Mode*, copy the
@@ -36,8 +42,17 @@ All configuration lives at the top of [`js/main.js`](js/main.js) in the `CONFIG`
      For server-side verification and webhooks (recommended), verify
      transactions with your secret key from a backend, keyed on the `tx_ref`
      (format `OB-WED-<Tier>-<timestamp>`).
-   - Until a real key is set, the payment form automatically falls back to
-     the WhatsApp payment option, so the site is safe to publish immediately.
+
+   **Option B — MoneyUnify** (MTN, Airtel & Zamtel in Zambia) — set
+   `moneyUnifyAuthId` to the `auth_id` from your MoneyUnify dashboard:
+   - The guest gets the USSD prompt directly — no popup. The site initiates
+     the charge, then polls `payments/verify` every 3 seconds (up to
+     2 minutes) and shows live status.
+   - The `auth_id` is a public merchant identifier: it can only request
+     payments *into* your account and check status, so it is safe in
+     client-side code — but treat the browser's "successful" state as
+     informational and reconcile against the MoneyUnify dashboard (or a
+     server-side verify) before handing over cards.
 3. **Wedding date** — confirm `weddingISO` / `weddingDisplay` (currently
    Sat 12 Dec 2026, 10:00 CAT).
 
