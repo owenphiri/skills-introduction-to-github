@@ -97,6 +97,15 @@ returns the authorization redirect if the network provides one) and
 `GET /api/verify/:txRef` (server-side verification before you hand over a
 card).
 
+The same server also offers an **RSVP backup store**: set
+`rsvpApiUrl: "/api/rsvp"` in `js/main.js` and every RSVP is additionally
+saved to `server-example/rsvps.json` (re-submissions from the same phone
+number update the existing entry instead of double-booking seats).
+`GET /api/rsvp` returns the guest list with totals for the committee —
+set `RSVP_ADMIN_TOKEN` and append `?token=…` to protect it. WhatsApp
+remains the primary delivery; the backend copy is best-effort and never
+blocks the guest.
+
 ## Security notes
 
 - Serve over **HTTPS only** (GitHub Pages/Netlify do this by default).

@@ -34,6 +34,65 @@ const transactions = [];
 
 const ZM_PHONE = /^(?:260|0)?(9[5678]|7[5678])\d{7}$/;
 
+/* ----- RSVP storage (optional backup — WhatsApp is the primary channel) ----- */
+const fs = require("fs");
+const path = require("path");
+const RSVP_FILE = path.join(__dirname, "rsvps.json");
+
+function loadRsvps() {
+  try {
+    return JSON.parse(fs.readFileSync(RSVP_FILE, "utf8"));
+  } catch (_) {
+    return [];
+  }
+}
+
+app.post("/api/rsvp", (req, res) => {
+  const { name, phone, email, guests, events, message, submitted_at } = req.body || {};
+
+  if (!name || String(name).trim().length < 2) {
+    return res.status(400).json({ error: "Name is required." });
+  }
+  if (!ZM_PHONE.test(String(phone).replace(/\D/g, ""))) {
+    return res.status(400).json({ error: "Invalid Zambian mobile number." });
+  }
+  if (!Array.isArray(events) || events.length === 0) {
+    return res.status(400).json({ error: "Select at least one event." });
+  }
+
+  const rsvps = loadRsvps();
+  const entry = {
+    id: "RSVP-" + Date.now(),
+    name: String(name).trim().slice(0, 120),
+    phone: String(phone).trim().slice(0, 20),
+    email: String(email || "").trim().slice(0, 120),
+    guests: Math.min(Math.max(Number(guests) || 1, 1), 10),
+    events: events.map((e) => String(e).slice(0, 60)).slice(0, 10),
+    message: String(message || "").trim().slice(0, 1000),
+    submitted_at: submitted_at || new Date().toISOString(),
+    received_at: new Date().toISOString(),
+  };
+  // Same phone re-submitting = an update, not a duplicate seat booking.
+  const existing = rsvps.findIndex((r) => r.phone === entry.phone);
+  if (existing >= 0) rsvps[existing] = entry;
+  else rsvps.push(entry);
+  fs.writeFileSync(RSVP_FILE, JSON.stringify(rsvps, null, 2));
+
+  console.log(`[rsvp] ${entry.name} (${entry.phone}) — ${entry.guests} guest(s): ${entry.events.join(", ")}`);
+  return res.json({ saved: true, id: entry.id });
+});
+
+// Guest list for the wedding committee (protect this in production —
+// e.g. RSVP_ADMIN_TOKEN env var checked against a ?token= query).
+app.get("/api/rsvp", (req, res) => {
+  if (process.env.RSVP_ADMIN_TOKEN && req.query.token !== process.env.RSVP_ADMIN_TOKEN) {
+    return res.status(401).json({ error: "Unauthorized." });
+  }
+  const rsvps = loadRsvps();
+  const totalGuests = rsvps.reduce((sum, r) => sum + r.guests, 0);
+  return res.json({ count: rsvps.length, totalGuests, rsvps });
+});
+
 app.post("/api/pay", async (req, res) => {
   const { amount, phone, network, email, name, tier } = req.body || {};
 

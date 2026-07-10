@@ -29,6 +29,11 @@ const CONFIG = {
   // merchant identifier (it can only request payments INTO your account).
   moneyUnifyAuthId: "pub_REPLACE-ME",
   moneyUnifyApiBase: "https://api.moneyunify.one",
+
+  // Optional: also POST each RSVP to a backend (see server-example/).
+  // Leave empty to deliver via WhatsApp only. Example: "/api/rsvp" when the
+  // site is served by charge-server.js, or a full https:// URL.
+  rsvpApiUrl: "",
 };
 
 /* ---------- helpers ---------- */
@@ -266,7 +271,23 @@ rsvpForm.addEventListener("submit", (e) => {
   lsSet(RSVP_DONE_KEY, true);
   localStorage.removeItem(RSVP_DRAFT_KEY);
   showRsvpDone(record);
+  sendRsvpToServer(record);
 });
+
+// Best-effort backup copy to the backend; WhatsApp remains the primary
+// delivery, so a failure here must never block or alarm the guest.
+async function sendRsvpToServer(data) {
+  if (!CONFIG.rsvpApiUrl) return;
+  try {
+    await fetch(CONFIG.rsvpApiUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+  } catch (err) {
+    console.warn("RSVP backend unreachable (WhatsApp copy already sent):", err);
+  }
+}
 
 /* ---------- payment modal + Flutterwave ---------- */
 const payModal = $("#payModal");
