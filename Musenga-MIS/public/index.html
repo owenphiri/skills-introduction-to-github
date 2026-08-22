@@ -5,6 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#6D28D9">
 <title>MUSENGA DAY SECONDARY SCHOOL — MIS v5.4.0</title>
+<!-- PWA installability: manifest + icons + iOS-specific tags. Android/Chrome's
+     "Install app" prompt requires all of these plus HTTPS and a registered
+     service worker (public/sw.js) — none of which do anything until this is
+     actually served over https:// (a local file:// or http:// preview won't
+     trigger the install prompt, that's a browser security requirement). -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Musenga MIS">
 <!-- Leaflet (online map enhancement). Cached by service worker after first online load; app degrades to offline radar if unavailable. -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>

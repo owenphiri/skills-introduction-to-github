@@ -5,6 +5,19 @@ just "serve this file over HTTPS from a CDN." Vercel does that for free with
 a global edge network, automatic HTTPS, and preview URLs per pull request —
 which covers "accessible anywhere across the globe."
 
+## Fastest path: the Deploy Button
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fowenphiri%2Fskills-introduction-to-github%2Ftree%2Fclaude%2Flms-global-cicd-deploy-n0il8e%2FMusenga-MIS&project-name=musenga-mis&repository-name=musenga-mis&env=ANTHROPIC_API_KEY&envDescription=Required+for+the+AI+Teacher+Assistant+%28schemes+of+work%2C+lesson+plans%2C+quizzes%2C+coding+tutor%29&envLink=https%3A%2F%2Fconsole.anthropic.com%2Fsettings%2Fkeys)
+
+This is Option A and the `ANTHROPIC_API_KEY` step below, collapsed into one
+click: it imports `Musenga-MIS/` as its own Vercel project (root directory
+is embedded in the button's URL) and prompts for the Anthropic key during
+import. Update the branch in the URL to `main` once this is merged — see the
+README's [Go live](../README.md#go-live) section for the current caveat.
+Skip to [Custom domain](#custom-domain--dns-records) once it's deployed, or
+[AI Teacher Assistant](#ai-teacher-assistant-schemes-of-work-lesson-plans-quizzes-coding-tutor)
+for the optional Supabase step.
+
 ## Local development
 
 Run it against `localhost`, never a hardcoded domain:

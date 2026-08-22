@@ -19,6 +19,37 @@ teachers/HODs/admins, plus a Socratic coding tutor for students studying
 Computer Studies. Unlike the rest of the app, this needs a small server
 component — see [AI Teacher Assistant](#ai-teacher-assistant) below.
 
+## Go live
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fowenphiri%2Fskills-introduction-to-github%2Ftree%2Fclaude%2Flms-global-cicd-deploy-n0il8e%2FMusenga-MIS&project-name=musenga-mis&repository-name=musenga-mis&env=ANTHROPIC_API_KEY&envDescription=Required+for+the+AI+Teacher+Assistant+%28schemes+of+work%2C+lesson+plans%2C+quizzes%2C+coding+tutor%29&envLink=https%3A%2F%2Fconsole.anthropic.com%2Fsettings%2Fkeys)
+
+Click that, sign in with the GitHub account that owns this repo, paste in an
+[Anthropic API key](https://console.anthropic.com/settings/keys) when
+prompted (skip it if you only want the school-records side, not the AI
+tools), and Vercel imports `Musenga-MIS/` as its own project and deploys it —
+root directory, build settings and everything are already read from
+`vercel.json`. You get a live `https://musenga-mis-*.vercel.app` URL in
+under a minute.
+
+> **Note:** the button currently points at this repo's PR branch
+> (`claude/lms-global-cicd-deploy-n0il8e`) so it works right now, before the
+> PR merges. Once merged to `main`, replace `tree/claude/...` with `tree/main`
+> in the URL above (or just re-import from the dashboard pointing at `main`)
+> so the button — and every future push — tracks `main` going forward.
+
+**Install it as an app on a phone**: open the deployed URL on a phone
+browser (Chrome on Android, Safari on iOS) — Android shows an "Install app"
+/ "Add to Home screen" prompt automatically (thanks to `public/manifest.webmanifest`
++ `public/sw.js`); on iOS, use the Share sheet → **Add to Home Screen**. It
+then behaves like a native app — its own icon, no browser chrome, works
+offline. This only works over `https://`, so it needs the real deployed URL,
+not `localhost`.
+
+**Supabase** is optional (only powers a multi-tenant-ready AI usage log, see
+below) and can't be one-click-provisioned the way Vercel can — see
+[Optional: Supabase usage log](docs/DEPLOYMENT.md#optional-supabase-usage-log-multi-tenant-ready-not-required)
+for the ~5-minute copy-paste setup.
+
 ## Quick start (local)
 
 No build step, no dependencies — just a tiny static server so the app runs
