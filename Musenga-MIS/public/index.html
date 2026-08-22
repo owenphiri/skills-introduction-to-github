@@ -3354,7 +3354,7 @@ tr:hover td{background:var(--cream)}
 
 <script>
 /* ============================================================
-   MUSENGA DAY SECONDARY SCHOOL — MIS v5.2.3
+   MUSENGA DAY SECONDARY SCHOOL — MIS v5.4.0
    Offline-first PWA · IndexedDB · Role-based · Built by PrimeAxis ICT
    ============================================================ */
 "use strict";
@@ -3370,10 +3370,15 @@ function toast(msg,type){const t=el("div",{class:"toast "+(type||"")},msg);$("#t
 /* salted hash (lightweight, offline) */
 async function hashPw(pw,salt){const data=new TextEncoder().encode(salt+":"+pw+":itinti");const buf=await crypto.subtle.digest("SHA-256",data);return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,"0")).join("");}
 const newSalt=()=>crypto.getRandomValues(new Uint8Array(8)).reduce((a,b)=>a+b.toString(16).padStart(2,"0"),"");
+// Seed accounts get a fresh random password + recovery code per install
+// instead of a fixed demo password — see seedIfEmpty() / _seedCredentials.
+const randChars=(len,alphabet)=>[...crypto.getRandomValues(new Uint8Array(len))].map(b=>alphabet[b%alphabet.length]).join("");
+const randPass=(len=10)=>randChars(len,"ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789");
+const randRecoveryCode=()=>"MDSS-"+randChars(6,"ABCDEFGHJKLMNPQRSTUVWXYZ23456789");
 
 /* ---------- IndexedDB ---------- */
-const DB_NAME="musenga_mis_v540", DB_VER=2;
-const STORES=["users","students","staff","grades","subjects","timetable","careers","counseling","procurement","stores","certificates","gamipoints","settings","audit","comms","teachers","gallery","bulletin","departments","assessments","attendance","notifications","feestructure","payments","transfers","liveclasses"];
+const DB_NAME="musenga_mis_v540", DB_VER=3;
+const STORES=["users","students","staff","grades","subjects","timetable","careers","counseling","procurement","stores","certificates","gamipoints","settings","audit","comms","teachers","gallery","bulletin","departments","assessments","attendance","notifications","feestructure","payments","transfers","liveclasses","loginAttempts"];
 let _db=null;
 function openDB(){return new Promise((res,rej)=>{const r=indexedDB.open(DB_NAME,DB_VER);
   r.onupgradeneeded=e=>{const db=e.target.result;STORES.forEach(s=>{if(!db.objectStoreNames.contains(s))db.createObjectStore(s,{keyPath:"id"});});};
@@ -3472,6 +3477,9 @@ const DEFAULT_SETTINGS={
   get activeClasses(){const c=[];for(const f of FORMS)(this.activeStreams[f]||["A"]).forEach(s=>c.push(f+s));return [...c,...this.gradesActive];}
 };
 let _settings=null;
+// One-time generated seed-account credentials, shown once via
+// showSeedCredentials() right after a fresh install seeds its accounts.
+let _seedCredentials=[];
 async function getSettings(){ if(_settings)return _settings; let s=await dbGet("settings","app"); if(!s){s=structuredClone(DEFAULT_SETTINGS);delete s.activeClasses;await dbPut("settings",s);} _settings=Object.assign(structuredClone(DEFAULT_SETTINGS),s); _settings.motto=DEFAULT_SETTINGS.motto; return _settings;}
 async function saveSettings(){const c=structuredClone(_settings);delete c.activeClasses;await dbPut("settings",c);}
 
@@ -3479,13 +3487,15 @@ async function seedIfEmpty(){
   const settings=await getSettings();
   if((await dbGetAll("subjects")).length===0){for(const n of SUBJECTS_SEED)await dbPut("subjects",{id:uid("sub_"),name:n});}
   if((await dbGetAll("careers")).length===0){for(const c of CAREERS_SEED)await dbPut("careers",{id:uid("car_"),field:c.f,career:c.c,subjects:c.sub,note:c.note});}
-  // default admin
+  // default admin — random password + recovery code shown once at first boot
+  // (see showSeedCredentials()), not a fixed/published demo password.
   if((await dbGetAll("users")).length===0){
-    const salt=newSalt();
+    const salt=newSalt(),pw=randPass(),recoveryCode=randRecoveryCode();
     await dbPut("users",{id:uid("u_"),username:"admin",fullName:"System Administrator",role:"admin",
-      salt,hash:await hashPw("admin123",salt),
-      secQ:"What is the school's district?",secA:(await hashPw("mungwi",salt)),
-      recoveryCode:"MUSENGA-ADMIN-2026",active:true,created:Date.now()});
+      salt,hash:await hashPw(pw,salt),
+      secQ:"",secA:"",mustChangePassword:true,
+      recoveryCode,active:true,created:Date.now()});
+    _seedCredentials.push({username:"admin",fullName:"System Administrator",role:"Administrator",password:pw,recoveryCode});
   }
   // demo students + gamification (only first run)
   if((await dbGetAll("students")).length===0){
@@ -3566,6 +3576,11 @@ function resetSlider(){startSlider();}
    ============================================================ */
 let _regRole="student";
 const ROLES=[["student","Student"],["parent","Parent / Guardian"],["teacher","Subject Teacher"],["hod","Head of Department"],["deputy","Deputy Head Teacher"],["headteacher","Head Teacher"],["counselor","Guidance & Counselling"],["accountant","Finance Department"],["storekeeper","Stores & Procurement"],["admin","Administrator"]];
+// Self-registration is deliberately limited to student/parent: every staff
+// role must be provisioned by an admin (Staff & Users), so there is no
+// client-side path — tampered or not — from the public register form to a
+// staff/admin account.
+const SELF_REG_ROLES=ROLES.filter(r=>["student","parent"].includes(r[0]));
 const ROLE_META={admin:{label:"Administrator",ico:"\u{1F6E1}\uFE0F",color:"#5C6B66"},headteacher:{label:"Head Teacher",ico:"\u{1F393}",color:"#4C1D95"},deputy:{label:"Deputy Head Teacher",ico:"\u{1F4CB}",color:"#6D28D9"},hod:{label:"Head of Department",ico:"\u{1F4DA}",color:"#8B5CF6"},teacher:{label:"Subject Teacher",ico:"\u270F\uFE0F",color:"#2c6fa8"},counselor:{label:"Guidance & Counselling",ico:"\u{1F49B}",color:"#C77B2A"},accountant:{label:"Finance Department",ico:"\u{1F4B0}",color:"#A8862F"},storekeeper:{label:"Stores & Procurement",ico:"\u{1F4E6}",color:"#8a6d2f"},parent:{label:"Parent / Guardian",ico:"\u{1F46A}",color:"#B23B3B"},student:{label:"Student",ico:"\u{1F392}",color:"#6D28D9"}};
 const EFFECTIVE={admin:["admin"],headteacher:["headteacher","admin"],deputy:["deputy","admin"],hod:["hod","teacher"],teacher:["teacher"],counselor:["counselor"],accountant:["accountant"],storekeeper:["storekeeper"],parent:["parent"],student:["student"]};
 const effRoles=()=>EFFECTIVE[SESSION?.role]||[SESSION?.role];
@@ -3610,9 +3625,10 @@ function renderAuth(view){
   }
   else if(view==="register"){
     const pills=el("div",{class:"role-pills"});
-    ROLES.filter(r=>r[0]!=="admin").forEach(([v,l])=>{const p=el("div",{class:"role-pill"+(v===_regRole?" sel":""),onclick:()=>{_regRole=v;$$(".role-pill").forEach(x=>x.classList.remove("sel"));p.classList.add("sel");}},l);pills.append(p);});
+    SELF_REG_ROLES.forEach(([v,l])=>{const p=el("div",{class:"role-pill"+(v===_regRole?" sel":""),onclick:()=>{_regRole=v;$$(".role-pill").forEach(x=>x.classList.remove("sel"));p.classList.add("sel");}},l);pills.append(p);});
     authShell("Create Account","Join the Musenga school portal",[
-      el("div",{class:"field"},el("label",{},"I am a..."),pills),
+      el("div",{class:"field"},el("label",{},"I am a..."),pills,
+        el("div",{class:"hint"},"Staff accounts (teacher, HOD, admin, etc.) are created by an administrator under Staff & Users, not through self-registration.")),
       field("Full Name","rg_name","text","e.g. Mary Mwansa"),
       field("Username","rg_user","text","Choose a username","3+ characters, letters/numbers"),
       field("Password","rg_pw","password","Create a password","Minimum 6 characters"),
@@ -3645,19 +3661,56 @@ function renderAuth(view){
     const m=$("#authModal");const btn=el("button",{class:"btn btn-primary btn-block",onclick:doForgotPwVerify},"Continue");
     m.insertBefore(btn,m.querySelector(".auth-foot"));
   }
+  else if(view==="forcepw"){
+    authShell("Set Your Password","For security, choose your own password and security question before continuing",[
+      field("New Password","fpw_new","password","Minimum 6 characters"),
+      field("Confirm Password","fpw_confirm","password","Repeat password"),
+      el("div",{class:"field"},el("label",{},"Security Question (for account recovery)"),
+        el("select",{id:"fpw_q"},...["What is your mother's maiden name?","What was your first school?","What is your favourite subject?","What town were you born in?"].map(q=>el("option",{},q)))),
+      field("Security Answer","fpw_a","text","Remember this exactly"),
+      el("button",{class:"btn btn-primary btn-block",onclick:doForcePwChange},"Continue")
+    ]);
+  }
 }
 
+const MAX_LOGIN_ATTEMPTS=5,LOGIN_LOCK_MS=5*60*1000;
+async function recordLoginFailure(u){
+  const st=(await dbGet("loginAttempts",u))||{id:u,count:0,lockedUntil:0};
+  st.count=(st.count||0)+1;
+  if(st.count>=MAX_LOGIN_ATTEMPTS){st.lockedUntil=Date.now()+LOGIN_LOCK_MS;st.count=0;}
+  await dbPut("loginAttempts",st);
+  await audit("login-failed:"+u);
+}
 async function doLogin(){
   const u=$("#li_user").value.trim().toLowerCase(),pw=$("#li_pw").value;
   if(!u||!pw)return authMsg("Enter username and password.");
+  const lock=await dbGet("loginAttempts",u);
+  if(lock&&lock.lockedUntil>Date.now()){
+    const mins=Math.ceil((lock.lockedUntil-Date.now())/60000);
+    return authMsg(`Too many failed attempts. Try again in ${mins} minute${mins===1?"":"s"}.`);
+  }
   const user=(await dbGetAll("users")).find(x=>x.username===u);
-  if(!user||!user.active)return authMsg("Account not found or deactivated.");
-  if((await hashPw(pw,user.salt))!==user.hash)return authMsg("Incorrect password.");
+  if(!user||!user.active){await recordLoginFailure(u);return authMsg("Account not found or deactivated.");}
+  if((await hashPw(pw,user.salt))!==user.hash){await recordLoginFailure(u);return authMsg("Incorrect password.");}
+  await dbDel("loginAttempts",u);
+  if(user.mustChangePassword){_forcePwUser=user;renderAuth("forcepw");return;}
   await audit("login");startSession(user);
+}
+let _forcePwUser=null;
+async function doForcePwChange(){
+  const np=$("#fpw_new").value,cp=$("#fpw_confirm").value,q=$("#fpw_q").value,a=$("#fpw_a").value.trim().toLowerCase();
+  if(np.length<6)return authMsg("Password must be 6+ characters.");
+  if(np!==cp)return authMsg("Passwords do not match.");
+  if(!a)return authMsg("Enter a security answer.");
+  const u=_forcePwUser;
+  u.hash=await hashPw(np,u.salt);u.secQ=q;u.secA=await hashPw(a,u.salt);u.mustChangePassword=false;
+  await dbPut("users",u);await audit("password-set:"+u.username);
+  _forcePwUser=null;await audit("login");startSession(u);
 }
 async function doRegister(){
   const name=$("#rg_name").value.trim(),u=$("#rg_user").value.trim().toLowerCase(),pw=$("#rg_pw").value,q=$("#rg_q").value,a=$("#rg_a").value.trim().toLowerCase();
   if(!name||u.length<3||pw.length<6||!a)return authMsg("Fill all fields. Username 3+, password 6+ characters.");
+  if(!SELF_REG_ROLES.some(r=>r[0]===_regRole))return authMsg("Self-registration is only available for students and parents.");
   if((await dbGetAll("users")).some(x=>x.username===u))return authMsg("That username is taken.");
   const salt=newSalt();
   const user={id:uid("u_"),username:u,fullName:name,role:_regRole,salt,hash:await hashPw(pw,salt),
@@ -3785,13 +3838,57 @@ function buildNav(){
       el("span",{class:"ico"},it.ico),el("span",{},it.label)))); });
 }
 let _page="dash";
-function go(id){_page=id;$$(".nav-item").forEach(n=>n.classList.toggle("active",n.dataset.id===id));
+// Route guard: NAV is the single source of truth for who may open a page.
+// Every page id ever pushed/spliced into NAV (search the file for
+// ".items.push"/"unshift"/"splice") carries a `roles` list, so this check
+// is read live at navigation time — after all of those patches have run —
+// rather than from a snapshot taken at definition time.
+function pageRoles(id){for(const grp of NAV){const it=grp.items.find(i=>i.id===id);if(it)return it.roles;}return null;}
+function go(id){
+  const need=pageRoles(id);
+  if(need&&need!=="*"&&!need.some(r=>effRoles().includes(r))){
+    toast("You don't have access to that page.","err");audit("access-denied:"+id);
+    id=defaultPage();
+  }
+  _page=id;$$(".nav-item").forEach(n=>n.classList.toggle("active",n.dataset.id===id));
   $("#sidebar").classList.remove("open");$("#main").scrollIntoView();
   const fn=PAGES[id];$("#main").innerHTML="";(fn||PAGES.dash)();}
 function head(title,sub,actions){return el("div",{class:"page-head"},
   el("div",{},el("h1",{},title),sub?el("p",{},sub):""),actions?el("div",{class:"actions",style:"display:flex;gap:8px;flex-wrap:wrap"},...actions):"");}
 function panel(titleHTML,...body){const p=el("div",{class:"panel"});if(titleHTML)p.append(el("div",{class:"panel-head"},el("h3",{html:titleHTML})));body.forEach(b=>p.append(b));return p;}
 function emptyState(ico,msg){return el("div",{class:"empty"},el("div",{class:"ico"},ico),el("div",{},msg));}
+
+/* Shown once, right after a fresh install seeds its accounts (see boot()).
+   Random per-install passwords replace the old fixed demo passwords; this
+   is the only time the plaintext is ever available — only the hash is
+   stored afterwards, and every seeded account also requires a fresh
+   password + security question on its first login (renderAuth("forcepw")). */
+function showSeedCredentials(){
+  if(!_seedCredentials.length)return;
+  const ov=el("div",{class:"overlay"});
+  const m=el("div",{class:"modal",style:"max-width:640px"});
+  m.append(
+    el("h2",{style:"font-size:21px;margin-bottom:6px"},"⚠️ First-Run Setup — Save These Credentials"),
+    el("p",{class:"sub",style:"margin-bottom:16px"},"These accounts were just created with random one-time passwords, shown only now — write them down or store them somewhere safe. Each account must set its own password and security question on first login."));
+  const tbl=el("table",{style:"width:100%;border-collapse:collapse;font-size:13px"});
+  tbl.append(el("thead",{},el("tr",{},
+    el("th",{style:"text-align:left;padding:6px"},"Role"),el("th",{style:"text-align:left;padding:6px"},"Username"),
+    el("th",{style:"text-align:left;padding:6px"},"Password"),el("th",{style:"text-align:left;padding:6px"},"Recovery Code"))));
+  const tbody=el("tbody");
+  _seedCredentials.forEach(c=>tbody.append(el("tr",{},
+    el("td",{style:"padding:6px;border-top:1px solid var(--line)"},c.role),
+    el("td",{style:"padding:6px;border-top:1px solid var(--line)"},c.username),
+    el("td",{style:"padding:6px;border-top:1px solid var(--line);font-family:monospace"},c.password),
+    el("td",{style:"padding:6px;border-top:1px solid var(--line);font-family:monospace"},c.recoveryCode))));
+  tbl.append(tbody);m.append(tbl);
+  const cb=el("input",{type:"checkbox",id:"seedAck"});
+  m.append(el("label",{style:"display:flex;gap:8px;align-items:center;margin-top:16px;font-size:13px"},cb,el("span",{},"I have saved these credentials somewhere safe.")));
+  m.append(el("button",{class:"btn btn-primary btn-block",style:"margin-top:14px",onclick:()=>{
+    if(!cb.checked){toast("Please confirm you've saved the credentials.","warn");return;}
+    ov.remove();_seedCredentials=[];
+  }},"Continue"));
+  ov.append(m);document.body.append(ov);
+}
 
 /* simple modal for forms inside app */
 function appModal(title,bodyNodes,onSave,saveLabel="Save"){
@@ -4300,8 +4397,8 @@ PAGES.staff=async()=>{
     el("td",{},el("span",{class:"tag b"},ROLES.find(r=>r[0]===u.role)?.[1]||u.role)),
     el("td",{},el("span",{class:"tag "+(u.active?"g":"r")},u.active?"Active":"Disabled")),
     el("td",{},el("div",{style:"display:flex;gap:6px"},
-      el("button",{class:"btn btn-ghost btn-sm",onclick:async()=>{u.active=!u.active;await dbPut("users",u);go("staff");}},u.active?"Disable":"Enable"),
-      u.username==="admin"?"":el("button",{class:"btn btn-danger btn-sm",onclick:async()=>{if(confirm("Delete "+u.username+"?")){await dbDel("users",u.id);go("staff");}}},"✕"))))));
+      el("button",{class:"btn btn-ghost btn-sm",onclick:async()=>{u.active=!u.active;await dbPut("users",u);await audit((u.active?"enable-user:":"disable-user:")+u.username);go("staff");}},u.active?"Disable":"Enable"),
+      u.username==="admin"?"":el("button",{class:"btn btn-danger btn-sm",onclick:async()=>{if(confirm("Delete "+u.username+"?")){await audit("delete-user:"+u.username);await dbDel("users",u.id);go("staff");}}},"✕"))))));
   t.append(tb);tw.append(t);p.append(tw);m.append(p);
   m.append(panel("🛡️ Audit Log (recent)",await auditView()));
 };
@@ -4326,7 +4423,7 @@ PAGES.settings=async()=>{
     STREAMS.forEach(st=>{const on=(S.activeStreams[f]||[]).includes(st);
       row.append(el("button",{class:"btn btn-sm "+(on?"btn-primary":"btn-ghost"),onclick:async()=>{
         let arr=S.activeStreams[f]||[];if(arr.includes(st))arr=arr.filter(x=>x!==st);else arr.push(st);
-        arr.sort();if(!arr.length)arr=["A"];S.activeStreams[f]=arr;await saveSettings();go("settings");}},f.replace("Form ","")+st));});
+        arr.sort();if(!arr.length)arr=["A"];S.activeStreams[f]=arr;await saveSettings();await audit("settings:streams:"+f);go("settings");}},f.replace("Form ","")+st));});
     sp.append(row);});
   sp.append(el("div",{style:"font-size:13px;color:var(--muted);margin-top:8px"},"Active classes: "+S.activeClasses.join(", ")));
   m.append(sp);
@@ -4337,7 +4434,10 @@ PAGES.settings=async()=>{
     inp("Mid-Term Max","set_mid",S.grading.midMax,"number"),
     inp("End-of-Term Max","set_end",S.grading.endMax,"number")),
     el("div",{style:"font-size:13px;color:var(--muted);margin:8px 0"},"Total auto-sums to "+(S.grading.midMax+S.grading.endMax)+". (1–9 government grading is disabled.)"),
-    el("button",{class:"btn btn-primary btn-sm",onclick:async()=>{S.grading.midMax=+$("#set_mid").value||40;S.grading.endMax=+$("#set_end").value||60;await saveSettings();toast("Grading saved","ok");}},"Save Grading"));
+    el("button",{class:"btn btn-primary btn-sm",onclick:async()=>{
+      const mid=+$("#set_mid").value||40,end=+$("#set_end").value||60;
+      if(mid+end!==100)return toast("Mid-Term + End-of-Term must add up to 100 (currently "+(mid+end)+").","err");
+      S.grading.midMax=mid;S.grading.endMax=end;await saveSettings();await audit("settings:grading:"+mid+"+"+end);toast("Grading saved","ok");go("settings");}},"Save Grading"));
   m.append(gp);
 
   // Budget + session
@@ -4345,7 +4445,7 @@ PAGES.settings=async()=>{
   bp.append(el("div",{class:"grid-form"},
     inp("Subject Budget Buffer (periods)","set_buf",S.budgetBuffer,"number"),
     inp("Auto-Logout (minutes)","set_sess",S.sessionMins,"number")),
-    el("button",{class:"btn btn-primary btn-sm",style:"margin-top:10px",onclick:async()=>{S.budgetBuffer=Math.max(0,+$("#set_buf").value||2);S.sessionMins=Math.max(1,+$("#set_sess").value||30);await saveSettings();beginTimeout();toast("Saved","ok");}},"Save"));
+    el("button",{class:"btn btn-primary btn-sm",style:"margin-top:10px",onclick:async()=>{S.budgetBuffer=Math.max(0,+$("#set_buf").value||2);S.sessionMins=Math.max(1,+$("#set_sess").value||30);await saveSettings();await audit("settings:security");beginTimeout();toast("Saved","ok");}},"Save"));
   m.append(bp);
 
   // School location (map pin)
@@ -4361,10 +4461,13 @@ PAGES.settings=async()=>{
 
   // Data
   const dp=panel("💾 Data");
-  dp.append(el("p",{style:"color:var(--muted);font-size:14px;margin-bottom:12px"},"All data is stored offline on this device (IndexedDB). Export a backup regularly."),
+  const importInput=el("input",{type:"file",accept:"application/json",style:"display:none",onchange:e=>{const f=e.target.files[0];if(f)importDataFile(f);e.target.value="";}});
+  dp.append(el("p",{style:"color:var(--muted);font-size:14px;margin-bottom:12px"},"All data is stored offline on this device (IndexedDB), per device — export a backup regularly, and after restoring on a new device, verify record counts before relying on it."),
+    importInput,
     el("div",{style:"display:flex;gap:10px;flex-wrap:wrap"},
       el("button",{class:"btn btn-gold btn-sm",onclick:exportData},"⬇ Export Backup (JSON)"),
-      el("button",{class:"btn btn-danger btn-sm",onclick:async()=>{if(confirm("Wipe ALL data and reseed? This cannot be undone."))await wipeAll();}},"⚠ Reset System")));
+      el("button",{class:"btn btn-ghost btn-sm",onclick:()=>importInput.click()},"⬆ Restore from Backup"),
+      el("button",{class:"btn btn-danger btn-sm",onclick:async()=>{if(prompt("This permanently deletes ALL data on this device and cannot be undone.\nType RESET to confirm:")==="RESET")await wipeAll();}},"⚠ Reset System")));
 
   // Bulletin manager
   const blp=panel("📢 School Bulletin (marquee)");
@@ -4392,11 +4495,33 @@ PAGES.settings=async()=>{
   m.append(glp);
   m.append(dp);
 };
-async function exportData(){const dump={meta:{app:"itinti_mis_v5.2.1",ts:Date.now()}};
+async function exportData(){const dump={meta:{app:"musenga_mis_v5.4.0",ts:Date.now()}};
   for(const s of STORES)dump[s]=await dbGetAll(s);
   const blob=new Blob([JSON.stringify(dump,null,2)],{type:"application/json"});
-  const a=el("a",{href:URL.createObjectURL(blob),download:"itinti_mis_backup_"+new Date().toISOString().slice(0,10)+".json"});a.click();toast("Backup exported","ok");}
-async function wipeAll(){for(const s of STORES){const all=await dbGetAll(s);for(const r of all)await dbDel(s,r.id);}_settings=null;await getSettings();await seedIfEmpty();toast("System reset","warn");logout();}
+  const a=el("a",{href:URL.createObjectURL(blob),download:"musenga_mis_backup_"+new Date().toISOString().slice(0,10)+".json"});a.click();
+  await audit("export-backup");toast("Backup exported","ok");}
+async function importDataFile(file){
+  let dump;
+  try{dump=JSON.parse(await file.text());}catch(e){return toast("Not a valid backup file (bad JSON).","err");}
+  if(!dump||typeof dump!=="object"||!dump.meta)return toast("Not a recognized Musenga MIS backup file.","err");
+  const storesInFile=STORES.filter(s=>Array.isArray(dump[s]));
+  if(!storesInFile.length)return toast("Backup file has no recognizable data.","err");
+  const when=dump.meta.ts?new Date(dump.meta.ts).toLocaleString():"unknown date";
+  if(!confirm(`Restore backup from ${dump.meta.app||"unknown version"} (${when})?\n\nThis REPLACES all current data on this device with the ${storesInFile.length} store(s) in the file.`))return;
+  for(const s of STORES){const all=await dbGetAll(s);for(const r of all)await dbDel(s,r.id);}
+  for(const s of storesInFile)for(const rec of dump[s])if(rec&&rec.id)await dbPut(s,rec);
+  _settings=null;await getSettings();
+  await audit("restore-backup:"+(dump.meta.app||"unknown"));
+  toast("Backup restored — reloading…","ok");
+  setTimeout(()=>location.reload(),1200);
+}
+async function wipeAll(){
+  // The audit trail itself lives in IndexedDB and is wiped below with
+  // everything else, so a reset can't be traced there afterwards — record
+  // a minimal marker in localStorage (untouched by the wipe) instead.
+  try{localStorage.setItem("musenga_last_reset",JSON.stringify({user:SESSION?.username||"unknown",ts:Date.now()}));}catch(e){}
+  for(const s of STORES){const all=await dbGetAll(s);for(const r of all)await dbDel(s,r.id);}
+  _settings=null;await getSettings();await seedIfEmpty();toast("System reset","warn");logout();}
 
 /* ============================================================
    BOOT
@@ -4404,6 +4529,7 @@ async function wipeAll(){for(const s of STORES){const all=await dbGetAll(s);for(
 (async function boot(){
   try{
     await openDB();await getSettings();await seedIfEmpty();
+    showSeedCredentials();
     await renderLanding();
     const resumed=await tryResumeSession();
     if(!resumed){$("#app").style.display="none";$("#landing").style.display="block";}
@@ -4411,7 +4537,7 @@ async function wipeAll(){for(const s of STORES){const all=await dbGetAll(s);for(
     if("serviceWorker" in navigator){
       const isHttp=location.protocol==="http:"||location.protocol==="https:";
       const registerBlob=()=>{
-        const sw=`self.addEventListener("install",e=>self.skipWaiting());self.addEventListener("activate",e=>self.clients.claim());self.addEventListener("fetch",e=>{e.respondWith(caches.open("itinti-v521").then(c=>c.match(e.request).then(r=>r||fetch(e.request).then(res=>{if(e.request.method==="GET"&&res.ok)c.put(e.request,res.clone());return res;}).catch(()=>caches.match("/")))));});`;
+        const sw=`self.addEventListener("install",e=>self.skipWaiting());self.addEventListener("activate",e=>self.clients.claim());self.addEventListener("fetch",e=>{e.respondWith(caches.open("musenga-mis-v540").then(c=>c.match(e.request).then(r=>r||fetch(e.request).then(res=>{if(e.request.method==="GET"&&res.ok)c.put(e.request,res.clone());return res;}).catch(()=>caches.match("/")))));});`;
         const url=URL.createObjectURL(new Blob([sw],{type:"text/javascript"}));
         navigator.serviceWorker.register(url).catch(()=>{});
       };
@@ -5216,16 +5342,18 @@ seedIfEmpty=async function(){
   if((await dbGetAll("departments")).length===0){for(const d of DEPTS_SEED)await dbPut("departments",{...d,hod:""});}
   const users=await dbGetAll("users");
   async function ensure(uname,name,role,extra){if(users.some(u=>u.username===uname))return;const salt=newSalt();
-    await dbPut("users",{id:uid("u_"),username:uname,fullName:name,role,salt,hash:await hashPw(extra.pw,salt),
+    const pw=randPass(),recoveryCode=randRecoveryCode();
+    await dbPut("users",{id:uid("u_"),username:uname,fullName:name,role,salt,hash:await hashPw(pw,salt),
       department:extra.dept||"",childAdm:extra.child||"",subjects:extra.subjects||[],
-      secQ:"What is the school's district?",secA:await hashPw("mungwi",salt),
-      recoveryCode:("MDSS-"+uid().slice(-6)).toUpperCase(),active:true,created:Date.now()});}
-  await ensure("headteacher","Mr. K. Mumba","headteacher",{pw:"head123"});
-  await ensure("deputy","Mrs. L. Chanda","deputy",{pw:"deputy123"});
-  await ensure("hodmath","Mr. O. Phiri","hod",{pw:"hod123",dept:"math_ict",subjects:["Mathematics","Computer Studies"]});
-  await ensure("teacher1","Ms. T. Banda","teacher",{pw:"teach123",dept:"sciences",subjects:["Biology","Chemistry"]});
+      secQ:"",secA:"",mustChangePassword:true,
+      recoveryCode,active:true,created:Date.now()});
+    _seedCredentials.push({username:uname,fullName:name,role,password:pw,recoveryCode});}
+  await ensure("headteacher","Mr. K. Mumba","headteacher",{});
+  await ensure("deputy","Mrs. L. Chanda","deputy",{});
+  await ensure("hodmath","Mr. O. Phiri","hod",{dept:"math_ict",subjects:["Mathematics","Computer Studies"]});
+  await ensure("teacher1","Ms. T. Banda","teacher",{dept:"sciences",subjects:["Biology","Chemistry"]});
   const st=await dbGetAll("students");
-  await ensure("parent1","Mr. J. Nsofu","parent",{pw:"parent123",child:(st[0]?.admissionNo||"")});
+  await ensure("parent1","Mr. J. Nsofu","parent",{child:(st[0]?.admissionNo||"")});
   if((await dbGetAll("assessments")).length===0){
     const sub=await dbGetAll("subjects");const sid=n=>sub.find(s=>s.name===n)?.id||"";
     const demo=[
@@ -5452,7 +5580,7 @@ PAGES.attendance=async()=>{
   async function save(rec,roster){rec.by=SESSION.username;rec.ts=Date.now();await dbPut("attendance",rec.id?rec:{...rec});
     const total=roster.length,pres=Object.values(rec.records).filter(v=>v==="P").length,abs=Object.values(rec.records).filter(v=>v==="A").length;
     await audit("attendance:"+rec.class+"/"+rec.date);toast("Register saved · "+pres+"/"+total+" present","ok");
-    const sm=$("#attSum");if(sm)sm.innerHTML="Present: <b>"+pres+"</b> · Absent: <b>"+abs+"</b> · Rate: <b>"+Math.round(pres/total*100)+"%</b>";}
+    const sm=$("#attSum");if(sm)sm.innerHTML="Present: <b>"+pres+"</b> · Absent: <b>"+abs+"</b> · Rate: <b>"+(total?Math.round(pres/total*100):0)+"%</b>";}
   async function notifyAbsent(rec,roster){const users=await dbGetAll("users");
     const absent=roster.filter(s=>rec.records[s.id]==="A");
     if(!absent.length){toast("No absentees marked","warn");return;}
