@@ -4435,7 +4435,8 @@ PAGES.certificates=async()=>{
    ============================================================ */
 PAGES.staff=async()=>{
   const m=$("#main");
-  m.append(head("Staff & Users","Manage portal accounts and roles."));
+  m.append(head("Staff & Users","Manage portal accounts and roles.",[
+    el("button",{class:"btn btn-primary btn-sm",onclick:addStaffModal},"+ Add Staff Account")]));
   const users=(await dbGetAll("users")).sort((a,b)=>a.role.localeCompare(b.role));
   const p=panel("👥 Portal Accounts");
   const tw=el("div",{class:"table-wrap"});const t=el("table");
@@ -4451,6 +4452,33 @@ PAGES.staff=async()=>{
   t.append(tb);tw.append(t);p.append(tw);m.append(p);
   m.append(panel("🛡️ Audit Log (recent)",await auditView()));
 };
+// Admin-created accounts get the same treatment as seeded ones: a random
+// one-time password (never chosen by the admin, never emailed/typed by
+// hand) shown exactly once via showSeedCredentials(), and the new user is
+// forced to set their own password + security question on first login.
+function addStaffModal(){
+  const roleSel=el("select",{id:"as_role"},...ROLES.map(([v,l])=>el("option",{value:v},l)));
+  appModal("Add Staff Account",[
+    inp("Full Name","as_name","","text","e.g. Mary Mwansa"),
+    inp("Username","as_user","","text","3+ characters, letters/numbers"),
+    el("div",{class:"field"},el("label",{},"Role"),roleSel),
+    el("div",{class:"field"},el("label",{},"Department (teachers & HODs)"),
+      el("select",{id:"as_dept"},el("option",{value:""},"— Not applicable —"),...DEPTS_SEED.map(d=>el("option",{value:d.id},d.name))))
+  ], async()=>{
+    const name=$("#as_name").value.trim(),uname=$("#as_user").value.trim().toLowerCase(),
+      role=$("#as_role").value,dept=$("#as_dept").value;
+    if(!name||uname.length<3){toast("Enter a full name and a username (3+ characters).","err");return false;}
+    if((await dbGetAll("users")).some(u=>u.username===uname)){toast("That username is taken.","err");return false;}
+    const salt=newSalt(),pw=randPass(),recoveryCode=randRecoveryCode();
+    await dbPut("users",{id:uid("u_"),username:uname,fullName:name,role,salt,hash:await hashPw(pw,salt),
+      department:dept,secQ:"",secA:"",mustChangePassword:true,recoveryCode,active:true,created:Date.now()});
+    await audit("create-user:"+uname+":"+role);
+    _seedCredentials.push({username:uname,fullName:name,role:ROLES.find(r=>r[0]===role)?.[1]||role,password:pw,recoveryCode});
+    toast("Account created — share the credentials shown next.","ok");
+    go("staff");
+    showSeedCredentials();
+  },"Create Account");
+}
 async function auditView(){const logs=(await dbGetAll("audit")).sort((a,b)=>b.ts-a.ts).slice(0,25);
   if(!logs.length)return emptyState("🛡️","No activity logged.");
   const list=el("div",{style:"font-size:13px;font-family:monospace"});
