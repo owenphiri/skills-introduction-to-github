@@ -63,6 +63,13 @@ def test_config_cors_merges_env():
     assert len(origins) == len(set(origins))
 
 
+def test_database_url_normalisation():
+    from backend.database import _normalise_url
+    assert _normalise_url("postgres://u:p@h:5432/db") == "postgresql://u:p@h:5432/db"
+    assert _normalise_url("postgresql://u:p@h/db") == "postgresql://u:p@h/db"
+    assert _normalise_url("sqlite:///./x.db") == "sqlite:///./x.db"
+
+
 def test_config_validation_flags_prod_misconfig():
     s = Settings(ENVIRONMENT="production", JWT_SECRET="change-me-short",
                  DATABASE_URL="sqlite:///./x.db", ANTHROPIC_API_KEY="")

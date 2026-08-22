@@ -15,10 +15,12 @@ class Settings(BaseSettings):
     BASE_URL: str = os.getenv("BASE_URL", "http://localhost:8000")
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
-    # Database
+    # Database (SQLite dev; managed Postgres / Supabase in prod)
     DATABASE_URL: str = os.getenv(
         "DATABASE_URL", "sqlite:///./voltexai.db"
     )
+    DB_POOL_SIZE: int = int(os.getenv("DB_POOL_SIZE", "5"))
+    DB_MAX_OVERFLOW: int = int(os.getenv("DB_MAX_OVERFLOW", "10"))
 
     # JWT / Auth
     JWT_SECRET: str = os.getenv("JWT_SECRET", "change-me-in-production-32-chars-min")

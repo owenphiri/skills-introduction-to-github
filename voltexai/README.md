@@ -102,9 +102,9 @@ GitHub Actions), **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** for Docker/Expo, a
 
 ## Production-ready
 
-- **CI/CD:** GitHub Actions runs `pytest` (38 tests) + Vite build + a security audit on
-  every push, and auto-deploys the web app to **Vercel** from `main` (API auto-deploys
-  via Render). Concurrency cancels stale runs.
+- **CI/CD:** GitHub Actions runs `pytest` (39 tests) + Vite build + a security audit on
+  every push, and auto-deploys the web app to **Vercel or Netlify** from `main` (API
+  on Render; DB on **Supabase** or Render Postgres). Concurrency cancels stale runs.
 - **Hardened API:** security headers, GZip, per-request id + timing, a global JSON error
   handler (no stack-trace leaks), a `/health/ready` DB probe, startup config validation,
   and per-IP brute-force throttling on auth.
