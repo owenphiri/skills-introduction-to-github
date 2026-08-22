@@ -3377,8 +3377,8 @@ const randPass=(len=10)=>randChars(len,"ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopq
 const randRecoveryCode=()=>"MDSS-"+randChars(6,"ABCDEFGHJKLMNPQRSTUVWXYZ23456789");
 
 /* ---------- IndexedDB ---------- */
-const DB_NAME="musenga_mis_v540", DB_VER=3;
-const STORES=["users","students","staff","grades","subjects","timetable","careers","counseling","procurement","stores","certificates","gamipoints","settings","audit","comms","teachers","gallery","bulletin","departments","assessments","attendance","notifications","feestructure","payments","transfers","liveclasses","loginAttempts"];
+const DB_NAME="musenga_mis_v540", DB_VER=4;
+const STORES=["users","students","staff","grades","subjects","timetable","careers","counseling","procurement","stores","certificates","gamipoints","settings","audit","comms","teachers","gallery","bulletin","departments","assessments","attendance","notifications","feestructure","payments","transfers","liveclasses","loginAttempts","aiSchemes","aiLessonPlans","aiQuizzes","aiChats","quizAttempts"];
 let _db=null;
 function openDB(){return new Promise((res,rej)=>{const r=indexedDB.open(DB_NAME,DB_VER);
   r.onupgradeneeded=e=>{const db=e.target.result;STORES.forEach(s=>{if(!db.objectStoreNames.contains(s))db.createObjectStore(s,{keyPath:"id"});});};
@@ -3817,6 +3817,13 @@ const NAV=[
    {id:"reportcards",ico:"🧾",label:"Report Cards",roles:["admin","teacher"]} ]},
  {g:"Welfare",items:[
    {id:"counseling",ico:"🔒",label:"Guidance & Counselling",roles:["admin","counselor"]} ]},
+ {g:"AI Tools",items:[
+   {id:"aihub",ico:"✨",label:"AI Teacher Assistant",roles:["admin","headteacher","deputy","hod","teacher"]},
+   {id:"aischemes",ico:"🗂️",label:"Schemes of Work",roles:["admin","headteacher","deputy","hod","teacher"]},
+   {id:"ailessons",ico:"📘",label:"Lesson Plans",roles:["admin","headteacher","deputy","hod","teacher"]},
+   {id:"aiquizbuilder",ico:"📝",label:"Quiz Builder",roles:["admin","headteacher","deputy","hod","teacher"]},
+   {id:"aiquizzes",ico:"🧠",label:"My Quizzes",roles:["student"]},
+   {id:"aicoding",ico:"💻",label:"Coding Tutor",roles:["student"]} ]},
  {g:"Administration",items:[
    {id:"certificates",ico:"📜",label:"Certificates",roles:["admin","teacher"]},
    {id:"ids",ico:"🪪",label:"Student ID Cards",roles:["admin","teacher"]},
@@ -3903,6 +3910,36 @@ function appModal(title,bodyNodes,onSave,saveLabel="Save"){
 }
 function inp(label,id,val="",type="text",ph=""){const f=el("div",{class:"field"});f.append(el("label",{},label),el("input",{id,type,value:val,placeholder:ph}));return f;}
 function sel(label,id,options,val){const f=el("div",{class:"field"});f.append(el("label",{},label),el("select",{id},...options.map(o=>{const[v,l]=Array.isArray(o)?o:[o,o];return el("option",{value:v,...(v==val?{selected:"1"}:{})},l);})));return f;}
+
+/* ============================================================
+   AI TOOLS — Teacher Assistant (Claude-backed serverless endpoints)
+   ============================================================ */
+// Calls api/ai/<endpoint>.js (see Musenga-MIS/api/). These endpoints only
+// exist once this app is deployed on Vercel with ANTHROPIC_API_KEY set —
+// `npm run dev`'s static file server has no /api support, so AI features
+// need `vercel dev` locally or a real deployment (see docs/DEPLOYMENT.md).
+async function aiCall(endpoint,payload){
+  let res;
+  try{
+    res=await fetch("/api/ai/"+endpoint,{method:"POST",headers:{"content-type":"application/json"},
+      body:JSON.stringify({...payload,schoolId:"musenga",role:SESSION?.role})});
+  }catch(e){throw new Error("Couldn't reach the AI service. If you're running locally, use `vercel dev` — the plain dev server doesn't serve /api routes.");}
+  const data=await res.json().catch(()=>({}));
+  if(!res.ok)throw new Error(data.error||("AI request failed (HTTP "+res.status+")."));
+  return data;
+}
+// Shared "Generate" button that shows a spinner state and surfaces errors
+// via toast, so every AI page doesn't reimplement this.
+function aiButton(label,onGenerate){
+  const btn=el("button",{class:"btn btn-primary btn-sm"},label);
+  btn.onclick=async()=>{
+    const orig=btn.textContent;btn.disabled=true;btn.textContent="Generating…";
+    try{await onGenerate();}
+    catch(e){toast(e.message,"err");}
+    finally{btn.disabled=false;btn.textContent=orig;}
+  };
+  return btn;
+}
 
 /* ============================================================
    PAGES
@@ -6973,6 +7010,250 @@ PAGES.whatsappbot=async()=>{
     el("li",{html:"On the gateway add <code>WA_TOKEN</code>, <code>WA_PHONE_ID</code> and <code>WA_SCHOOL=musenga</code>, then subscribe to <b>messages</b>."}),
     el("li",{html:"Done \u2014 parents, learners, teachers and admins message your number and the bot replies automatically."})));
   m.append(live);
+};
+</script>
+
+<script>
+/* ============================================================
+   AI TEACHER ASSISTANT — schemes of work, lesson plans, quizzes
+   with instant grading, and a student coding tutor. See
+   Musenga-MIS/api/ai/*.js for the server side of these calls.
+   ============================================================ */
+function aiSubjectSelect(id){return el("select",{id});}
+async function fillSubjectSelect(elm){
+  const subs=(await dbGetAll("subjects")).sort((a,b)=>a.name.localeCompare(b.name));
+  elm.append(...subs.map(s=>el("option",{value:s.name},s.name)));
+}
+function aiGradeSelect(id){return el("select",{id},...(_settings.activeClasses||[]).map(c=>el("option",{value:c},c)));}
+
+PAGES.aihub=async()=>{
+  const m=$("#main");
+  m.append(head("✨ AI Teacher Assistant","Generate schemes of work, lesson plans and quizzes for your classes — powered by Claude. Everything you generate is saved on this device."));
+  const grid=el("div",{style:"display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px"});
+  const cta=(ico,title,desc,page)=>{const c=el("div",{class:"panel",style:"cursor:pointer"});
+    c.append(el("div",{style:"font-size:30px;margin-bottom:8px"},ico),el("h3",{style:"margin-bottom:6px"},title),el("p",{style:"color:var(--muted);font-size:13px"},desc));
+    c.onclick=()=>go(page);return c;};
+  grid.append(
+    cta("🗂️","Schemes of Work","Generate a full-term, week-by-week scheme for any subject and grade.","aischemes"),
+    cta("📘","Lesson Plans","A classroom-ready lesson plan for a single period, in minutes.","ailessons"),
+    cta("📝","Quiz Builder","Generate a practice quiz that grades itself instantly for students.","aiquizbuilder"));
+  m.append(grid);
+  const [schemes,plans,quizzes]=await Promise.all([dbGetAll("aiSchemes"),dbGetAll("aiLessonPlans"),dbGetAll("aiQuizzes")]);
+  m.append(panel("📊 Your AI Library",
+    el("div",{style:"display:flex;gap:24px;flex-wrap:wrap;font-size:14px"},
+      el("div",{},el("b",{style:"font-size:22px"},String(schemes.length)),el("div",{style:"color:var(--muted)"},"Schemes of Work")),
+      el("div",{},el("b",{style:"font-size:22px"},String(plans.length)),el("div",{style:"color:var(--muted)"},"Lesson Plans")),
+      el("div",{},el("b",{style:"font-size:22px"},String(quizzes.length)),el("div",{style:"color:var(--muted)"},"Quizzes Published")))));
+  m.append(panel("ℹ️ Setup",el("p",{style:"font-size:13px;color:var(--muted)"},"These tools call a Claude-powered API deployed alongside this app. If a generation fails with a configuration error, ask an administrator to confirm ANTHROPIC_API_KEY is set on the Vercel project — see docs/DEPLOYMENT.md.")));
+};
+
+/* ---------- Schemes of Work ---------- */
+function renderSchemeTable(data){
+  const tw=el("div",{class:"table-wrap"});const t=el("table");
+  t.append(el("thead",{},el("tr",{},...["Wk","Topic","Objectives","Activities","Resources","Assessment"].map(h=>el("th",{},h)))));
+  const tb=el("tbody");
+  (data.weeks||[]).forEach(w=>tb.append(el("tr",{},
+    el("td",{},String(w.week)),el("td",{},w.topic),
+    el("td",{html:"<ul style='margin:0;padding-left:16px'>"+(w.objectives||[]).map(o=>"<li>"+esc(o)+"</li>").join("")+"</ul>"}),
+    el("td",{},w.activities),el("td",{},w.resources),el("td",{},w.assessment))));
+  t.append(tb);tw.append(t);return tw;
+}
+PAGES.aischemes=async()=>{
+  const m=$("#main");
+  m.append(head("🗂️ Schemes of Work","AI-generated, editable-in-spirit starting points — review before use."));
+  const p=panel("Generate a Scheme");
+  const subjSel=aiSubjectSelect("as_subject");await fillSubjectSelect(subjSel);
+  const form=el("div",{class:"grid-form"});
+  form.append(el("div",{class:"field"},el("label",{},"Subject"),subjSel),
+    el("div",{class:"field"},el("label",{},"Grade / Class"),aiGradeSelect("as_grade")),
+    sel("Term",  "as_term",["Term 1","Term 2","Term 3"]),
+    inp("Number of Weeks","as_weeks","12","number"));
+  p.append(form);
+  p.append(aiButton("✨ Generate Scheme",async()=>{
+    const subject=$("#as_subject").value,grade=$("#as_grade").value,term=$("#as_term").value,weeks=+$("#as_weeks").value||12;
+    const data=await aiCall("scheme-of-work",{subject,grade,term,weeks});
+    const rec={id:uid("sc_"),subject,grade,term,weeks,data,by:SESSION.username,byName:SESSION.fullName,ts:Date.now()};
+    await dbPut("aiSchemes",rec);await audit("ai:scheme-of-work:"+subject);
+    toast("Scheme generated","ok");go("aischemes");
+  }));
+  m.append(p);
+  const saved=(await dbGetAll("aiSchemes")).sort((a,b)=>b.ts-a.ts);
+  if(!saved.length)m.append(emptyState("🗂️","No schemes generated yet."));
+  saved.forEach(s=>{
+    const sp=panel(esc(s.subject)+" — "+esc(s.grade)+" · "+esc(s.term)+" <span style='font-size:12px;color:var(--muted);font-weight:400'>"+new Date(s.ts).toLocaleDateString()+" · "+esc(s.byName||s.by)+"</span>");
+    sp.append(renderSchemeTable(s.data));
+    sp.append(el("div",{style:"margin-top:10px;display:flex;gap:8px"},
+      el("button",{class:"btn btn-ghost btn-sm",onclick:()=>window.print()},"🖨 Print"),
+      el("button",{class:"btn btn-danger btn-sm",onclick:async()=>{if(confirm("Delete this scheme?")){await dbDel("aiSchemes",s.id);go("aischemes");}}},"✕ Delete")));
+    m.append(sp);
+  });
+};
+
+/* ---------- Lesson Plans ---------- */
+function renderLessonPlan(data){
+  const box=el("div");
+  box.append(el("p",{},el("b",{},"Objectives: "),(data.objectives||[]).join("; ")),
+    el("p",{},el("b",{},"Prior Knowledge: "),data.priorKnowledge||""),
+    el("p",{},el("b",{},"Introduction: "),data.introduction||""));
+  const tw=el("div",{class:"table-wrap"});const t=el("table");
+  t.append(el("thead",{},el("tr",{},...["Step","Teacher Activity","Learner Activity","Mins"].map(h=>el("th",{},h)))));
+  const tb=el("tbody");(data.development||[]).forEach(d=>tb.append(el("tr",{},el("td",{},d.step),el("td",{},d.teacherActivity),el("td",{},d.learnerActivity),el("td",{},String(d.timeMins||"")))));
+  t.append(tb);tw.append(t);box.append(tw);
+  box.append(el("p",{style:"margin-top:10px"},el("b",{},"Assessment: "),data.assessment||""),
+    el("p",{},el("b",{},"Conclusion: "),data.conclusion||""),
+    el("p",{},el("b",{},"Resources: "),(data.resources||[]).join(", ")),
+    el("p",{},el("b",{},"Homework: "),data.homework||""));
+  return box;
+}
+PAGES.ailessons=async()=>{
+  const m=$("#main");
+  m.append(head("📘 Lesson Plans","One period, ready to teach — review before use."));
+  const p=panel("Generate a Lesson Plan");
+  const subjSel=aiSubjectSelect("al_subject");await fillSubjectSelect(subjSel);
+  const form=el("div",{class:"grid-form"});
+  form.append(el("div",{class:"field"},el("label",{},"Subject"),subjSel),
+    inp("Topic","al_topic","","text","e.g. Photosynthesis"),
+    el("div",{class:"field"},el("label",{},"Grade / Class"),aiGradeSelect("al_grade")),
+    inp("Period Length (minutes)","al_duration","40","number"));
+  p.append(form);
+  p.append(aiButton("✨ Generate Lesson Plan",async()=>{
+    const subject=$("#al_subject").value,topic=$("#al_topic").value.trim(),grade=$("#al_grade").value,durationMins=+$("#al_duration").value||40;
+    if(!topic)return toast("Enter a topic","err");
+    const data=await aiCall("lesson-plan",{subject,topic,grade,durationMins});
+    const rec={id:uid("lp_"),subject,topic,grade,durationMins,data,by:SESSION.username,byName:SESSION.fullName,ts:Date.now()};
+    await dbPut("aiLessonPlans",rec);await audit("ai:lesson-plan:"+subject+"/"+topic);
+    toast("Lesson plan generated","ok");go("ailessons");
+  }));
+  m.append(p);
+  const saved=(await dbGetAll("aiLessonPlans")).sort((a,b)=>b.ts-a.ts);
+  if(!saved.length)m.append(emptyState("📘","No lesson plans generated yet."));
+  saved.forEach(s=>{
+    const sp=panel(esc(s.subject)+" — "+esc(s.topic)+" <span style='font-size:12px;color:var(--muted);font-weight:400'>"+esc(s.grade)+" · "+new Date(s.ts).toLocaleDateString()+"</span>");
+    sp.append(renderLessonPlan(s.data));
+    sp.append(el("div",{style:"margin-top:10px;display:flex;gap:8px"},
+      el("button",{class:"btn btn-ghost btn-sm",onclick:()=>window.print()},"🖨 Print"),
+      el("button",{class:"btn btn-danger btn-sm",onclick:async()=>{if(confirm("Delete this lesson plan?")){await dbDel("aiLessonPlans",s.id);go("ailessons");}}},"✕ Delete")));
+    m.append(sp);
+  });
+};
+
+/* ---------- Quiz Builder (teacher) + My Quizzes (student, instant grading) ---------- */
+PAGES.aiquizbuilder=async()=>{
+  const m=$("#main");
+  m.append(head("📝 Quiz Builder","Generate a practice quiz — students see it under \"My Quizzes\" and get their score immediately on submit."));
+  const p=panel("Generate a Quiz");
+  const subjSel=aiSubjectSelect("aq_subject");await fillSubjectSelect(subjSel);
+  const form=el("div",{class:"grid-form"});
+  form.append(el("div",{class:"field"},el("label",{},"Subject"),subjSel),
+    inp("Topic","aq_topic","","text","e.g. Quadratic Equations"),
+    el("div",{class:"field"},el("label",{},"Grade / Class"),aiGradeSelect("aq_grade")),
+    inp("Number of Questions","aq_count","10","number"),
+    sel("Difficulty","aq_diff",["easy","medium","hard"],"medium"));
+  p.append(form);
+  p.append(aiButton("✨ Generate Quiz",async()=>{
+    const subject=$("#aq_subject").value,topic=$("#aq_topic").value.trim(),grade=$("#aq_grade").value,count=+$("#aq_count").value||10,difficulty=$("#aq_diff").value;
+    if(!topic)return toast("Enter a topic","err");
+    const data=await aiCall("quiz",{subject,topic,grade,count,difficulty});
+    const rec={id:uid("qz_"),subject,topic,grade,difficulty,questions:data.questions,by:SESSION.username,byName:SESSION.fullName,ts:Date.now()};
+    await dbPut("aiQuizzes",rec);await audit("ai:quiz:"+subject+"/"+topic);
+    toast("Quiz published — students can take it now","ok");go("aiquizbuilder");
+  }));
+  m.append(p);
+  const saved=(await dbGetAll("aiQuizzes")).sort((a,b)=>b.ts-a.ts);
+  const attempts=await dbGetAll("quizAttempts");
+  if(!saved.length)m.append(emptyState("📝","No quizzes published yet."));
+  saved.forEach(qz=>{
+    const n=attempts.filter(a=>a.quizId===qz.id).length;
+    const sp=panel(esc(qz.subject)+" — "+esc(qz.topic)+" <span style='font-size:12px;color:var(--muted);font-weight:400'>"+esc(qz.grade)+" · "+qz.questions.length+" questions · "+n+" attempt(s)</span>");
+    sp.append(el("div",{style:"display:flex;gap:8px"},
+      el("button",{class:"btn btn-danger btn-sm",onclick:async()=>{if(confirm("Delete this quiz? Past attempts stay recorded."))
+        {await dbDel("aiQuizzes",qz.id);go("aiquizbuilder");}}},"✕ Delete")));
+    m.append(sp);
+  });
+};
+
+function gradeQuizAttempt(qz,answers){
+  let correct=0;qz.questions.forEach((q,i)=>{if(answers[i]===q.correctIndex)correct++;});
+  return {score:correct,total:qz.questions.length};
+}
+PAGES.aiquizzes=async()=>{
+  const m=$("#main");
+  m.append(head("🧠 My Quizzes","Pick a quiz, answer it, and get your score immediately."));
+  const all=(await dbGetAll("aiQuizzes")).sort((a,b)=>b.ts-a.ts);
+  const attempts=await dbGetAll("quizAttempts");
+  if(!all.length){m.append(emptyState("🧠","No quizzes available yet — check back after your teacher publishes one."));return;}
+  all.forEach(qz=>{
+    const mine=attempts.filter(a=>a.quizId===qz.id&&a.student===SESSION.username).sort((a,b)=>b.ts-a.ts);
+    const p=panel(esc(qz.subject)+" — "+esc(qz.topic)+" <span style='font-size:12px;color:var(--muted);font-weight:400'>"+esc(qz.grade)+" · "+qz.questions.length+" questions</span>");
+    if(mine.length)p.append(el("div",{style:"font-size:13px;color:var(--muted);margin-bottom:8px"},"Best score: "+Math.max(...mine.map(a=>a.score))+"/"+qz.questions.length+" · Attempts: "+mine.length));
+    const host=el("div");p.append(host);
+    p.append(el("button",{class:"btn btn-primary btn-sm",onclick:()=>renderQuizTaker(qz,host)},mine.length?"Try Again":"Start Quiz"));
+    m.append(p);
+  });
+};
+function renderQuizTaker(qz,host){
+  host.innerHTML="";
+  const answers=new Array(qz.questions.length).fill(-1);
+  qz.questions.forEach((q,i)=>{
+    const qp=el("div",{style:"margin:14px 0;padding:12px;border:1px solid var(--line);border-radius:10px"});
+    qp.append(el("div",{style:"font-weight:600;margin-bottom:8px"},(i+1)+". "+q.question));
+    q.choices.forEach((c,ci)=>{
+      const lbl=el("label",{style:"display:flex;gap:8px;align-items:center;padding:6px 0;cursor:pointer"});
+      const r=el("input",{type:"radio",name:"q"+i,onchange:()=>answers[i]=ci});
+      lbl.append(r,el("span",{},c));qp.append(lbl);
+    });
+    host.append(qp);
+  });
+  const submitBtn=el("button",{class:"btn btn-primary btn-block",style:"margin-top:8px"},"Submit Answers");
+  submitBtn.onclick=async()=>{
+    if(answers.includes(-1))return toast("Answer every question before submitting.","err");
+    const {score,total}=gradeQuizAttempt(qz,answers);
+    await dbPut("quizAttempts",{id:uid("qa_"),quizId:qz.id,student:SESSION.username,studentName:SESSION.fullName,answers,score,total,ts:Date.now()});
+    await audit("ai:quiz-attempt:"+qz.subject+" "+score+"/"+total);
+    host.innerHTML="";
+    host.append(el("div",{style:"text-align:center;padding:20px"},
+      el("div",{style:"font-size:40px"},score===total?"🏆":score/total>=0.5?"👍":"📖"),
+      el("h2",{},"Score: "+score+" / "+total),
+      el("p",{style:"color:var(--muted)"},Math.round(score/total*100)+"%")));
+    qz.questions.forEach((q,i)=>{
+      const ok=answers[i]===q.correctIndex;
+      host.append(el("div",{style:"margin:10px 0;padding:12px;border-radius:10px;background:"+(ok?"rgba(60,150,90,.08)":"rgba(200,60,60,.08)")},
+        el("div",{style:"font-weight:600"},(i+1)+". "+q.question),
+        el("div",{style:"margin-top:4px"},(ok?"✅ ":"❌ ")+"Correct answer: "+q.choices[q.correctIndex]),
+        el("div",{style:"margin-top:4px;font-size:13px;color:var(--muted)"},q.explanation)));
+    });
+  };
+  host.append(submitBtn);
+}
+
+/* ---------- AI Coding Tutor (student) ---------- */
+PAGES.aicoding=async()=>{
+  const m=$("#main");
+  m.append(head("💻 AI Coding Tutor","Ask for help with Computer Studies programming — the tutor guides you rather than just giving answers."));
+  const p=panel("Chat");
+  const body=el("div",{style:"max-height:420px;overflow-y:auto;padding:8px;border:1px solid var(--line);border-radius:10px;margin-bottom:10px"});
+  let chat=await dbGet("aiChats",SESSION.username);
+  if(!chat)chat={id:SESSION.username,messages:[],ts:Date.now()};
+  function bubble(role,text){
+    body.append(el("div",{style:"margin:8px 0;text-align:"+(role==="user"?"right":"left")},
+      el("span",{style:"display:inline-block;max-width:80%;padding:8px 12px;border-radius:12px;background:"+(role==="user"?"var(--accent,#6D28D9)":"var(--cream-d)")+";color:"+(role==="user"?"#fff":"var(--ink)")},text)));
+    body.scrollTop=body.scrollHeight;
+  }
+  chat.messages.forEach(msg=>bubble(msg.role,msg.content));
+  p.append(body);
+  const row=el("div",{style:"display:flex;gap:8px"});
+  const inpEl=el("input",{placeholder:"Ask a coding question, or paste code that's not working…",style:"flex:1;padding:10px;border:1.5px solid var(--line);border-radius:10px"});
+  const send=aiButton("Send",async()=>{
+    const text=inpEl.value.trim();if(!text)return;
+    inpEl.value="";bubble("user",text);chat.messages.push({role:"user",content:text});
+    const {reply}=await aiCall("coding-tutor",{messages:chat.messages});
+    bubble("assistant",reply);chat.messages.push({role:"assistant",content:reply});
+    chat.ts=Date.now();await dbPut("aiChats",chat);
+  });
+  inpEl.addEventListener("keydown",e=>{if(e.key==="Enter")send.click();});
+  row.append(inpEl,send);p.append(row);
+  if(chat.messages.length)p.append(el("div",{style:"margin-top:10px"},el("button",{class:"btn btn-ghost btn-sm",onclick:async()=>{if(confirm("Clear this conversation?")){await dbDel("aiChats",SESSION.username);go("aicoding");}}},"Clear Conversation")));
+  m.append(p);
 };
 </script>
 

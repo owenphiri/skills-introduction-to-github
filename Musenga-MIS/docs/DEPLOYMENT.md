@@ -110,6 +110,52 @@ If you don't own a domain yet, the `*.vercel.app` URL is already globally
 reachable over HTTPS — a custom domain is a cosmetic/branding upgrade, not a
 requirement for global availability.
 
+## AI Teacher Assistant (schemes of work, lesson plans, quizzes, coding tutor)
+
+These live in `api/ai/*.js` as Vercel serverless functions (Node, no
+dependencies — plain `fetch` against the Anthropic API) and are called by
+the frontend's "AI Tools" nav group. They need one environment variable to
+work at all, set the same way regardless of which deploy option you used
+above — **Vercel Project → Settings → Environment Variables**:
+
+| Variable | Required | Notes |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | Yes | From https://console.anthropic.com/settings/keys. Without it, every AI page shows a clear "not configured" error instead of failing silently. |
+| `ANTHROPIC_MODEL` | No | Defaults to `claude-sonnet-5`. |
+| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | No | Only for the optional usage/telemetry log — see below. Everything works without these. |
+
+After adding/changing any of these, redeploy for them to take effect (Option
+A redeploys automatically on the next push; Option B on the next workflow
+run — trigger one manually from the Vercel dashboard if you just want the
+env var to apply without a code change).
+
+**Testing locally**: `npm run dev` is a plain static file server with no
+`/api` support, so it can't exercise the AI pages. Use the Vercel CLI's
+local emulator instead, which runs both the static site and the `api/`
+functions:
+
+```bash
+cd Musenga-MIS
+npm install -g vercel   # once
+vercel dev
+```
+
+### Optional: Supabase usage log (multi-tenant-ready, not required)
+
+`supabase/schema.sql` defines a `schools` table (seeded with just Musenga)
+and an `ai_usage` table scoped by `school_id`, with RLS enabled. This exists
+so a second school can be added later (one `INSERT` + a new `schoolId`
+passed from the frontend) without a schema change — it is **not** a
+migration of the app's actual data (students, grades, etc.), which stays in
+each device's IndexedDB exactly as it does today.
+
+To enable it: create a free project at https://supabase.com, run
+`supabase/schema.sql` in its SQL editor, then set `SUPABASE_URL` (Project
+Settings → API) and `SUPABASE_SERVICE_ROLE_KEY` (same page — keep this
+secret, it bypasses RLS) as Vercel environment variables. If you skip this
+entirely, the AI features still work identically; usage just isn't logged
+anywhere.
+
 ## What CI checks before any of this deploys
 
 `.github/workflows/musenga-mis-ci.yml` runs `npm run validate`

@@ -26,6 +26,9 @@ jobs:
       - name: Validate index.html
         run: npm run validate
 
+      - name: Syntax-check serverless functions (api/**/*.js)
+        run: find api -name '*.js' -print0 | xargs -0 -n1 node --check
+
       - name: Check bundle size stays reasonable
         run: |
           size=$(stat -c%s public/index.html)

@@ -3,6 +3,9 @@
   "outputDirectory": "public",
   "cleanUrls": true,
   "trailingSlash": false,
+  "functions": {
+    "api/**/*.js": { "runtime": "nodejs22.x" }
+  },
   "headers": [
     {
       "source": "/(.*)",

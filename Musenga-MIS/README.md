@@ -13,6 +13,12 @@ user-configured external SMS/push "gateway" server (set under Settings) —
 that gateway is not part of this deployment and stays disabled until a school
 admin points it at one.
 
+An **AI Teacher Assistant** (Claude-backed) lives under the "AI Tools" nav
+group: schemes of work, lesson plans and self-grading quizzes for
+teachers/HODs/admins, plus a Socratic coding tutor for students studying
+Computer Studies. Unlike the rest of the app, this needs a small server
+component — see [AI Teacher Assistant](#ai-teacher-assistant) below.
+
 ## Quick start (local)
 
 No build step, no dependencies — just a tiny static server so the app runs
@@ -33,13 +39,30 @@ separate, later concern (see CI/CD below).
 
 ```
 Musenga-MIS/
-  public/index.html      The entire application (markup, CSS and JS in one file)
-  vercel.json             Static hosting config: output dir, security headers, caching
+  public/index.html      The main application (markup, CSS and JS in one file)
+  public/sw.js            Service worker: offline cache + push notification display
+  api/ai/*.js              Vercel serverless functions backing the AI Teacher Assistant
+  api/_lib/                Shared helpers (Anthropic call wrapper, request handler, usage logging)
+  supabase/schema.sql      Optional multi-tenant-ready usage log (see AI section below)
+  vercel.json              Static hosting config: output dir, security headers, caching
   scripts/dev-server.js   Local dev server (localhost, env-configurable HOST/PORT)
   scripts/validate.js     CI sanity check (well-formed HTML + inline <script> syntax)
-  .env.example            HOST/PORT for dev; PRODUCTION_DOMAIN placeholder for later
-  docs/DEPLOYMENT.md      How this goes live on Vercel, incl. custom domain setup
+  .env.example            Local dev + AI/domain env vars reference (see docs/DEPLOYMENT.md)
+  docs/DEPLOYMENT.md      How this goes live on Vercel, incl. AI setup and custom domain
 ```
+
+## AI Teacher Assistant
+
+Requires one environment variable on the Vercel deployment —
+`ANTHROPIC_API_KEY` — set under Project → Settings → Environment Variables.
+Without it, every AI page shows a clear configuration error instead of
+failing silently. Full setup (including the optional Supabase usage log and
+how to test AI features locally with `vercel dev`) is in
+[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md#ai-teacher-assistant-schemes-of-work-lesson-plans-quizzes-coding-tutor).
+
+Generated content (schemes, lesson plans, quizzes, quiz attempts, coding-tutor
+chats) is saved to each device's IndexedDB, same as the rest of the app's
+data — the API layer itself is stateless per request.
 
 ## CI/CD
 
