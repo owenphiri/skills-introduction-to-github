@@ -1,4 +1,4 @@
-# Deploying Musenga MIS to Vercel
+# Deploying Musenga MIS to Vercel (and optionally Netlify)
 
 This app is a single static HTML file (`public/index.html`), so hosting it is
 just "serve this file over HTTPS from a CDN." Vercel does that for free with
@@ -96,6 +96,27 @@ the `*.vercel.app` URL. Once you have a domain:
    domain needs DNS verification first (see below), that step logs a warning
    and the rest of the deploy still succeeds — just add the domain manually
    in the dashboard once, then future pushes keep it in sync.
+
+## Option C — Netlify (redundant/alternate static host)
+
+Netlify hosts the same `public/` and doesn't replace either Vercel option
+above — it's for redundancy (this repo's `voltexai/` runs the same
+frontend on both hosts), or if you just prefer Netlify.
+
+[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https%3A%2F%2Fgithub.com%2Fowenphiri%2Fskills-introduction-to-github&base=Musenga-MIS)
+
+Or manually: **Add new site → Import an existing project**, pick this repo,
+set **Base directory** to `Musenga-MIS` — everything else (`publish =
+"public"`, headers) comes from `Musenga-MIS/netlify.toml`.
+
+**The catch**: `api/ai/*.js` is written for Vercel's serverless function
+signature, so it doesn't run as Netlify Functions as-is. Deployed on Netlify
+alone, every non-AI page works fully (all record-keeping is local/
+IndexedDB regardless of host) — only the AI Teacher Assistant pages need
+one more step: deploy on Vercel too (Option A above), then in
+`Musenga-MIS/netlify.toml` uncomment the `/api/*` redirect and point it at
+that Vercel deployment's URL. Netlify then proxies AI requests to Vercel
+same-origin (no CORS setup, no second copy of `ANTHROPIC_API_KEY` needed).
 
 ## Custom domain — DNS records
 
