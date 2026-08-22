@@ -18,3 +18,6 @@ mobile/dist/
 
 # OS
 .DS_Store
+
+# VoltexAI ships an intentional reference schema (root .gitignore blocks *.sql)
+!supabase/schema.sql

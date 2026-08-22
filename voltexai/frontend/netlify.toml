@@ -1,0 +1,42 @@
+# VoltexAI web — Netlify configuration.
+# Monorepo: in the Netlify UI set the site's **Base directory** to `voltexai/frontend`
+# so this file and the build run from here. Set VITE_API_URL to your API URL.
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# SPA fallback: serve index.html for client-side routes (real files win first).
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Optional same-origin API proxy — uncomment and set your API host to avoid CORS.
+# [[redirects]]
+#   from = "/api/*"
+#   to = "https://voltexai-api.onrender.com/api/:splat"
+#   status = 200
+#   force = true
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "geolocation=(), microphone=(), camera=()"
+    Strict-Transport-Security = "max-age=63072000; includeSubDomains; preload"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
