@@ -1,0 +1,54 @@
+# Musenga MIS — Netlify configuration.
+# Monorepo: in the Netlify UI set the site's **Base directory** to
+# `Musenga-MIS` so this file and the publish path below run from here.
+#
+# This is a zero-build static site (public/index.html is the whole app),
+# so there's no [build] command — Netlify just uploads `public/` as-is.
+#
+# The AI Teacher Assistant's backend (api/ai/*.js) is written for Vercel's
+# serverless function signature (req/res), not Netlify Functions' (event/
+# context) — rather than maintaining two copies of the same logic, deploy
+# the API once on Vercel (see ../docs/DEPLOYMENT.md) and uncomment the
+# proxy redirect below with that deployment's URL. Without it, the rest of
+# the app (records, attendance, grading, etc. — all local/IndexedDB) works
+# fully on Netlify; only the AI pages need the proxy target set.
+
+[build]
+  publish = "public"
+
+# Same-origin API proxy to the Vercel-hosted AI functions — uncomment and
+# set your Vercel deployment's domain once it exists.
+# [[redirects]]
+#   from = "/api/*"
+#   to = "https://musenga-mis.vercel.app/api/:splat"
+#   status = 200
+#   force = true
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "geolocation=(self), camera=(), microphone=()"
+    Strict-Transport-Security = "max-age=63072000; includeSubDomains; preload"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/manifest.webmanifest"
+  [headers.values]
+    Content-Type = "application/manifest+json"
+
+[[headers]]
+  for = "/icons/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

@@ -32,6 +32,21 @@ root directory, build settings and everything are already read from
 under a minute. It tracks `main`, so every future merge to `main` redeploys
 automatically.
 
+**Prefer Netlify** (same static site, e.g. for redundancy alongside
+Vercel — this is how `voltexai/` is set up in this repo too)?
+
+[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https%3A%2F%2Fgithub.com%2Fowenphiri%2Fskills-introduction-to-github&base=Musenga-MIS)
+
+This deploys the exact same `public/` from `netlify.toml`. The catch: the AI
+Teacher Assistant's backend (`api/ai/*.js`) is written for Vercel's
+serverless function signature, not Netlify's — so on a Netlify-only
+deployment, everything except the AI pages works out of the box (records,
+attendance, grading, certificates, etc. are all local/IndexedDB regardless of
+host). To get the AI features working there too, deploy on Vercel first (the
+button above), then uncomment the `/api/*` proxy redirect in
+`Musenga-MIS/netlify.toml` with that Vercel URL — Netlify then forwards AI
+requests to it same-origin, no CORS setup needed.
+
 **Install it as an app on a phone**: open the deployed URL on a phone
 browser (Chrome on Android, Safari on iOS) — Android shows an "Install app"
 / "Add to Home screen" prompt automatically (thanks to `public/manifest.webmanifest`
@@ -71,6 +86,7 @@ Musenga-MIS/
   api/_lib/                Shared helpers (Anthropic call wrapper, request handler, usage logging)
   supabase/schema.sql      Optional multi-tenant-ready usage log (see AI section below)
   vercel.json              Static hosting config: output dir, security headers, caching
+  netlify.toml             Alternate/redundant static host — proxies /api/* to Vercel
   scripts/dev-server.js   Local dev server (localhost, env-configurable HOST/PORT)
   scripts/validate.js     CI sanity check (well-formed HTML + inline <script> syntax)
   .env.example            Local dev + AI/domain env vars reference (see docs/DEPLOYMENT.md)
