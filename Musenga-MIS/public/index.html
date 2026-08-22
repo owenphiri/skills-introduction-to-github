@@ -3676,7 +3676,7 @@ function renderAuth(view){
 const MAX_LOGIN_ATTEMPTS=5,LOGIN_LOCK_MS=5*60*1000;
 async function recordLoginFailure(u){
   const st=(await dbGet("loginAttempts",u))||{id:u,count:0,lockedUntil:0};
-  st.count=(st.count||0)+1;
+  st.count=(st.count||0)+1;st.ts=Date.now();
   if(st.count>=MAX_LOGIN_ATTEMPTS){st.lockedUntil=Date.now()+LOGIN_LOCK_MS;st.count=0;}
   await dbPut("loginAttempts",st);
   await audit("login-failed:"+u);
@@ -4561,11 +4561,34 @@ async function wipeAll(){
   _settings=null;await getSettings();await seedIfEmpty();toast("System reset","warn");logout();}
 
 /* ============================================================
+   RETENTION — log-type IndexedDB stores accumulate forever on a device
+   with no server to archive to, so anything without long-term
+   record-keeping value (system log, message log, in-app notifications,
+   stale login-lockout entries) is pruned past a generous age. Real
+   academic records (students, grades, attendance, ...) are NEVER touched
+   here — this is deliberately narrow.
+   ============================================================ */
+const RETENTION_DAYS={audit:730,comms:730,notifications:365,loginAttempts:30};
+async function pruneOldRecords(){
+  const lastRun=+(localStorage.getItem("musenga_last_prune")||0);
+  if(Date.now()-lastRun<24*60*60*1000)return; // at most once/day
+  try{
+    for(const [store,days] of Object.entries(RETENTION_DAYS)){
+      const cutoff=Date.now()-days*24*60*60*1000;
+      const all=await dbGetAll(store);
+      for(const r of all)if(r.ts&&r.ts<cutoff)await dbDel(store,r.id);
+    }
+    localStorage.setItem("musenga_last_prune",String(Date.now()));
+  }catch(e){console.error("pruneOldRecords failed (non-fatal):",e);}
+}
+
+/* ============================================================
    BOOT
    ============================================================ */
 (async function boot(){
   try{
     await openDB();await getSettings();await seedIfEmpty();
+    pruneOldRecords(); // fire-and-forget — never delays app startup
     showSeedCredentials();
     await renderLanding();
     const resumed=await tryResumeSession();
