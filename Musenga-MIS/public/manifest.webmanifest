@@ -1,0 +1,16 @@
+{
+  "name": "Musenga Day Secondary School MIS",
+  "short_name": "Musenga MIS",
+  "description": "Musenga Day Secondary School Management Information System",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#FBF7EC",
+  "theme_color": "#6D28D9",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

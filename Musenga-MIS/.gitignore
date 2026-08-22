@@ -1,0 +1,6 @@
+.vercel
+.env
+
+# The root .gitignore blanket-ignores *.sql (meant for DB dumps elsewhere
+# in this repo) — this one is source code (a migration script), not data.
+!supabase/schema.sql

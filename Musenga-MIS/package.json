@@ -1,0 +1,16 @@
+{
+  "name": "musenga-mis",
+  "version": "5.4.0",
+  "description": "Musenga Day Secondary School — Management Information System. Self-contained single-file HTML/CSS/JS app (IndexedDB-backed, offline-capable), deployed as a static site.",
+  "private": true,
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env scripts/dev-server.js",
+    "validate": "node scripts/validate.js",
+    "validate:api": "find api -name '*.js' -print0 | xargs -0 -n1 node --check",
+    "test": "npm run validate && npm run validate:api"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "license": "MIT"
+}
