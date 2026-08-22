@@ -52,22 +52,30 @@ schema in [`../supabase/README.md`](../supabase/README.md).
    `sslmode=require`, so the raw URI works. Tables auto-create on boot; optionally
    apply `voltexai/supabase/schema.sql`.
 
-## 2. Deploy the API (Render)
+## 2. Deploy the API (Render) — one click
 
-The blueprint `voltexai/render.yaml` provisions Postgres + the API in one click.
-(To use **Supabase** instead of Render Postgres, skip the DB and set `DATABASE_URL`
-to your Supabase URI.)
+The **root `render.yaml`** deploys the FastAPI API (DB on Supabase, web on Vercel).
 
-1. Push this repo to GitHub.
-2. Render → **New → Blueprint** → pick the repo → apply.
-3. Fill the `sync: false` secrets in the Render dashboard:
-   `ANTHROPIC_API_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`,
-   `FLW_SECRET_KEY`, `FLW_WEBHOOK_HASH`, and (optional live data/exec)
-   `TWELVEDATA_API_KEY`, `OANDA_API_TOKEN`, `OANDA_ACCOUNT_ID`.
-4. Set `ENVIRONMENT=production` and `CORS_ORIGINS=https://<your-vercel-domain>`.
-5. Health check path is `/health`; readiness is `/health/ready` (checks the DB).
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/owenphiri/skills-introduction-to-github)
 
-Note the API URL, e.g. `https://voltexai-api.onrender.com`.
+**The one-key flow:**
+1. Click the button ☝️ (or Render → **New → Blueprint** → pick this repo). Render
+   auto-detects `render.yaml` at the repo root.
+2. Render shows a form for the `sync: false` values — **paste `DATABASE_URL`**
+   (your Supabase URI). `JWT_SECRET` is auto-generated; `CORS_ORIGINS` /
+   `FRONTEND_URL` default to `https://voltexai.vercel.app`; everything else has a
+   safe default and can stay blank.
+3. **Apply** → Render builds and boots the API. Health check `/health`, readiness
+   `/health/ready` (verifies the Supabase connection). Note the API URL, e.g.
+   `https://voltexai-api.onrender.com`.
+4. Back in **Vercel → voltexai → Settings → Environment Variables**, set
+   `VITE_API_URL` = that API URL and redeploy. Done — front-to-back live.
+
+Optional secrets you can fill now or later: `ANTHROPIC_API_KEY` (AI Terminal),
+`TWELVEDATA_API_KEY` / `OANDA_*` (live data & forex), `STRIPE_*` / `FLW_*` (payments).
+
+> The all-Render variant (API + Render Postgres + static web) lives at
+> `voltexai/render.yaml` if you'd rather not use Supabase/Vercel.
 
 ## 3. Deploy the web app — pick one
 

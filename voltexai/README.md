@@ -100,6 +100,10 @@ See **[docs/GO_LIVE.md](docs/GO_LIVE.md)** for the full CI/CD runbook (Vercel + 
 GitHub Actions), **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** for Docker/Expo, and
 **[docs/PITCH_DECK.md](docs/PITCH_DECK.md)** for the investor story.
 
+**Deploy the API in one click** (DB on Supabase, web on Vercel):
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/owenphiri/skills-introduction-to-github)
+
 ## Production-ready
 
 - **CI/CD:** GitHub Actions runs `pytest` (39 tests) + Vite build + a security audit on

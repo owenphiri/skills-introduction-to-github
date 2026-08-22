@@ -1,0 +1,60 @@
+# ============================================================
+# VoltexAI — one-click Render Blueprint (repo root, so Render auto-detects it).
+#
+# Deploys the FastAPI API only. Pair with:
+#   • Database → Supabase (paste DATABASE_URL when Render prompts), and
+#   • Web app  → Vercel (already live at https://voltexai.vercel.app).
+#
+# One-click:  https://render.com/deploy?repo=https://github.com/owenphiri/skills-introduction-to-github
+# Render reads this file, shows a form for the `sync: false` secrets, then builds.
+# ============================================================
+services:
+  - type: web
+    name: voltexai-api
+    runtime: python
+    plan: free
+    rootDir: voltexai
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      # Paste your Supabase Session-pooler / direct URI here at deploy time.
+      # (The API auto-normalises postgres:// and adds sslmode=require.)
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS
+        value: https://voltexai.vercel.app
+      - key: FRONTEND_URL
+        value: https://voltexai.vercel.app
+      # --- optional: leave blank to run on the safe defaults ---
+      - key: ANTHROPIC_API_KEY        # AI Terminal (blank = disabled)
+        sync: false
+      - key: CLAUDE_MODEL
+        value: claude-sonnet-4-5
+      - key: MARKET_DATA_PROVIDER     # synthetic feed until you add a vendor key
+        value: synthetic
+      - key: BROKER                   # safe paper broker by default
+        value: paper
+      - key: EMAIL_PROVIDER           # console until SMTP/Resend configured
+        value: console
+      - key: AUTH_THROTTLE_ENABLED
+        value: "true"
+      - key: TWELVEDATA_API_KEY
+        sync: false
+      - key: OANDA_API_TOKEN
+        sync: false
+      - key: OANDA_ACCOUNT_ID
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: FLW_SECRET_KEY
+        sync: false
+      - key: FLW_WEBHOOK_HASH
+        sync: false
