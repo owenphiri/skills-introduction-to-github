@@ -130,6 +130,20 @@ CREATE TABLE IF NOT EXISTS kyc_records (
     reviewed_at      TIMESTAMP
 );
 
--- Optional: enable RLS ONLY if you expose these tables via Supabase's data APIs.
--- The FastAPI backend is unaffected (it connects as a privileged role).
--- ALTER TABLE users ENABLE ROW LEVEL SECURITY;  -- (add matching policies first)
+-- ============================================================
+-- Deny-all Row Level Security (RECOMMENDED — applied on the live project).
+-- Supabase auto-exposes the public schema through its anon PostgREST API, so
+-- without RLS these tables would be readable with the anon key. Enabling RLS with
+-- NO policies blocks that anon API entirely, while the FastAPI backend (which
+-- connects as the privileged 'postgres' role) BYPASSES RLS and is unaffected.
+-- Only add policies if you deliberately expose tables through Supabase's data API.
+-- ============================================================
+ALTER TABLE users            ENABLE ROW LEVEL SECURITY;
+ALTER TABLE subscriptions    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE payments         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE conversations    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE messages         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE broker_accounts  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE positions        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE orders           ENABLE ROW LEVEL SECURITY;
+ALTER TABLE kyc_records      ENABLE ROW LEVEL SECURITY;

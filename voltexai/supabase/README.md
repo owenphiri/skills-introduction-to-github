@@ -2,8 +2,13 @@
 
 VoltexAI uses **Supabase purely as its managed Postgres database** for the FastAPI
 API. The web/mobile clients never talk to Supabase directly — they call the API,
-which is the trusted gatekeeper (JWT auth + plan/role checks). So you get Supabase's
-managed Postgres, backups and dashboard without needing Row Level Security for safety.
+which is the trusted gatekeeper (JWT auth + plan/role checks).
+
+**Security:** Supabase auto-exposes the `public` schema through its anon PostgREST
+API, so `schema.sql` enables **deny-all RLS** (RLS on, no policies) on every table —
+this blocks the anon API completely, while the API's privileged `postgres` connection
+bypasses RLS and works unchanged. Add policies only if you deliberately use Supabase's
+data API directly.
 
 ## Connect in 3 steps
 
