@@ -4,6 +4,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { LiveTicker } from "./LiveTicker";
 
 const LINKS = [
+  { to: "/dashboard", label: "Dashboard" },
   { to: "/markets", label: "Markets" },
   { to: "/signals", label: "Signals" },
   { to: "/sentiment", label: "Sentiment" },

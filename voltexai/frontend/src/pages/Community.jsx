@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { NavBar } from "../components/NavBar";
 import { Footer } from "../components/Footer";
 import { communityService } from "../services/hub";
+import { KpiStrip } from "../components/Analytics";
 import { useAuth } from "../contexts/AuthContext";
 import { Link } from "react-router-dom";
 
@@ -45,6 +46,8 @@ export default function Community() {
             Share setups, wins and lessons from Lusaka to London.
           </p>
         </div>
+
+        <KpiStrip ids={["community", "products", "academy", "bullish"]} title="Community pulse" />
 
         {user ? (
           <form className="vx-post-box" onSubmit={submit}>

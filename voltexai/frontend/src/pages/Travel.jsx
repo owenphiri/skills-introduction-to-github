@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { NavBar } from "../components/NavBar";
 import { Footer } from "../components/Footer";
 import { travelService } from "../services/hub";
+import { KpiStrip } from "../components/Analytics";
 import { useAuth } from "../contexts/AuthContext";
 
 const TYPES = ["all", "Summit", "Meetup", "Retreat"];
@@ -43,6 +44,8 @@ export default function Travel() {
             to Dubai. Trade, learn, network, explore.
           </p>
         </div>
+
+        <KpiStrip ids={["community", "products", "academy", "sessions"]} title="Community pulse" />
 
         <div className="vx-filter-row">
           {TYPES.map((t) => (

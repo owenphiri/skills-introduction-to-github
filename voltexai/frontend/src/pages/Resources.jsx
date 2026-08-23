@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { NavBar } from "../components/NavBar";
 import { Footer } from "../components/Footer";
 import { resourcesService } from "../services/hub";
+import { KpiStrip } from "../components/Analytics";
 
 export default function Resources() {
   const [cat, setCat] = useState("all");
@@ -30,6 +31,8 @@ export default function Resources() {
             high-impact economic calendar. Everything you need in one place.
           </p>
         </div>
+
+        <KpiStrip ids={["academy", "products", "community", "sessions"]} title="Toolkit pulse" />
 
         <div className="vx-filter-row">
           {cats.map((c) => (

@@ -16,6 +16,19 @@ COMPANY = {
     "copyright": "© 2026 VoltexAI Technologies. All rights reserved.",
 }
 
+# Official community channels. Handles/URLs are the single source of truth for
+# every social surface (footer, dashboard, social rail).
+SOCIALS = [
+    {"id": "x", "label": "X", "handle": "@VoltexAI",
+     "url": "https://x.com/VoltexAI"},
+    {"id": "telegram", "label": "Telegram", "handle": "VoltexAI",
+     "url": "https://t.me/VoltexAI"},
+    {"id": "facebook", "label": "Facebook", "handle": "VoltexAI",
+     "url": "https://facebook.com/VoltexAI"},
+    {"id": "whatsapp", "label": "WhatsApp", "handle": "Community",
+     "url": "https://wa.me/260970000000"},
+]
+
 PRODUCTS = [
     {"id": "markets", "name": "Voltex Markets", "tag": "Live Market Data",
      "icon": "📊", "route": "/markets", "accent": "#4d7cff",
@@ -91,4 +104,4 @@ PRODUCTS_BY_ID = {p["id"]: p for p in PRODUCTS}
 
 
 def ecosystem() -> dict:
-    return {"company": COMPANY, "products": PRODUCTS}
+    return {"company": COMPANY, "products": PRODUCTS, "socials": SOCIALS}

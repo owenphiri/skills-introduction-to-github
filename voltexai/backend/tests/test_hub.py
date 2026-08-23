@@ -42,6 +42,23 @@ def test_travel_events_and_rsvp(client):
                        json={"name": "Test Trader", "email": "t@test.io"}).status_code == 404
 
 
+def test_dashboard_snapshot(client):
+    d = client.get("/api/dashboard").json()
+    ids = {k["id"] for k in d["kpis"]}
+    assert {"fear_greed", "bullish", "sessions", "products", "academy", "community"} <= ids
+    assert all("value" in k and "label" in k for k in d["kpis"])
+    assert d["analytics"]["by_class"] and d["analytics"]["sessions"]
+    assert d["marquee"]["movers"] and d["marquee"]["wins"]
+    social_ids = {s["id"] for s in d["socials"]}
+    assert {"x", "telegram", "facebook", "whatsapp"} <= social_ids
+    assert all(s["url"].startswith("http") for s in d["socials"])
+
+
+def test_ecosystem_exposes_socials(client):
+    d = client.get("/api/ecosystem").json()
+    assert {s["id"] for s in d["socials"]} >= {"x", "telegram", "facebook", "whatsapp"}
+
+
 def test_community_feed_and_post(client, free_user):
     feed = client.get("/api/community/feed").json()
     assert feed["count"] >= 1 and feed["posts"]

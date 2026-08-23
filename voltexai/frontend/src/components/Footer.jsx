@@ -1,5 +1,6 @@
 // src/components/Footer.jsx — company footer with product map, copyright, CEO
 import { Link } from "react-router-dom";
+import { SocialBar } from "./Social";
 
 const COLS = [
   { title: "Platform", links: [
@@ -33,6 +34,7 @@ export function Footer() {
           </Link>
           <p className="vx-footer-tag">The operating system for the African trader.</p>
           <p className="vx-footer-motto">Trade Smart · Trade Safe · Trade Consistently</p>
+          <SocialBar />
         </div>
         {COLS.map((col) => (
           <div key={col.title} className="vx-footer-col">
