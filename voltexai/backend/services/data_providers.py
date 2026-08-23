@@ -27,6 +27,10 @@ logger = logging.getLogger(__name__)
 
 _TD_BASE = "https://api.twelvedata.com"
 _FH_BASE = "https://finnhub.io/api/v1"
+_AV_BASE = "https://www.alphavantage.co/query"
+
+# internal timeframe -> Alpha Vantage intraday interval (H4/D1 use the daily series)
+_AV_INTERVAL = {"M1": "1min", "M5": "5min", "M15": "15min", "M30": "30min", "H1": "60min"}
 
 # our index symbols -> Twelve Data index notation
 _TD_INDEX = {
@@ -59,7 +63,8 @@ def td_symbol(symbol: str) -> str | None:
 
 
 def has_provider() -> bool:
-    return bool(settings.TWELVEDATA_API_KEY or settings.FINNHUB_API_KEY)
+    return bool(settings.TWELVEDATA_API_KEY or settings.FINNHUB_API_KEY
+                or settings.ALPHAVANTAGE_API_KEY)
 
 
 # ---- OANDA instrument mapping (forex + metals price streaming) ----
@@ -87,6 +92,8 @@ def provider_status() -> dict:
         active = "synthetic"
     elif settings.TWELVEDATA_API_KEY:
         active = "twelvedata"
+    elif settings.ALPHAVANTAGE_API_KEY:
+        active = "alphavantage"
     elif settings.FINNHUB_API_KEY:
         active = "finnhub"
     else:
@@ -96,6 +103,7 @@ def provider_status() -> dict:
         "active_primary": active,
         "twelvedata_key_present": bool(settings.TWELVEDATA_API_KEY),
         "finnhub_key_present": bool(settings.FINNHUB_API_KEY),
+        "alphavantage_key_present": bool(settings.ALPHAVANTAGE_API_KEY),
         "cache_ttl_s": settings.MARKET_CACHE_TTL,
     }
 
@@ -105,6 +113,8 @@ async def probe(symbol: str = "EURUSD") -> dict:
     import time as _t
     t0 = _t.perf_counter()
     real = await twelvedata_quote(symbol)
+    if real is None:
+        real = await alphavantage_quote(symbol)
     if real is None and get_instrument(symbol) and \
             get_instrument(symbol)["asset_class"] == "stocks":
         real = await finnhub_quote(symbol)
@@ -195,6 +205,119 @@ async def finnhub_quote(symbol: str) -> dict | None:
     except Exception as e:
         logger.debug("finnhub_quote(%s) failed: %s", symbol, e)
         return None
+
+
+# ---- Alpha Vantage (forex, metals, crypto, stocks) ----
+def _av_pair(symbol: str) -> tuple[str, str] | None:
+    """6-char pair -> (from, to). EURUSD->(EUR,USD), BTCUSD->(BTC,USD)."""
+    if len(symbol) == 6:
+        return symbol[:3], symbol[3:]
+    return None
+
+
+async def _av_get(params: dict) -> dict | None:
+    key = settings.ALPHAVANTAGE_API_KEY
+    if not key:
+        return None
+    try:
+        async with httpx.AsyncClient(timeout=6.0) as client:
+            r = await client.get(_AV_BASE, params={**params, "apikey": key})
+            r.raise_for_status()
+            d = r.json()
+            # rate-limit / info payloads have no data keys -> treat as miss
+            if not isinstance(d, dict) or "Note" in d or "Information" in d or "Error Message" in d:
+                return None
+            return d
+    except Exception as e:
+        logger.debug("alphavantage %s failed: %s", params.get("function"), e)
+        return None
+
+
+async def alphavantage_quote(symbol: str) -> dict | None:
+    inst = get_instrument(symbol)
+    if not inst or not settings.ALPHAVANTAGE_API_KEY:
+        return None
+    ac = inst["asset_class"]
+    if ac == "stocks":
+        d = await _av_get({"function": "GLOBAL_QUOTE", "symbol": symbol})
+        q = (d or {}).get("Global Quote") or {}
+        if not q.get("05. price"):
+            return None
+        price = float(q["05. price"])
+        prev = float(q.get("08. previous close") or price)
+        return {"price": price, "prev_close": prev,
+                "high": float(q.get("03. high") or price),
+                "low": float(q.get("04. low") or price),
+                "change": float(q.get("09. change") or (price - prev)),
+                "change_pct": float((q.get("10. change percent") or "0").rstrip("%")),
+                "source": "alphavantage"}
+    if ac in ("forex", "metals", "crypto"):
+        pair = _av_pair(symbol)
+        if not pair:
+            return None
+        d = await _av_get({"function": "CURRENCY_EXCHANGE_RATE",
+                           "from_currency": pair[0], "to_currency": pair[1]})
+        rate = (d or {}).get("Realtime Currency Exchange Rate") or {}
+        px = rate.get("5. Exchange Rate")
+        if not px:
+            return None
+        price = float(px)
+        # CURRENCY_EXCHANGE_RATE has no OHLC/prev; report a flat quote (real price).
+        return {"price": price, "prev_close": price, "high": price, "low": price,
+                "change": 0.0, "change_pct": 0.0, "source": "alphavantage"}
+    return None
+
+
+async def alphavantage_candles(symbol: str, timeframe: str, count: int) -> list[dict] | None:
+    inst = get_instrument(symbol)
+    if not inst or not settings.ALPHAVANTAGE_API_KEY:
+        return None
+    ac = inst["asset_class"]
+    tf = timeframe.upper()
+    interval = _AV_INTERVAL.get(tf)
+
+    if ac == "stocks":
+        if interval:
+            d = await _av_get({"function": "TIME_SERIES_INTRADAY", "symbol": symbol,
+                               "interval": interval, "outputsize": "compact"})
+            series = (d or {}).get(f"Time Series ({interval})")
+        else:
+            d = await _av_get({"function": "TIME_SERIES_DAILY", "symbol": symbol,
+                               "outputsize": "compact"})
+            series = (d or {}).get("Time Series (Daily)")
+        return _av_series(series, count)
+
+    if ac in ("forex", "metals"):
+        pair = _av_pair(symbol)
+        if not pair:
+            return None
+        if interval:
+            d = await _av_get({"function": "FX_INTRADAY", "from_symbol": pair[0],
+                               "to_symbol": pair[1], "interval": interval, "outputsize": "compact"})
+            series = (d or {}).get(f"Time Series FX ({interval})")
+        else:
+            d = await _av_get({"function": "FX_DAILY", "from_symbol": pair[0],
+                               "to_symbol": pair[1], "outputsize": "compact"})
+            series = (d or {}).get("Time Series FX (Daily)")
+        return _av_series(series, count)
+
+    return None
+
+
+def _av_series(series: dict | None, count: int) -> list[dict] | None:
+    if not series:
+        return None
+    out = []
+    for ts, v in series.items():
+        try:
+            out.append({"time": _epoch(ts),
+                        "open": float(v["1. open"]), "high": float(v["2. high"]),
+                        "low": float(v["3. low"]), "close": float(v["4. close"]),
+                        "volume": float(v.get("5. volume") or 0)})
+        except (KeyError, ValueError):
+            continue
+    out.sort(key=lambda x: x["time"])
+    return out[-count:] if out else None
 
 
 def _epoch(dt_str: str | None) -> int:
