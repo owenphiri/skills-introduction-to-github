@@ -55,12 +55,13 @@ def test_throttle_disabled_is_noop(monkeypatch):
 
 
 def test_config_cors_merges_env():
-    s = Settings(EXTRA_CORS_ORIGINS="https://voltexai.vercel.app, https://x.com")
+    # a plain comma-separated CORS_ORIGINS env value must NOT crash (regression:
+    # a list-typed field made pydantic-settings JSON-decode it and blow up on boot)
+    s = Settings(CORS_ORIGINS="https://foo.vercel.app, https://x.com")
     origins = s.cors_origins()
-    assert "https://voltexai.vercel.app" in origins
+    assert "https://foo.vercel.app" in origins
     assert "https://x.com" in origins
-    # no duplicates
-    assert len(origins) == len(set(origins))
+    assert len(origins) == len(set(origins))          # no duplicates
 
 
 def test_database_url_normalisation():

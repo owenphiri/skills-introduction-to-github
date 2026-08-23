@@ -6,6 +6,13 @@ import os
 from functools import lru_cache
 from pydantic_settings import BaseSettings
 
+# Always-allowed CORS origins; extra origins come from the CORS_ORIGINS env var.
+_DEFAULT_CORS_ORIGINS = [
+    "http://localhost:5173", "http://localhost:3000",
+    "https://voltexai.app", "https://app.voltexai.com",
+    "https://voltexai.vercel.app",
+]
+
 
 class Settings(BaseSettings):
     # App
@@ -95,10 +102,10 @@ class Settings(BaseSettings):
     # Brute-force throttle on unauthenticated auth endpoints (disable in tests)
     AUTH_THROTTLE_ENABLED: bool = os.getenv("AUTH_THROTTLE_ENABLED", "true").lower() == "true"
 
-    # CORS — defaults + comma-separated CORS_ORIGINS env (e.g. your Vercel URL)
-    CORS_ORIGINS: list = ["http://localhost:5173", "http://localhost:3000",
-                          "https://voltexai.app", "https://app.voltexai.com"]
-    EXTRA_CORS_ORIGINS: str = os.getenv("CORS_ORIGINS", "")
+    # CORS — comma-separated extra origins from env (e.g. your Vercel URL).
+    # Kept as a STRING: a list-typed field would make pydantic-settings try to
+    # JSON-decode the CORS_ORIGINS env var and crash on a plain URL value.
+    CORS_ORIGINS: str = os.getenv("CORS_ORIGINS", "")
 
     class Config:
         env_file = ".env"
@@ -110,8 +117,8 @@ class Settings(BaseSettings):
         return self.ENVIRONMENT.lower() in ("production", "prod")
 
     def cors_origins(self) -> list[str]:
-        extra = [o.strip() for o in self.EXTRA_CORS_ORIGINS.split(",") if o.strip()]
-        return list(dict.fromkeys(self.CORS_ORIGINS + extra))
+        extra = [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]
+        return list(dict.fromkeys(_DEFAULT_CORS_ORIGINS + extra))
 
     def validate_runtime(self) -> list[str]:
         """Return a list of production misconfiguration warnings (never raises)."""
