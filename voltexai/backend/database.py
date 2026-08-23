@@ -65,5 +65,5 @@ def init_db():
     """Create tables at startup. In production, prefer the SQL migration in
     voltexai/supabase/schema.sql (or Alembic) over auto-create."""
     from .models import (user, subscription, conversation, payment,  # noqa: F401
-                         trading, kyc)
+                         trading, kyc, competition)
     Base.metadata.create_all(bind=engine)

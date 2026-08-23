@@ -12,6 +12,13 @@ import Signals from "./pages/Signals";
 import PropFirms from "./pages/PropFirms";
 import Brokers from "./pages/Brokers";
 import AUM from "./pages/AUM";
+import Products from "./pages/Products";
+import Academy from "./pages/Academy";
+import Scanner from "./pages/Scanner";
+import Competition from "./pages/Competition";
+import Store from "./pages/Store";
+import Pay from "./pages/Pay";
+import Vision from "./pages/Vision";
 
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -40,6 +47,13 @@ export default function App() {
           <Route path="/prop-firms" element={<PropFirms />} />
           <Route path="/brokers" element={<Brokers />} />
           <Route path="/aum" element={<AUM />} />
+          <Route path="/products" element={<Products />} />
+          <Route path="/academy" element={<Academy />} />
+          <Route path="/scanner" element={<Scanner />} />
+          <Route path="/competition" element={<Competition />} />
+          <Route path="/store" element={<Store />} />
+          <Route path="/pay" element={<Pay />} />
+          <Route path="/vision" element={<Vision />} />
 
           {/* Auth */}
           <Route path="/login" element={<Login />} />

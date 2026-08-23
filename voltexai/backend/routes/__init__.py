@@ -7,9 +7,11 @@ from .directory_routes import router as directory_router
 from .fund_routes import router as fund_router
 from .trade_routes import router as trade_router
 from .kyc_routes import router as kyc_router
+from .ecosystem_routes import router as ecosystem_router
+from .competition_routes import router as competition_router
 
 __all__ = [
     "auth_router", "ai_router", "payment_router",
     "market_router", "signal_router", "directory_router", "fund_router",
-    "trade_router", "kyc_router",
+    "trade_router", "kyc_router", "ecosystem_router", "competition_router",
 ]

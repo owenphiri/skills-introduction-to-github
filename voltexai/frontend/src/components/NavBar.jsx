@@ -6,13 +6,12 @@ import { LiveTicker } from "./LiveTicker";
 const LINKS = [
   { to: "/markets", label: "Markets" },
   { to: "/signals", label: "Signals" },
+  { to: "/scanner", label: "Scanner" },
   { to: "/trade", label: "Trade" },
-  { to: "/reconciliation", label: "Reconcile" },
-  { to: "/terminal", label: "AI Terminal" },
-  { to: "/prop-firms", label: "Prop Firms" },
-  { to: "/brokers", label: "Brokers" },
-  { to: "/aum", label: "AUM" },
-  { to: "/pricing", label: "Pricing" },
+  { to: "/academy", label: "Academy" },
+  { to: "/competition", label: "Compete" },
+  { to: "/store", label: "Store" },
+  { to: "/products", label: "Ecosystem" },
 ];
 
 export function NavBar() {
