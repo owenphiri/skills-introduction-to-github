@@ -6,11 +6,11 @@ import { LiveTicker } from "./LiveTicker";
 const LINKS = [
   { to: "/markets", label: "Markets" },
   { to: "/signals", label: "Signals" },
-  { to: "/scanner", label: "Scanner" },
-  { to: "/trade", label: "Trade" },
+  { to: "/sentiment", label: "Sentiment" },
+  { to: "/live", label: "Live" },
   { to: "/academy", label: "Academy" },
-  { to: "/competition", label: "Compete" },
-  { to: "/store", label: "Store" },
+  { to: "/community", label: "Community" },
+  { to: "/resources", label: "Resources" },
   { to: "/products", label: "Ecosystem" },
 ];
 

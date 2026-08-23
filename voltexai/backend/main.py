@@ -16,7 +16,7 @@ from .middleware.hardening import SecurityHeadersMiddleware, RequestContextMiddl
 from .routes import (auth_router, ai_router, payment_router,
                      market_router, signal_router, directory_router, fund_router,
                      trade_router, kyc_router, ecosystem_router, competition_router,
-                     social_router)
+                     social_router, hub_router, community_router)
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s")
@@ -79,6 +79,8 @@ app.include_router(kyc_router)
 app.include_router(ecosystem_router)
 app.include_router(competition_router)
 app.include_router(social_router)
+app.include_router(hub_router)
+app.include_router(community_router)
 
 
 @app.get("/")

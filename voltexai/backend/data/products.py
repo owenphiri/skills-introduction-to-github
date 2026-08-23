@@ -65,6 +65,26 @@ PRODUCTS = [
      "icon": "🧠", "route": "/terminal", "accent": "#4d7cff",
      "blurb": "The AI command centre — chat, analysis, signals and the Academy "
               "tutor, all in one conversational terminal."},
+    {"id": "sentiment", "name": "Voltex Sentiment", "tag": "Market Sentiment",
+     "icon": "🌡️", "route": "/sentiment", "accent": "#ff5560",
+     "blurb": "The market's mood in one glance — a live Fear & Greed gauge and "
+              "bullish/bearish bias across every asset class."},
+    {"id": "sessions", "name": "Voltex Live", "tag": "Live Trading Sessions",
+     "icon": "🔴", "route": "/live", "accent": "#a06bff",
+     "blurb": "Session clocks + live trading streams — London opens, NY killzones "
+              "and weekly outlooks with the desk."},
+    {"id": "resources", "name": "Voltex Resources", "tag": "Trader Toolkit",
+     "icon": "📚", "route": "/resources", "accent": "#45e0a0",
+     "blurb": "Guides, cheat sheets, calculators and a high-impact economic "
+              "calendar — everything you need in one place."},
+    {"id": "community", "name": "Voltex Community", "tag": "Global Trader Wall",
+     "icon": "💬", "route": "/community", "accent": "#4d7cff",
+     "blurb": "Connect with traders across the globe — share setups, wins and "
+              "lessons on the worldwide community wall."},
+    {"id": "travel", "name": "Voltex Travel", "tag": "Summits & Meetups",
+     "icon": "✈️", "route": "/travel", "accent": "#ffb547",
+     "blurb": "Meet the community IRL — summits, meetups and retreats from Lusaka "
+              "to Dubai. Trade, learn, network, explore."},
 ]
 
 PRODUCTS_BY_ID = {p["id"]: p for p in PRODUCTS}
