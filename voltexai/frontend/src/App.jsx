@@ -42,6 +42,8 @@ import Offers from "./pages/Offers";
 import Awards from "./pages/Awards";
 import FAQ from "./pages/FAQ";
 import Journal from "./pages/Journal";
+import Calculators from "./pages/Calculators";
+import EAs from "./pages/EAs";
 
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -101,6 +103,8 @@ export default function App() {
           <Route path="/offers" element={<Offers />} />
           <Route path="/awards" element={<Awards />} />
           <Route path="/faq" element={<FAQ />} />
+          <Route path="/calculators" element={<Calculators />} />
+          <Route path="/eas" element={<EAs />} />
 
           {/* Auth */}
           <Route path="/login" element={<Login />} />

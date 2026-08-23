@@ -112,6 +112,18 @@ def test_journal_flow(client, free_user):
     assert client.get("/api/journal", headers=H).json()["stats"]["count"] == 1
 
 
+def test_ea_fleet(client):
+    d = client.get("/api/eas").json()
+    assert d["count"] >= 6 and d["eas"]
+    # ordered most-advanced first: flagships lead
+    assert d["eas"][0]["tier"] == "Flagship"
+    ids = [e["id"] for e in d["eas"]]
+    assert ids[0] == "rl-alpha" and "gold-hydra" in ids
+    assert any(e["self_optimizing"] for e in d["eas"])
+    assert len(d["indicators"]) >= 8
+    assert "Roadmap to Billionaires." in d["slogans"]
+
+
 def test_sitemap_xml(client):
     r = client.get("/sitemap.xml")
     assert r.status_code == 200 and "application/xml" in r.headers["content-type"]

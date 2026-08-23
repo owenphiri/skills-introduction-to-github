@@ -9,6 +9,7 @@ const LINKS = [
   { to: "/signals", label: "Signals" },
   { to: "/sentiment", label: "Sentiment" },
   { to: "/journal", label: "Journal" },
+  { to: "/eas", label: "EA Fleet" },
   { to: "/live", label: "Live" },
   { to: "/academy", label: "Academy" },
   { to: "/community", label: "Community" },

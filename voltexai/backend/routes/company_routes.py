@@ -13,6 +13,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel, EmailStr, Field
 
 from ..data import company as company_data
+from ..data import eas as eas_data
 from ..services import subscribers_service
 
 logger = logging.getLogger(__name__)
@@ -22,6 +23,11 @@ router = APIRouter(tags=["company"])
 @router.get("/api/live/subscribers")
 def live_subscribers():
     return subscribers_service.snapshot()
+
+
+@router.get("/api/eas")
+def ea_fleet():
+    return eas_data.fleet()
 
 _SITE = "https://voltexai.app"
 

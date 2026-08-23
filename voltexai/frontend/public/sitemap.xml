@@ -35,4 +35,7 @@
   <url><loc>https://voltexai.vercel.app/faq</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
   <url><loc>https://voltexai.vercel.app/products</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
   <url><loc>https://voltexai.vercel.app/sitemap</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://voltexai.vercel.app/calculators</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://voltexai.vercel.app/eas</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://voltexai.vercel.app/journal</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
 </urlset>

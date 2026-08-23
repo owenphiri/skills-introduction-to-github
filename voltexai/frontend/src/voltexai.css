@@ -1439,3 +1439,79 @@ body {
   .vx-trade-row { grid-template-columns: 50px 1fr auto auto 28px; }
   .vx-trade-row span:nth-child(3), .vx-trade-row span:nth-child(4) { display: none; }
 }
+
+/* ============================================================
+   Calculators + EA Fleet
+   ============================================================ */
+
+/* Resources → calculators CTA */
+.vx-calc-cta { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;
+  text-decoration: none; color: inherit; background: linear-gradient(135deg, var(--vx-accent-soft), transparent);
+  border: 1px solid var(--vx-border); border-radius: 14px; padding: 1rem 1.25rem; margin: 0 0 1.5rem;
+  transition: border-color .16s, transform .16s; }
+.vx-calc-cta:hover { border-color: var(--vx-primary); transform: translateY(-2px); }
+.vx-calc-cta b { display: block; }
+
+/* Calculators */
+.vx-calc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+.vx-calc { background: var(--vx-bg-card); border: 1px solid var(--vx-border); border-radius: 16px; padding: 1.3rem; }
+.vx-calc--wide { grid-column: 1 / -1; }
+.vx-calc h3 { margin: 0 0 .2rem; }
+.vx-calc-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: .7rem; margin: 1rem 0; }
+.vx-calc-fields label { display: flex; flex-direction: column; gap: .3rem; font-size: .78rem; color: var(--vx-text-dim); }
+.vx-calc-fields input, .vx-calc-fields select { background: var(--vx-bg-elev); border: 1px solid var(--vx-border);
+  border-radius: 9px; color: var(--vx-text); padding: .55rem .65rem; font-family: inherit; }
+.vx-calc-out { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; padding-top: .5rem;
+  border-top: 1px solid var(--vx-border); }
+.vx-calc-out > div { display: flex; flex-direction: column; }
+.vx-calc-out span { font-size: .72rem; color: var(--vx-text-dim); text-transform: uppercase; letter-spacing: .05em; }
+.vx-calc-out b { font-family: var(--vx-font-display); font-size: 1.3rem; }
+.vx-calc-hero b { font-size: 2rem; color: var(--vx-accent); }
+.vx-calc-warn { margin-top: .6rem; font-size: .82rem; }
+.vx-fib-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+.vx-fib-grid h4 { margin: 0 0 .5rem; font-size: .85rem; color: var(--vx-text-dim); }
+.vx-fib-row { display: flex; justify-content: space-between; padding: .35rem .5rem; border-radius: 7px;
+  font-family: var(--vx-font-mono); font-size: .85rem; }
+.vx-fib-row:nth-child(even) { background: var(--vx-bg-elev); }
+.vx-fib-row.ote { background: color-mix(in srgb, var(--vx-accent) 22%, transparent); font-weight: 700; }
+.vx-fib-row.ext b { color: var(--vx-success); }
+
+/* EA Fleet */
+.vx-slogan-band { overflow: hidden; border-block: 1px solid var(--vx-border); margin: 1rem 0 1.75rem;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+          mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
+.vx-slogan-track { display: flex; white-space: nowrap; width: max-content;
+  animation: vx-cardinal-scroll 26s linear infinite; }
+.vx-slogan-band:hover .vx-slogan-track { animation-play-state: paused; }
+.vx-slogan { display: inline-flex; align-items: center; gap: 1rem; padding: .7rem 0; margin-right: 1.5rem;
+  font-family: var(--vx-font-display); font-weight: 800; font-size: 1.15rem;
+  background: linear-gradient(90deg, var(--vx-primary), var(--vx-accent));
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.vx-slogan em { color: var(--vx-warn); -webkit-text-fill-color: initial; font-style: normal; }
+@media (prefers-reduced-motion: reduce) { .vx-slogan-track { animation: none; } }
+
+.vx-ea-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.25rem; }
+.vx-ea-card { background: var(--vx-bg-card); border: 1px solid var(--vx-border); border-radius: 16px; padding: 1.3rem;
+  border-top: 4px solid var(--ea-accent, var(--vx-primary)); display: flex; flex-direction: column; }
+.vx-ea-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: .3rem; }
+.vx-ea-tier { font-size: .68rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--ea-accent, var(--vx-primary)); }
+.vx-ea-status { font-size: .66rem; font-weight: 800; text-transform: uppercase; padding: .15rem .5rem; border-radius: 999px; }
+.vx-ea-status.live { background: color-mix(in srgb, var(--vx-success) 22%, transparent); color: var(--vx-success); }
+.vx-ea-status.beta { background: color-mix(in srgb, var(--vx-warn) 22%, transparent); color: var(--vx-warn); }
+.vx-ea-status.soon { background: color-mix(in srgb, var(--vx-primary) 20%, transparent); color: var(--vx-primary); }
+.vx-ea-card h3 { margin: .2rem 0; display: flex; align-items: center; gap: .5rem; }
+.vx-ea-rl { font-size: .62rem; font-weight: 800; background: var(--vx-accent-soft); color: var(--vx-accent);
+  padding: .12rem .4rem; border-radius: 6px; }
+.vx-ea-tagline { font-weight: 600; margin: 0 0 .4rem; }
+.vx-ea-meta { display: flex; gap: 1rem; flex-wrap: wrap; font-size: .78rem; color: var(--vx-text-dim); margin: .6rem 0; }
+.vx-ea-highlights { display: flex; flex-wrap: wrap; gap: .35rem; margin-bottom: 1rem; }
+.vx-ea-card .vx-btn-primary { margin-top: auto; }
+.vx-ind-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .5rem; }
+.vx-ind-chip { background: var(--vx-bg-card); border: 1px solid var(--vx-border); border-radius: 9px;
+  padding: .55rem .8rem; font-size: .82rem; color: var(--vx-text-dim); }
+
+@media (max-width: 720px) {
+  .vx-calc-grid { grid-template-columns: 1fr; }
+  .vx-fib-grid { grid-template-columns: 1fr; }
+}

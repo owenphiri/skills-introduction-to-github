@@ -4,6 +4,7 @@ import { NavBar } from "../components/NavBar";
 import { Footer } from "../components/Footer";
 import { resourcesService } from "../services/hub";
 import { KpiStrip } from "../components/Analytics";
+import { Link } from "react-router-dom";
 
 export default function Resources() {
   const [cat, setCat] = useState("all");
@@ -33,6 +34,14 @@ export default function Resources() {
         </div>
 
         <KpiStrip ids={["academy", "products", "community", "sessions"]} title="Toolkit pulse" />
+
+        <Link to="/calculators" className="vx-calc-cta">
+          <div>
+            <b>🧮 Advanced Trading Calculators</b>
+            <span className="vx-muted">Lot sizing · entries &amp; exits · Fibonacci · pip value — hassle-free.</span>
+          </div>
+          <span className="vx-btn-primary vx-btn-sm">Open calculators →</span>
+        </Link>
 
         <div className="vx-filter-row">
           {cats.map((c) => (
