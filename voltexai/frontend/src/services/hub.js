@@ -13,6 +13,10 @@ export const subscribersService = {
   live: () => api.get("/api/live/subscribers"),
 };
 
+export const easService = {
+  fleet: () => api.get("/api/eas"),
+};
+
 export const sessionsService = {
   status: () => api.get("/api/sessions"),
 };

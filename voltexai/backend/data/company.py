@@ -247,7 +247,8 @@ SITEMAP = [
         ["/signals", "Signals"], ["/scanner", "Scanner"], ["/vision", "Vision"],
         ["/sentiment", "Sentiment"], ["/live", "Live Sessions"], ["/terminal", "Terminal"]]},
     {"section": "Grow", "links": [
-        ["/academy", "Academy"], ["/resources", "Resources"], ["/competition", "Competition"],
+        ["/academy", "Academy"], ["/resources", "Resources"], ["/calculators", "Calculators"],
+        ["/eas", "EA Fleet"], ["/journal", "Trade Journal"], ["/competition", "Competition"],
         ["/community", "Community"], ["/success", "Success Stories"], ["/travel", "Travel"]]},
     {"section": "Money", "links": [
         ["/aum", "Managed Alpha"], ["/pay", "Pay"], ["/store", "Store"],
