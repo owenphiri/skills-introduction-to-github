@@ -42,6 +42,34 @@ def test_travel_events_and_rsvp(client):
                        json={"name": "Test Trader", "email": "t@test.io"}).status_code == 404
 
 
+def test_company_content(client):
+    d = client.get("/api/company").json()
+    for key in ("mission", "phrases", "global", "about", "careers", "csr",
+                "foundation", "press", "tv", "media", "podcast", "blog",
+                "offers", "awards", "faq", "sitemap"):
+        assert key in d, f"missing {key}"
+    assert d["mission"]["headline"]
+    assert len(d["phrases"]) >= 4 and all("color" in p for p in d["phrases"])
+    assert d["careers"]["roles"] and d["faq"] and d["awards"]
+    sections = {s["section"] for s in d["sitemap"]}
+    assert {"Company", "Media"} <= sections
+
+
+def test_careers_apply(client):
+    role = client.get("/api/company").json()["careers"]["roles"][0]["id"]
+    ok = client.post("/api/careers/apply",
+                     json={"role_id": role, "name": "Test Trader", "email": "t@test.io"})
+    assert ok.status_code == 200 and ok.json()["received"]
+    assert client.post("/api/careers/apply",
+                       json={"role_id": "nope", "name": "Test Trader", "email": "t@test.io"}).status_code == 404
+
+
+def test_sitemap_xml(client):
+    r = client.get("/sitemap.xml")
+    assert r.status_code == 200 and "application/xml" in r.headers["content-type"]
+    assert r.text.count("<loc>") >= 20 and "/about" in r.text
+
+
 def test_dashboard_snapshot(client):
     d = client.get("/api/dashboard").json()
     ids = {k["id"] for k in d["kpis"]}

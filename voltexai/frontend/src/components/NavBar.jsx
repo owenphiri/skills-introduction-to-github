@@ -13,6 +13,7 @@ const LINKS = [
   { to: "/community", label: "Community" },
   { to: "/resources", label: "Resources" },
   { to: "/products", label: "Ecosystem" },
+  { to: "/about", label: "Company" },
 ];
 
 export function NavBar() {

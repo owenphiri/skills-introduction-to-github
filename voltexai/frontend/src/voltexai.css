@@ -1196,3 +1196,139 @@ body {
 @media (max-width: 560px) {
   .vx-marquee-col { flex-direction: column; }
 }
+
+/* ============================================================
+   Company & Media: About, Careers, CSR, Press, TV, Media,
+   Podcast, Blogs, Offers, Awards, FAQ, Foundation, Sitemap
+   ============================================================ */
+
+.vx-eyebrow { display: inline-block; font-size: .72rem; text-transform: uppercase; letter-spacing: .12em;
+  color: var(--vx-accent); font-weight: 700; margin-bottom: .4rem; }
+.vx-link { color: var(--vx-primary); text-decoration: none; font-weight: 600; }
+.vx-link:hover { text-decoration: underline; }
+.vx-social-strip { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin-top: 2.5rem;
+  padding-top: 1.5rem; border-top: 1px solid var(--vx-border); }
+.vx-social-strip .vx-social-bar { margin-top: 0; }
+
+/* Cardinal color-coded phrases (horizontal marquee) */
+.vx-cardinal { overflow: hidden; border-block: 1px solid var(--vx-border); margin: 1.5rem 0;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+          mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
+.vx-cardinal-track { display: flex; gap: 2.5rem; white-space: nowrap; padding: .8rem 0;
+  animation: vx-cardinal-scroll 28s linear infinite; }
+.vx-cardinal:hover .vx-cardinal-track { animation-play-state: paused; }
+.vx-cardinal-phrase { font-family: var(--vx-font-display); font-weight: 800; font-size: 1.35rem;
+  display: inline-flex; align-items: center; gap: 1rem; }
+.vx-cardinal-phrase em { color: var(--vx-border); font-style: normal; font-size: .8rem; }
+@keyframes vx-cardinal-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) { .vx-cardinal-track { animation: none; } }
+
+/* Mission band */
+.vx-mission-band { background: linear-gradient(135deg, var(--vx-accent-soft), transparent);
+  border: 1px solid var(--vx-border); border-radius: 18px; padding: 2rem; margin-bottom: 1.5rem; }
+.vx-mission-band h2 { font-family: var(--vx-font-display); font-size: 1.9rem; margin: 0 0 .5rem;
+  background: linear-gradient(90deg, var(--vx-primary), var(--vx-accent)); -webkit-background-clip: text;
+  background-clip: text; -webkit-text-fill-color: transparent; }
+.vx-prose { max-width: 720px; }
+.vx-prose p { line-height: 1.7; color: var(--vx-text); margin: 0 0 1rem; }
+
+/* Global presence */
+.vx-global { background: var(--vx-bg-card); border: 1px solid var(--vx-border); border-radius: 16px; padding: 1.5rem;
+  display: grid; grid-template-columns: auto auto 1fr; gap: 1.5rem; align-items: center; }
+.vx-global-stat { text-align: center; }
+.vx-global-stat b { display: block; font-family: var(--vx-font-display); font-size: 2rem; color: var(--vx-accent); }
+.vx-global-stat span { font-size: .78rem; color: var(--vx-text-dim); }
+.vx-global-regions { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: .75rem; }
+.vx-global-region { font-size: .82rem; }
+.vx-global-region b { display: block; }
+.vx-global-region small { color: var(--vx-text-dim); }
+.vx-global-flag { font-size: 1.2rem; }
+
+/* Value / icon card grids (About, CSR, Foundation, TV, Media) */
+.vx-card-grid, .vx-value-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+.vx-value-card, .vx-icon-card { background: var(--vx-bg-card); border: 1px solid var(--vx-border);
+  border-radius: 16px; padding: 1.3rem; }
+.vx-icon-card--link { text-decoration: none; color: inherit; display: block; transition: transform .16s, border-color .16s; }
+.vx-icon-card--link:hover { transform: translateY(-3px); border-color: var(--vx-primary); }
+.vx-value-icon { font-size: 1.8rem; display: block; margin-bottom: .5rem; }
+.vx-value-card b, .vx-icon-card b { display: block; margin-bottom: .25rem; }
+
+/* Leadership */
+.vx-lead-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; }
+.vx-lead-card { background: var(--vx-bg-card); border: 1px solid var(--vx-border); border-radius: 16px; padding: 1.3rem; }
+.vx-lead-card b { font-size: 1.05rem; }
+
+/* Sitemap */
+.vx-sitemap-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1.5rem; }
+.vx-sitemap-col h3 { margin: 0 0 .6rem; font-size: 1rem; }
+.vx-sitemap-col a { display: block; color: var(--vx-text-dim); text-decoration: none; padding: .25rem 0; font-size: .9rem; }
+.vx-sitemap-col a:hover { color: var(--vx-primary); }
+
+/* Careers */
+.vx-perk-row { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1.5rem; }
+.vx-role-list { display: flex; flex-direction: column; gap: .6rem; }
+.vx-role-row { display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+  background: var(--vx-bg-card); border: 1px solid var(--vx-border); border-radius: 12px; padding: 1rem 1.2rem; }
+.vx-role-row b { display: block; }
+.vx-role-row span { font-size: .82rem; color: var(--vx-text-dim); }
+
+/* Press */
+.vx-press-list { display: flex; flex-direction: column; gap: .75rem; margin-bottom: 1rem; }
+.vx-press-row { background: var(--vx-bg-card); border: 1px solid var(--vx-border); border-radius: 12px; padding: 1.1rem 1.25rem; }
+.vx-press-meta { display: flex; align-items: center; gap: .6rem; margin-bottom: .4rem; }
+.vx-press-row b { display: block; margin-bottom: .25rem; }
+.vx-quote-card { background: var(--vx-bg-card); border: 1px solid var(--vx-border); border-radius: 14px; padding: 1.25rem; }
+.vx-quote-card p { font-style: italic; margin: 0 0 .5rem; }
+
+/* TV shows */
+.vx-show-card { background: var(--vx-bg-card); border: 1px solid var(--vx-border); border-radius: 16px; padding: 1.3rem; }
+.vx-show-thumb { font-size: 2.4rem; margin-bottom: .5rem; }
+
+/* Podcast */
+.vx-episode-list { display: flex; flex-direction: column; gap: .75rem; }
+.vx-episode-row { display: grid; grid-template-columns: 56px 1fr auto; align-items: center; gap: 1rem;
+  background: var(--vx-bg-card); border: 1px solid var(--vx-border); border-radius: 14px; padding: 1.1rem 1.25rem; }
+.vx-episode-num { font-family: var(--vx-font-display); font-size: 1.4rem; font-weight: 800; color: var(--vx-accent); text-align: center; }
+.vx-episode-main b { display: block; }
+.vx-episode-side { display: flex; align-items: center; gap: .6rem; }
+
+/* Blog */
+.vx-blog-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.1rem; }
+.vx-blog-card { background: var(--vx-bg-card); border: 1px solid var(--vx-border); border-radius: 16px; padding: 1.3rem;
+  display: flex; flex-direction: column; gap: .5rem; }
+.vx-blog-card h3 { margin: .3rem 0; font-size: 1.1rem; }
+.vx-blog-foot { display: flex; justify-content: space-between; margin-top: auto; padding-top: .75rem; }
+
+/* Offers */
+.vx-offer-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1.1rem; }
+.vx-offer-card { position: relative; background: var(--vx-bg-card); border: 1px solid var(--vx-border);
+  border-radius: 16px; padding: 1.4rem; border-top: 4px solid var(--offer-accent, var(--vx-primary)); }
+.vx-offer-badge { position: absolute; top: 1rem; right: 1rem; font-size: .68rem; font-weight: 800; text-transform: uppercase;
+  letter-spacing: .05em; padding: .2rem .55rem; border-radius: 999px; background: var(--offer-accent, var(--vx-primary)); color: #0a0e1a; }
+.vx-offer-card h3 { margin: .3rem 0 .5rem; padding-right: 4rem; }
+.vx-offer-card .vx-btn-primary { margin-top: .75rem; }
+
+/* Awards */
+.vx-award-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; }
+.vx-award-card { background: var(--vx-bg-card); border: 1px solid var(--vx-border); border-radius: 16px; padding: 1.4rem;
+  text-align: center; }
+.vx-award-icon { font-size: 2.4rem; display: block; }
+.vx-award-year { display: inline-block; font-size: .72rem; color: var(--vx-text-dim); margin: .3rem 0; }
+.vx-award-card b { display: block; margin-bottom: .25rem; }
+
+/* FAQ */
+.vx-faq-list { display: flex; flex-direction: column; gap: .6rem; max-width: 800px; }
+.vx-faq-item { background: var(--vx-bg-card); border: 1px solid var(--vx-border); border-radius: 12px; overflow: hidden; }
+.vx-faq-item.open { border-color: var(--vx-primary); }
+.vx-faq-q { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+  background: none; border: none; color: var(--vx-text); font-size: .98rem; font-weight: 600; text-align: left;
+  padding: 1rem 1.25rem; cursor: pointer; }
+.vx-faq-caret { color: var(--vx-accent); font-size: 1.3rem; line-height: 1; }
+.vx-faq-a { margin: 0; padding: 0 1.25rem 1.1rem; color: var(--vx-text-dim); line-height: 1.6; }
+
+@media (max-width: 640px) {
+  .vx-global { grid-template-columns: 1fr 1fr; }
+  .vx-global-regions { grid-column: 1 / -1; }
+  .vx-episode-row { grid-template-columns: 44px 1fr; }
+  .vx-episode-side { grid-column: 1 / -1; justify-content: flex-start; }
+}

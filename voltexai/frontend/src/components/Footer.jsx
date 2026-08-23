@@ -20,7 +20,18 @@ const COLS = [
   ]},
   { title: "Money", links: [
     ["Voltex Alpha (AUM)", "/aum"], ["Voltex Pay", "/pay"],
-    ["Voltex Store", "/store"], ["Pricing", "/pricing"],
+    ["Voltex Store", "/store"], ["Pricing", "/pricing"], ["Offers", "/offers"],
+  ]},
+  { title: "Company", links: [
+    ["About Us", "/about"], ["Careers", "/careers"], ["Press", "/press"],
+    ["CSR", "/csr"], ["VoltexAI Foundation", "/foundation"], ["Awards", "/awards"],
+  ]},
+  { title: "Media", links: [
+    ["VoltexAI Media", "/media"], ["VoltexAI TV", "/tv"],
+    ["Podcast", "/podcast"], ["Blogs", "/blog"],
+  ]},
+  { title: "Explore", links: [
+    ["FAQ", "/faq"], ["Sitemap", "/sitemap"], ["Ecosystem", "/products"],
   ]},
 ];
 
