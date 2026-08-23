@@ -3,9 +3,8 @@
   "buildCommand": "npm --prefix voltexai/frontend install && npm --prefix voltexai/frontend run build",
   "installCommand": "echo skip-root-install",
   "outputDirectory": "voltexai/frontend/dist",
-  "cleanUrls": true,
   "rewrites": [
-    { "source": "/((?!assets/|.*\\..*).*)", "destination": "/index.html" }
+    { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [
     {
