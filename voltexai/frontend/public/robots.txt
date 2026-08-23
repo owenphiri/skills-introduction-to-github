@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://voltexai.vercel.app/sitemap.xml

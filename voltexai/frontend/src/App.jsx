@@ -28,6 +28,19 @@ import Resources from "./pages/Resources";
 import Community from "./pages/Community";
 import Travel from "./pages/Travel";
 import Dashboard from "./pages/Dashboard";
+import Sitemap from "./pages/Sitemap";
+import About from "./pages/About";
+import Careers from "./pages/Careers";
+import CSR from "./pages/CSR";
+import Foundation from "./pages/Foundation";
+import Press from "./pages/Press";
+import TV from "./pages/TV";
+import Media from "./pages/Media";
+import Podcast from "./pages/Podcast";
+import Blog from "./pages/Blog";
+import Offers from "./pages/Offers";
+import Awards from "./pages/Awards";
+import FAQ from "./pages/FAQ";
 
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -72,6 +85,21 @@ export default function App() {
           <Route path="/community" element={<Community />} />
           <Route path="/travel" element={<Travel />} />
           <Route path="/dashboard" element={<Dashboard />} />
+
+          {/* Company & media */}
+          <Route path="/sitemap" element={<Sitemap />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/careers" element={<Careers />} />
+          <Route path="/csr" element={<CSR />} />
+          <Route path="/foundation" element={<Foundation />} />
+          <Route path="/press" element={<Press />} />
+          <Route path="/tv" element={<TV />} />
+          <Route path="/media" element={<Media />} />
+          <Route path="/podcast" element={<Podcast />} />
+          <Route path="/blog" element={<Blog />} />
+          <Route path="/offers" element={<Offers />} />
+          <Route path="/awards" element={<Awards />} />
+          <Route path="/faq" element={<FAQ />} />
 
           {/* Auth */}
           <Route path="/login" element={<Login />} />
