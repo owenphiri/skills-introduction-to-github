@@ -83,7 +83,7 @@ export default function Kyc() {
           </form>
         )}
         <p className="vx-fineprint">
-          Verification is handled by VoltexAI / PrimeAxis ICT. Live managed programs and
+          Verification is handled by VoltexAI / Axion Labs Technologies. Live managed programs and
           live-money trading may require approval; paper trading is always available.
         </p>
       </main>

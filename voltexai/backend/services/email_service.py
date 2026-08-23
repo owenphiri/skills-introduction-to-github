@@ -40,7 +40,7 @@ def _wrap(title: str, body_html: str, cta_label: str | None = None,
   <div style="color:#b8c2d4;line-height:1.6;">{body_html}</div>
   {button}
   <p style="color:#6b7689;font-size:12px;margin-top:24px;">
-    VoltexAI by PrimeAxis ICT Trade &amp; Solutions Ltd. Trading carries a high risk of
+    VoltexAI — powered by Axion Labs Technologies. Trading carries a high risk of
     loss; this is not investment advice. If you didn't request this, you can ignore it.
   </p>
 </div>"""

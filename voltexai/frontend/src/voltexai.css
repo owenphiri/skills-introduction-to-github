@@ -1332,3 +1332,110 @@ body {
   .vx-episode-row { grid-template-columns: 44px 1fr; }
   .vx-episode-side { grid-column: 1 / -1; justify-content: flex-start; }
 }
+
+/* ============================================================
+   Batch: branding polish, TikTok/YouTube, TV, Journal,
+   Subscriber tracker, Futures banner, reveal animations
+   ============================================================ */
+
+/* Reveal-on-scroll + hover polish (moderate, professional) */
+.vx-reveal { opacity: 0; transform: translateY(16px);
+  transition: opacity .6s cubic-bezier(.22,.61,.36,1), transform .6s cubic-bezier(.22,.61,.36,1); }
+.vx-reveal.in { opacity: 1; transform: none; }
+.vx-hover-lift { transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
+.vx-hover-lift:hover { transform: translateY(-4px); border-color: var(--vx-primary);
+  box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+@media (prefers-reduced-motion: reduce) {
+  .vx-reveal { opacity: 1; transform: none; transition: none; }
+}
+
+/* Social hover colors for TikTok + YouTube */
+.vx-social--tiktok:hover { background: #000; border-color: #000; }
+.vx-social--youtube:hover { background: #ff0000; border-color: #ff0000; }
+.vx-social-rail .vx-social--tiktok:hover { background: #000; }
+.vx-social-rail .vx-social--youtube:hover { background: #ff0000; }
+
+/* Live subscriber tracker */
+.vx-subtrack { background: linear-gradient(135deg, var(--vx-accent-soft), transparent);
+  border: 1px solid var(--vx-border); border-radius: 18px; padding: 1.5rem; margin: 1.5rem 0;
+  display: grid; grid-template-columns: auto 1fr; gap: 1.25rem 2rem; align-items: center; }
+.vx-subtrack.compact { grid-template-columns: auto; }
+.vx-subtrack-main { display: flex; align-items: center; gap: 1rem; }
+.vx-subtrack-count { font-family: var(--vx-font-display); font-size: 2.6rem; font-weight: 800; line-height: 1;
+  font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.vx-subtrack-label { font-size: .85rem; color: var(--vx-text-dim); }
+.vx-subtrack-regions { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .5rem;
+  grid-column: 1 / -1; }
+.vx-subtrack-region { display: flex; justify-content: space-between; font-size: .82rem;
+  padding: .4rem .6rem; background: var(--vx-bg-card); border: 1px solid var(--vx-border); border-radius: 8px; }
+.vx-subtrack-recent { grid-column: 1 / -1; display: flex; flex-direction: column; gap: .3rem; }
+.vx-subtrack-join { font-size: .8rem; color: var(--vx-text-dim); }
+.vx-subtrack-join small { margin-left: .5rem; opacity: .7; }
+
+/* VoltexAI TV — YouTube */
+.vx-tv-live-row { display: grid; grid-template-columns: 1fr 320px; gap: 1.25rem; margin-bottom: 2rem; }
+.vx-tv-live-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: .6rem; }
+.vx-yt-frame { position: relative; padding-top: 56.25%; border-radius: 14px; overflow: hidden;
+  border: 1px solid var(--vx-border); background: #000; }
+.vx-yt-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; }
+.vx-yt-cta { display: flex; flex-direction: column; gap: 1rem; justify-content: center; align-items: flex-start;
+  min-height: 260px; background: radial-gradient(circle at 30% 20%, rgba(255,0,0,.12), transparent 60%), var(--vx-bg-card);
+  border: 1px solid var(--vx-border); border-radius: 14px; padding: 1.75rem; }
+.vx-yt-cta-inner { display: flex; gap: 1rem; align-items: center; }
+.vx-yt-logo { width: 54px; height: 54px; display: grid; place-items: center; border-radius: 14px;
+  background: #ff0000; color: #fff; font-size: 1.5rem; }
+.vx-tv-actions { display: flex; gap: .6rem; margin-top: .75rem; }
+.vx-tv-marquees .vx-vmarquee-viewport { height: 150px; }
+.vx-tv-marq-item { display: flex; flex-direction: column; text-decoration: none; color: inherit; }
+.vx-tv-marq-item.link:hover b { color: var(--vx-primary); }
+.vx-tv-marq-item span { font-size: .75rem; }
+
+/* Futures coming-soon banner (Prop Firms) */
+.vx-futures-banner { display: flex; justify-content: space-between; align-items: center; gap: 1.5rem;
+  flex-wrap: wrap; background: linear-gradient(135deg, rgba(160,107,255,.12), transparent);
+  border: 1px dashed var(--vx-primary); border-radius: 16px; padding: 1.5rem; margin: 1rem 0 1.5rem; }
+.vx-futures-text h3 { margin: .4rem 0; }
+.vx-futures-feats { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .6rem; }
+.vx-soon-badge, .vx-futures-banner .vx-soon-badge { display: inline-block; font-size: .7rem; font-weight: 800;
+  text-transform: uppercase; letter-spacing: .06em; padding: .2rem .6rem; border-radius: 999px;
+  background: var(--vx-primary); color: #fff; }
+
+/* Trade Journal */
+.vx-journal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin: 1.25rem 0; }
+.vx-equity { width: 100%; height: 180px; }
+.vx-journal-form { display: flex; flex-direction: column; gap: .6rem; }
+.vx-jf-row { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
+.vx-journal-form input, .vx-journal-form select { background: var(--vx-bg-elev); border: 1px solid var(--vx-border);
+  border-radius: 9px; color: var(--vx-text); padding: .6rem .7rem; font-family: inherit; width: 100%; }
+.vx-break-row { display: grid; grid-template-columns: 1fr auto auto; gap: .75rem; align-items: center;
+  padding: .5rem 0; border-bottom: 1px solid var(--vx-border); font-size: .88rem; }
+.vx-break-row:last-child { border-bottom: none; }
+.vx-break-row small { text-align: right; }
+
+/* P&L heat map */
+.vx-heatmap-wrap { overflow-x: auto; }
+.vx-heatmap { display: grid; grid-template-rows: repeat(7, 13px); grid-auto-flow: column; grid-auto-columns: 13px;
+  gap: 3px; min-width: 620px; }
+.vx-heat-cell { width: 13px; height: 13px; border-radius: 3px; }
+.vx-heat-legend { display: flex; align-items: center; gap: .35rem; margin-top: .6rem; font-size: .75rem; }
+.vx-heat-swatch { width: 13px; height: 13px; border-radius: 3px; display: inline-block; }
+
+/* Trades table */
+.vx-trade-table { display: flex; flex-direction: column; gap: .4rem; }
+.vx-trade-row { display: grid; grid-template-columns: 56px 90px 100px 1fr 80px 50px 28px; align-items: center;
+  gap: .6rem; background: var(--vx-bg-card); border: 1px solid var(--vx-border); border-radius: 10px;
+  padding: .6rem .9rem; font-size: .85rem; }
+.vx-side { font-size: .68rem; font-weight: 800; padding: .15rem .4rem; border-radius: 6px; text-align: center; }
+.vx-side--buy { background: color-mix(in srgb, var(--vx-success) 22%, transparent); color: var(--vx-success); }
+.vx-side--sell { background: color-mix(in srgb, var(--vx-danger) 22%, transparent); color: var(--vx-danger); }
+.vx-trade-del { background: none; border: none; color: var(--vx-text-dim); font-size: 1.2rem; cursor: pointer; line-height: 1; }
+.vx-trade-del:hover { color: var(--vx-danger); }
+
+@media (max-width: 860px) {
+  .vx-tv-live-row { grid-template-columns: 1fr; }
+  .vx-tv-marquees { flex-direction: row; }
+  .vx-journal-grid { grid-template-columns: 1fr; }
+  .vx-subtrack { grid-template-columns: 1fr; }
+  .vx-trade-row { grid-template-columns: 50px 1fr auto auto 28px; }
+  .vx-trade-row span:nth-child(3), .vx-trade-row span:nth-child(4) { display: none; }
+}

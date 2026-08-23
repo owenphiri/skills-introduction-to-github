@@ -7,9 +7,10 @@ from .trading import (BrokerAccount, Position, Order,
 from .kyc import KycRecord, KycStatus
 from .competition import ContestEntry
 from .community import Post
+from .journal import JournalTrade
 
 __all__ = [
-    "ContestEntry", "Post",
+    "ContestEntry", "Post", "JournalTrade",
     "User", "UserRole",
     "Subscription", "PlanTier", "SubStatus", "Provider",
     "Payment", "PaymentStatus",

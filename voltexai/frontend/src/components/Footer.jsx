@@ -7,6 +7,7 @@ const COLS = [
     ["Voltex Markets", "/markets"], ["Voltex Signals", "/signals"],
     ["Voltex Scanner", "/scanner"], ["Voltex Vision", "/vision"],
     ["Voltex Terminal", "/terminal"], ["Voltex Trade Desk", "/trade"],
+    ["Trade Journal", "/journal"], ["Command Center", "/dashboard"],
   ]},
   { title: "Grow", links: [
     ["Voltex Academy", "/academy"], ["Voltex Competition", "/competition"],
@@ -57,9 +58,9 @@ export function Footer() {
         ))}
       </div>
       <div className="vx-footer-legal">
-        <span>© 2026 VoltexAI Technologies. All rights reserved.</span>
-        <span>PrimeAxis ICT Trade &amp; Solutions Ltd · Kasama, Zambia</span>
-        <span><b>OP Owens</b> — Founder &amp; CEO · Methodology by Owens Forex Academy</span>
+        <span>© 2026 VoltexAI Technologies · EST. 2017 · All rights reserved.</span>
+        <span>Powered by <b>Axion Labs Technologies</b> · Kasama, Zambia</span>
+        <span><b>OP OWENS PHIRI</b> — Founder &amp; CEO · Methodology by Owens Forex Academy</span>
         <span className="vx-footer-risk">
           Trading leveraged products carries a high risk of loss. Educational
           technology, not personalised investment advice.

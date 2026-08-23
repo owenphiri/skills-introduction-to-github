@@ -1,5 +1,7 @@
 // src/pages/About.jsx
 import { CompanyPage, useCompany, CardinalPhrases, GlobalStrip } from "../components/Company";
+import { SubscriberTracker } from "../components/SubscriberTracker";
+import { Reveal } from "../components/Reveal";
 
 export default function About() {
   const d = useCompany();
@@ -16,6 +18,20 @@ export default function About() {
 
           <div className="vx-prose">
             {d.about.story.map((p, i) => <p key={i}>{p}</p>)}
+          </div>
+
+          <SubscriberTracker />
+
+          <h2 className="vx-section-title">What we do</h2>
+          <div className="vx-value-grid">
+            {d.services.map((s, i) => (
+              <Reveal key={s.title} delay={i * 60}>
+                <div className="vx-value-card vx-hover-lift">
+                  <span className="vx-value-icon">{s.icon}</span>
+                  <b>{s.title}</b><p className="vx-muted">{s.desc}</p>
+                </div>
+              </Reveal>
+            ))}
           </div>
 
           <h2 className="vx-section-title">What we stand for</h2>

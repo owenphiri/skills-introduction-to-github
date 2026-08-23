@@ -3,7 +3,7 @@
 
 def test_ecosystem_catalog(client):
     d = client.get("/api/ecosystem").json()
-    assert d["company"]["ceo"] == "OP Owens"
+    assert d["company"]["ceo"] == "OP OWENS PHIRI"
     ids = {p["id"] for p in d["products"]}
     for expected in {"markets", "signals", "vision", "scanner", "academy",
                      "prop-intel", "broker-intel", "alpha", "pay", "competition", "store"}:

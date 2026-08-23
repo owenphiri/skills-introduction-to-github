@@ -41,7 +41,8 @@ GLOBAL_PRESENCE = {
 }
 
 ABOUT = {
-    "founded": 2024,
+    "founded": 2017,
+    "established": "EST. 2017",
     "story": [
         "VoltexAI began in Kasama, Zambia with a simple conviction: an African "
         "trader with the right tools can compete with anyone on earth.",
@@ -57,9 +58,44 @@ ABOUT = {
         {"icon": "⚡", "title": "Relentless craft", "desc": "Institutional quality, retail access, no compromises."},
     ],
     "leadership": [
-        {"name": "OP Owens", "role": "Founder & CEO", "bio": "Trader, educator and founder of Owens Forex Academy."},
-        {"name": "PrimeAxis ICT", "role": "Parent Company", "bio": "PrimeAxis ICT Trade & Solutions Ltd — the company behind VoltexAI."},
+        {"name": "OP OWENS PHIRI", "role": "Founder & CEO", "bio": "Trader, educator and founder of Owens Forex Academy. Building VoltexAI since 2017."},
+        {"name": "Axion Labs Technologies", "role": "Powered by", "bio": "Axion Labs Technologies — the technology company behind VoltexAI."},
     ],
+}
+
+# What VoltexAI actually does — explained for About + FAQ.
+SERVICES = [
+    {"icon": "⚡", "title": "VoltexAI — the platform",
+     "desc": "An all-in-one AI trading terminal: live markets, AI signals, chart "
+             "vision, a market scanner, an academy, managed alpha, payments and more "
+             "— the operating system for the modern trader."},
+    {"icon": "🏦", "title": "FinTech",
+     "desc": "Africa-native financial technology — mobile-money-first funding "
+             "(M-Pesa, MTN, Airtel), cards, crypto and bank rails via Voltex Pay, "
+             "plus secure accounts and KYC built for cross-border traders."},
+    {"icon": "📈", "title": "Trading",
+     "desc": "Forex, metals, indices, crypto and stocks — real-time prices, "
+             "AI-ranked signals with entry/stop/targets, a scanner for confluence "
+             "setups, and an advanced trade journal to track and improve."},
+    {"icon": "🏆", "title": "Prop Firms",
+     "desc": "Independent prop-firm intelligence — compare funded-account models, "
+             "profit splits, rules and payouts, and get matched to the right "
+             "challenge. Futures prop firms are coming soon."},
+    {"icon": "🏛️", "title": "Brokers",
+     "desc": "Regulated broker comparisons ranked by spreads, leverage and "
+             "Africa-friendly funding — including Exness, HFM and Vantage Markets "
+             "— so you deposit with confidence."},
+]
+
+# Prop firms for futures trading — announced, not yet live.
+FUTURES_COMING_SOON = {
+    "title": "Prop Firms for Futures Trading",
+    "status": "Coming Soon",
+    "desc": "Funded futures accounts (CME micros, indices, energies & metals) with "
+            "the same VoltexAI comparison, matching and intelligence you get for FX "
+            "prop firms. Join the waitlist to get early access.",
+    "features": ["CME & micro futures", "Evaluation & instant-funding models",
+                 "Futures-native risk rules", "Matched to your style"],
 }
 
 CAREERS = {
@@ -118,9 +154,25 @@ TV_SHOWS = [
      "host": "Owens Forex Academy", "desc": "Live London-open breakdown and the day's game plan.", "thumb": "🔴"},
     {"id": "tv-desk", "title": "On The Desk", "schedule": "Wed · 18:00 UTC", "host": "VoltexAI Desk",
      "desc": "Behind the trades with the VoltexAI trading desk.", "thumb": "🎥"},
-    {"id": "tv-masterclass", "title": "Masterclass", "schedule": "Sat · 15:00 UTC", "host": "OP Owens",
+    {"id": "tv-masterclass", "title": "Masterclass", "schedule": "Sat · 15:00 UTC", "host": "OP OWENS PHIRI",
      "desc": "Deep-dive masterclasses on structure, risk and psychology.", "thumb": "🎓"},
 ]
+
+# VoltexAI TV — YouTube channel integration.
+# To enable the embedded LIVE player, set channel_id to the channel's UC… id.
+# To feature a specific stream/replay, set live_video_id to a YouTube video id.
+YOUTUBE = {
+    "channel_handle": "@VoltexAI",
+    "channel_url": "https://www.youtube.com/@VoltexAI",
+    "subscribe_url": "https://www.youtube.com/@VoltexAI?sub_confirmation=1",
+    "channel_id": "",          # e.g. "UCxxxxxxxxxxxxxxxxxxxxxx" -> enables live embed
+    "live_video_id": "",       # e.g. "dQw4w9WgXcQ" -> features that video
+    "featured": [
+        {"title": "The Market Open — London breakdown", "video_id": "", "thumb": "🔴"},
+        {"title": "NY Killzone live trading", "video_id": "", "thumb": "🎥"},
+        {"title": "SMC Masterclass with OP OWENS PHIRI", "video_id": "", "thumb": "🎓"},
+    ],
+}
 
 MEDIA = {
     "tagline": "VoltexAI Media — FinTech, storytelling & the future of African finance.",
@@ -134,7 +186,7 @@ MEDIA = {
 PODCASTS = [
     {"id": "ep-12", "ep": 12, "title": "From M-Pesa to the markets", "guest": "Wanjiru K.",
      "duration": "42 min", "desc": "How mobile money became a gateway to global trading.", "date": "2026-06-01"},
-    {"id": "ep-11", "ep": 11, "title": "Risk is the only edge", "guest": "OP Owens",
+    {"id": "ep-11", "ep": 11, "title": "Risk is the only edge", "guest": "OP OWENS PHIRI",
      "duration": "55 min", "desc": "Why survival beats prediction, every time.", "date": "2026-05-18"},
     {"id": "ep-10", "ep": 10, "title": "Building AI that trades responsibly", "guest": "VoltexAI AI Team",
      "duration": "38 min", "desc": "Inside Voltex Signals and Vision.", "date": "2026-05-04"},
@@ -181,6 +233,11 @@ FAQ = [
     {"q": "Is there a free plan?", "a": "Yes. You can explore markets, sentiment and parts of the Academy for free. Paid plans unlock signals, Vision, the scanner and more."},
     {"q": "How do the AI signals work?", "a": "A quant engine plus Claude-grade AI rank setups with entry, stop and targets. They are ideas to research, never guarantees."},
     {"q": "Can I cancel anytime?", "a": "Yes — subscriptions are month-to-month and you can cancel from your account at any time."},
+    {"q": "What is a prop firm and how does VoltexAI help?", "a": "A proprietary-trading (prop) firm funds you to trade their capital after you pass an evaluation, then shares the profits. Voltex Prop Intel compares firms by model, profit split, rules and payouts and matches you to the right challenge. We are independent — we don't take your funds."},
+    {"q": "Do you support futures prop firms?", "a": "Prop firms for futures trading (CME micros, indices, energies and metals) are Coming Soon. You'll be able to compare funded-futures programs with the same VoltexAI intelligence — join the waitlist from the Prop Firms page."},
+    {"q": "Which brokers do you compare?", "a": "Regulated, Africa-friendly brokers ranked by spreads, leverage and funding options — including Exness, HFM and Vantage Markets. We show the facts; you choose and deposit directly with the broker."},
+    {"q": "What does 'FinTech' mean here?", "a": "VoltexAI is financial technology built for Africa: mobile-money-first funding (M-Pesa, MTN, Airtel), cards, crypto and bank rails through Voltex Pay, plus secure accounts and KYC designed for cross-border traders."},
+    {"q": "Who is behind VoltexAI?", "a": "VoltexAI is founded and led by OP OWENS PHIRI (Founder & CEO), building since 2017, and is powered by Axion Labs Technologies. Trading methodology is by Owens Forex Academy."},
 ]
 
 # route -> label map for the sitemap page and sitemap.xml
@@ -210,8 +267,9 @@ SITEMAP = [
 def content() -> dict:
     return {
         "mission": MISSION, "phrases": CARDINAL_PHRASES, "global": GLOBAL_PRESENCE,
-        "about": ABOUT, "careers": CAREERS, "csr": CSR, "foundation": FOUNDATION,
-        "press": PRESS, "tv": TV_SHOWS, "media": MEDIA, "podcast": PODCASTS,
+        "about": ABOUT, "services": SERVICES, "futures": FUTURES_COMING_SOON,
+        "careers": CAREERS, "csr": CSR, "foundation": FOUNDATION,
+        "press": PRESS, "tv": TV_SHOWS, "youtube": YOUTUBE, "media": MEDIA, "podcast": PODCASTS,
         "blog": BLOGS, "offers": OFFERS, "awards": AWARDS, "faq": FAQ,
         "sitemap": SITEMAP,
     }

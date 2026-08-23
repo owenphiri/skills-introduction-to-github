@@ -9,6 +9,23 @@ from __future__ import annotations
 
 BROKERS = [
     {
+        "id": "vantage",
+        "name": "Vantage Markets",
+        "regulators": ["ASIC", "FCA", "FSCA", "VFSC"],
+        "min_deposit_usd": 50,
+        "max_leverage": "1:2000",
+        "spread_eurusd_pips": 0.0,
+        "commission": "Zero (Standard STP) / from $3/lot (Raw ECN)",
+        "platforms": ["MT4", "MT5", "Vantage App", "ProTrader", "TradingView"],
+        "funding": ["Card", "Skrill", "Neteller", "Local bank", "Crypto", "M-Pesa"],
+        "africa_friendly": True,
+        "instant_withdrawals": True,
+        "instruments": ["forex", "metals", "energy", "indices", "crypto", "stocks", "ETFs", "bonds"],
+        "best_for": "Raw ECN spreads with TradingView charting and broad markets.",
+        "rating": 4.5,
+        "url": "https://www.vantagemarkets.com",
+    },
+    {
         "id": "exness",
         "name": "Exness",
         "regulators": ["FCA", "CySEC", "FSCA", "FSA-Seychelles"],

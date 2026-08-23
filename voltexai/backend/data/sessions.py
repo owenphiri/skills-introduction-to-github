@@ -23,7 +23,7 @@ LIVE_STREAMS = [
      "utc_hour": 13, "duration_min": 90, "focus": "Indices · NAS100 · US30", "level": "Intermediate"},
     {"title": "Asia Session Prep", "host": "VoltexAI Desk", "days": [0, 1, 2, 3, 4],
      "utc_hour": 23, "duration_min": 60, "focus": "JPY pairs · setups", "level": "All"},
-    {"title": "Weekly Market Outlook", "host": "OP Owens", "days": [6],
+    {"title": "Weekly Market Outlook", "host": "OP OWENS PHIRI", "days": [6],
      "utc_hour": 16, "duration_min": 75, "focus": "The week ahead · macro", "level": "All"},
     {"title": "Crypto Futures Live", "host": "VoltexAI Desk", "days": [2, 4],
      "utc_hour": 18, "duration_min": 60, "focus": "BTC · ETH perps", "level": "Advanced"},
