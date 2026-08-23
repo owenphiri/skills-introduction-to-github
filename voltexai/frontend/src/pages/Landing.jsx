@@ -49,7 +49,7 @@ export default function Landing() {
 
       <section className="vx-hero">
         <div className="vx-hero-copy">
-          <span className="vx-eyebrow">PrimeAxis ICT · Owens Forex Academy</span>
+          <span className="vx-eyebrow">Axion Labs Technologies · Owens Forex Academy</span>
           <h1>Africa's <span className="vx-grad">AI trading terminal.</span></h1>
           <p className="vx-hero-sub">
             Live markets, powerful AI signals, chart vision, prop-firm & broker intel,

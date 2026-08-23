@@ -12,7 +12,7 @@ from __future__ import annotations
 
 FUND_OVERVIEW = {
     "program_name": "VoltexAI Managed Alpha",
-    "operator": "PrimeAxis ICT Trade & Solutions Ltd",
+    "operator": "Axion Labs Technologies",
     "methodology_partner": "Owens Forex Academy (OFA)",
     "inception": "2024-01",
     "base_currency": "USD",
@@ -136,7 +136,7 @@ DISCLAIMER = (
     "Performance figures shown are illustrative program targets and/or model "
     "results, not audited live results, and are not a guarantee of future "
     "performance. Trading leveraged products carries a high risk of loss. VoltexAI "
-    "/ PrimeAxis ICT provides technology and educational analysis and does not "
+    "/ Axion Labs Technologies provides technology and educational analysis and does not "
     "provide personalised investment advice. Managed programs are offered only "
     "where lawful and to eligible investors."
 )

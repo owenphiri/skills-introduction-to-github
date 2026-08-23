@@ -25,6 +25,23 @@ export default function PropFirms() {
           </p>
         </div>
 
+        <div className="vx-futures-banner">
+          <div className="vx-futures-text">
+            <span className="vx-soon-badge">Coming Soon</span>
+            <h3>Prop Firms for Futures Trading</h3>
+            <p className="vx-muted">
+              Funded futures accounts (CME micros, indices, energies &amp; metals) with the
+              same VoltexAI comparison, matching and intelligence you get for FX prop firms.
+            </p>
+            <div className="vx-futures-feats">
+              <span className="vx-chip">CME &amp; micro futures</span>
+              <span className="vx-chip">Evaluation &amp; instant funding</span>
+              <span className="vx-chip">Futures-native risk rules</span>
+            </div>
+          </div>
+          <a className="vx-btn-primary" href="/offers">Join the waitlist</a>
+        </div>
+
         <div className="vx-class-tabs">
           {CLASSES.map((c) => (
             <button key={c} className={c === assetClass ? "active" : ""}

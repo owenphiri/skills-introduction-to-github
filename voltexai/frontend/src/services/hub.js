@@ -9,6 +9,10 @@ export const dashboardService = {
   snapshot: () => api.get("/api/dashboard"),
 };
 
+export const subscribersService = {
+  live: () => api.get("/api/live/subscribers"),
+};
+
 export const sessionsService = {
   status: () => api.get("/api/sessions"),
 };

@@ -5,6 +5,7 @@ import { Footer } from "../components/Footer";
 import { BarSeries, Sparkline } from "../components/Analytics";
 import { VMarquee } from "../components/VMarquee";
 import { SocialBar } from "../components/Social";
+import { SubscriberTracker } from "../components/SubscriberTracker";
 import { dashboardService } from "../services/hub";
 
 export default function Dashboard() {
@@ -38,6 +39,8 @@ export default function Dashboard() {
         {!d && <p className="vx-muted">Booting the command center…</p>}
         {d && (
           <>
+            <SubscriberTracker />
+
             {/* KPI grid */}
             <div className="vx-kpi-grid">
               {d.kpis.map((k) => (

@@ -7,12 +7,14 @@ from __future__ import annotations
 
 COMPANY = {
     "name": "VoltexAI Technologies",
-    "legal": "PrimeAxis ICT Trade & Solutions Ltd",
+    "legal": "Axion Labs Technologies",
+    "powered_by": "Powered by Axion Labs Technologies",
     "tagline": "The operating system for the African trader.",
     "motto": "Trade Smart · Trade Safe · Trade Consistently",
-    "ceo": "OP Owens",
+    "ceo": "OP OWENS PHIRI",
     "hq": "Kasama, Zambia",
-    "founded": 2024,
+    "founded": 2017,
+    "established": "EST. 2017",
     "copyright": "© 2026 VoltexAI Technologies. All rights reserved.",
 }
 
@@ -27,6 +29,10 @@ SOCIALS = [
      "url": "https://facebook.com/VoltexAI"},
     {"id": "whatsapp", "label": "WhatsApp", "handle": "Community",
      "url": "https://wa.me/260970000000"},
+    {"id": "tiktok", "label": "TikTok", "handle": "@VoltexAI",
+     "url": "https://www.tiktok.com/@voltexai"},
+    {"id": "youtube", "label": "YouTube", "handle": "VoltexAI TV",
+     "url": "https://www.youtube.com/@VoltexAI"},
 ]
 
 PRODUCTS = [

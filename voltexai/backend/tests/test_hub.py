@@ -44,10 +44,14 @@ def test_travel_events_and_rsvp(client):
 
 def test_company_content(client):
     d = client.get("/api/company").json()
-    for key in ("mission", "phrases", "global", "about", "careers", "csr",
-                "foundation", "press", "tv", "media", "podcast", "blog",
-                "offers", "awards", "faq", "sitemap"):
+    for key in ("mission", "phrases", "global", "about", "services", "futures",
+                "careers", "csr", "foundation", "press", "tv", "youtube", "media",
+                "podcast", "blog", "offers", "awards", "faq", "sitemap"):
         assert key in d, f"missing {key}"
+    assert len(d["services"]) >= 5
+    assert d["futures"]["status"] == "Coming Soon"
+    assert d["youtube"]["channel_url"].startswith("http")
+    assert d["about"]["established"] == "EST. 2017"
     assert d["mission"]["headline"]
     assert len(d["phrases"]) >= 4 and all("color" in p for p in d["phrases"])
     assert d["careers"]["roles"] and d["faq"] and d["awards"]
@@ -62,6 +66,50 @@ def test_careers_apply(client):
     assert ok.status_code == 200 and ok.json()["received"]
     assert client.post("/api/careers/apply",
                        json={"role_id": "nope", "name": "Test Trader", "email": "t@test.io"}).status_code == 404
+
+
+def test_branding_axion_labs(client):
+    c = client.get("/api/ecosystem").json()["company"]
+    assert c["ceo"] == "OP OWENS PHIRI"
+    assert c["legal"] == "Axion Labs Technologies"
+    assert c["founded"] == 2017
+
+
+def test_socials_include_tiktok_youtube(client):
+    ids = {s["id"] for s in client.get("/api/dashboard").json()["socials"]}
+    assert {"tiktok", "youtube"} <= ids
+
+
+def test_live_subscribers(client):
+    d = client.get("/api/live/subscribers").json()
+    assert d["total"] > 40000 and d["per_min"] > 0
+    assert len(d["regions"]) >= 4 and d["recent"]
+    assert d["countries"] >= 20
+
+
+def test_brokers_include_vantage(client):
+    firms = client.get("/api/directory/brokers").json()["brokers"]
+    assert any(b["id"] == "vantage" for b in firms)
+
+
+def test_journal_flow(client, free_user):
+    H = free_user["headers"]
+    assert client.get("/api/journal").status_code == 401
+    empty = client.get("/api/journal", headers=H).json()
+    assert empty["stats"]["count"] == 0 and "heatmap" in empty and "equity" in empty
+    t = client.post("/api/journal", headers=H, json={
+        "symbol": "eurusd", "side": "buy", "entry": 1.08, "exit": 1.085,
+        "pnl": 120, "rr": 2.0, "setup": "SMC", "trade_date": "2026-08-20"})
+    assert t.status_code == 201 and t.json()["symbol"] == "EURUSD"
+    tid = t.json()["id"]
+    client.post("/api/journal", headers=H, json={
+        "symbol": "xauusd", "side": "sell", "entry": 2400, "exit": 2410, "pnl": -60, "rr": -1.0})
+    d = client.get("/api/journal", headers=H).json()
+    assert d["stats"]["count"] == 2 and d["stats"]["net_pnl"] == 60.0
+    assert d["stats"]["win_rate"] == 50.0 and len(d["equity"]) == 2
+    assert d["heatmap"]["days"] and d["by_symbol"]
+    assert client.delete(f"/api/journal/{tid}", headers=H).json()["deleted"]
+    assert client.get("/api/journal", headers=H).json()["stats"]["count"] == 1
 
 
 def test_sitemap_xml(client):

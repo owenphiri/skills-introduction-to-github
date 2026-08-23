@@ -41,6 +41,7 @@ import Blog from "./pages/Blog";
 import Offers from "./pages/Offers";
 import Awards from "./pages/Awards";
 import FAQ from "./pages/FAQ";
+import Journal from "./pages/Journal";
 
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -123,6 +124,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <Trade />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/journal"
+            element={
+              <ProtectedRoute>
+                <Journal />
               </ProtectedRoute>
             }
           />
