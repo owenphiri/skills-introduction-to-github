@@ -147,3 +147,25 @@ ALTER TABLE broker_accounts  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE positions        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE orders           ENABLE ROW LEVEL SECURITY;
 ALTER TABLE kyc_records      ENABLE ROW LEVEL SECURITY;
+
+-- Voltex Competition (leaderboard entries)
+CREATE TABLE IF NOT EXISTS contest_entries (
+    id             SERIAL PRIMARY KEY,
+    user_id        INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    contest_id     VARCHAR(40) NOT NULL,
+    start_equity   DOUBLE PRECISION NOT NULL,
+    start_realized DOUBLE PRECISION NOT NULL DEFAULT 0,
+    joined_at      TIMESTAMP NOT NULL DEFAULT (now() AT TIME ZONE 'utc')
+);
+CREATE INDEX IF NOT EXISTS ix_contest_entries_contest ON contest_entries(contest_id);
+CREATE INDEX IF NOT EXISTS ix_contest_entries_user ON contest_entries(user_id);
+ALTER TABLE contest_entries  ENABLE ROW LEVEL SECURITY;
+
+-- Defense-in-depth: strip the PostgREST roles of all grants (present & future).
+-- RLS already denies them; this removes the underlying privileges too. The API's
+-- privileged 'postgres' role is unaffected.
+REVOKE ALL ON ALL TABLES    IN SCHEMA public FROM anon, authenticated;
+REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM anon, authenticated;
+REVOKE ALL ON ALL FUNCTIONS IN SCHEMA public FROM anon, authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES    FROM anon, authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON SEQUENCES FROM anon, authenticated;

@@ -2,9 +2,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { NavBar } from "../components/NavBar";
+import { Footer } from "../components/Footer";
+import { Testimonials } from "../components/Testimonials";
 import { Sparkline } from "../components/Chart";
 import { marketsService } from "../services/markets";
 import { signalsService } from "../services/signals";
+import { ecosystemService } from "../services/ecosystem";
 
 const FEATURES = [
   { icon: "🧠", title: "AI Trading Terminal",
@@ -31,11 +34,13 @@ const STEPS = [
 export default function Landing() {
   const [movers, setMovers] = useState({ gainers: [], losers: [] });
   const [signals, setSignals] = useState([]);
+  const [products, setProducts] = useState([]);
 
   useEffect(() => {
     marketsService.movers(4).then(setMovers).catch(() => {});
     signalsService.board({ minConfidence: 3, limit: 4 })
       .then((d) => setSignals(d.signals)).catch(() => {});
+    ecosystemService.ecosystem().then((d) => setProducts(d.products)).catch(() => {});
   }, []);
 
   return (
@@ -118,25 +123,47 @@ export default function Landing() {
         </div>
       </section>
 
+      {products.length > 0 && (
+        <section className="vx-section">
+          <h2 className="vx-section-title">One ecosystem. Every edge.</h2>
+          <p className="vx-muted" style={{ textAlign: "center", marginTop: "-16px", marginBottom: 24 }}>
+            VoltexAI Technologies — the full stack for the modern African trader.
+          </p>
+          <div className="vx-eco-grid">
+            {products.map((p, i) => (
+              <Link key={p.id} to={p.route} className="vx-eco-card vx-rise"
+                style={{ "--accent": p.accent, animationDelay: `${i * 40}ms` }}>
+                <div className="vx-eco-icon" style={{ background: `${p.accent}22`, color: p.accent }}>{p.icon}</div>
+                <div className="vx-eco-name">{p.name}</div>
+                <div className="vx-eco-tag" style={{ color: p.accent }}>{p.tag}</div>
+                <p className="vx-eco-blurb">{p.blurb}</p>
+                <span className="vx-eco-open">Open →</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <section className="vx-section vx-section--alt">
+        <h2 className="vx-section-title">Loved by traders across the globe 🌍</h2>
+        <div style={{ maxWidth: 1180, margin: "0 auto" }}>
+          <Testimonials limit={3} />
+          <div style={{ textAlign: "center", marginTop: 24 }}>
+            <Link to="/success" className="vx-btn-secondary vx-btn-lg">Read the success stories →</Link>
+          </div>
+        </div>
+      </section>
+
       <section className="vx-cta-band">
         <h2>Ready to trade with an edge?</h2>
         <p>Join traders across Zambia, Nigeria, Kenya, Ghana and South Africa.</p>
         <div className="vx-hero-cta">
           <Link to="/signup" className="vx-btn-primary vx-btn-lg">Create free account</Link>
-          <Link to="/aum" className="vx-btn-ghost vx-btn-lg">Explore managed AUM</Link>
+          <Link to="/products" className="vx-btn-ghost vx-btn-lg">Explore the ecosystem</Link>
         </div>
       </section>
 
-      <footer className="vx-footer">
-        <div>
-          <b>VoltexAI</b> — by PrimeAxis ICT Trade & Solutions Ltd · Kasama, Zambia.
-          Methodology by Owens Forex Academy.
-        </div>
-        <div className="vx-footer-disclaimer">
-          Trading leveraged products carries a high risk of loss. VoltexAI provides
-          technology and educational analysis, not personalised investment advice.
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }
