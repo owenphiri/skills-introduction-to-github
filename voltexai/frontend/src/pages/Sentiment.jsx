@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { NavBar } from "../components/NavBar";
 import { Footer } from "../components/Footer";
 import { sentimentService } from "../services/hub";
+import { KpiStrip } from "../components/Analytics";
 
 function Gauge({ value, label }) {
   // semicircular gauge 0-100
@@ -46,6 +47,8 @@ export default function Sentiment() {
             bullish/bearish bias computed across the whole instrument universe.
           </p>
         </div>
+
+        <KpiStrip ids={["fear_greed", "bullish", "sessions", "community"]} title="Market pulse" />
 
         {!d && <p className="vx-muted">Reading the market…</p>}
         {d && (

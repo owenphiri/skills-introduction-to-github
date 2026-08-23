@@ -6,6 +6,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { SocialProof } from "./components/SocialProof";
+import { SocialRail } from "./components/Social";
 
 import Landing from "./pages/Landing";
 import Markets from "./pages/Markets";
@@ -26,6 +27,7 @@ import Live from "./pages/Live";
 import Resources from "./pages/Resources";
 import Community from "./pages/Community";
 import Travel from "./pages/Travel";
+import Dashboard from "./pages/Dashboard";
 
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -47,6 +49,7 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <SocialProof />
+        <SocialRail />
         <Routes>
           {/* Public marketing + data surfaces */}
           <Route path="/" element={<Landing />} />
@@ -68,6 +71,7 @@ export default function App() {
           <Route path="/resources" element={<Resources />} />
           <Route path="/community" element={<Community />} />
           <Route path="/travel" element={<Travel />} />
+          <Route path="/dashboard" element={<Dashboard />} />
 
           {/* Auth */}
           <Route path="/login" element={<Login />} />

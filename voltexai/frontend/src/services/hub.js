@@ -5,6 +5,10 @@ export const sentimentService = {
   overview: () => api.get("/api/sentiment"),
 };
 
+export const dashboardService = {
+  snapshot: () => api.get("/api/dashboard"),
+};
+
 export const sessionsService = {
   status: () => api.get("/api/sessions"),
 };

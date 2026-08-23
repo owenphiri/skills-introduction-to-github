@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { NavBar } from "../components/NavBar";
 import { Footer } from "../components/Footer";
 import { sessionsService } from "../services/hub";
+import { KpiStrip } from "../components/Analytics";
 
 export default function Live() {
   const [d, setD] = useState(null);
@@ -25,6 +26,8 @@ export default function Live() {
             London opens, NY killzones and weekly outlooks with the desk.
           </p>
         </div>
+
+        <KpiStrip ids={["sessions", "fear_greed", "bullish", "products"]} title="Session pulse" />
 
         {!d && <p className="vx-muted">Syncing the clocks…</p>}
         {d && (
