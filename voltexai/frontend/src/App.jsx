@@ -21,6 +21,11 @@ import Store from "./pages/Store";
 import Pay from "./pages/Pay";
 import Vision from "./pages/Vision";
 import Success from "./pages/Success";
+import Sentiment from "./pages/Sentiment";
+import Live from "./pages/Live";
+import Resources from "./pages/Resources";
+import Community from "./pages/Community";
+import Travel from "./pages/Travel";
 
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -58,6 +63,11 @@ export default function App() {
           <Route path="/pay" element={<Pay />} />
           <Route path="/vision" element={<Vision />} />
           <Route path="/success" element={<Success />} />
+          <Route path="/sentiment" element={<Sentiment />} />
+          <Route path="/live" element={<Live />} />
+          <Route path="/resources" element={<Resources />} />
+          <Route path="/community" element={<Community />} />
+          <Route path="/travel" element={<Travel />} />
 
           {/* Auth */}
           <Route path="/login" element={<Login />} />

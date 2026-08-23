@@ -6,9 +6,10 @@ from .trading import (BrokerAccount, Position, Order,
                       OrderSide, OrderType, OrderStatus)
 from .kyc import KycRecord, KycStatus
 from .competition import ContestEntry
+from .community import Post
 
 __all__ = [
-    "ContestEntry",
+    "ContestEntry", "Post",
     "User", "UserRole",
     "Subscription", "PlanTier", "SubStatus", "Provider",
     "Payment", "PaymentStatus",
