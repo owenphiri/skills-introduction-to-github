@@ -44,9 +44,10 @@ class Settings(BaseSettings):
     # --- Market data feed ---
     # Provider order is automatic: a real vendor (if its key is set) is tried
     # first per asset class, then Binance for crypto, then the built-in feed.
-    MARKET_DATA_PROVIDER: str = os.getenv("MARKET_DATA_PROVIDER", "auto")  # auto|twelvedata|finnhub|synthetic
+    MARKET_DATA_PROVIDER: str = os.getenv("MARKET_DATA_PROVIDER", "auto")  # auto|twelvedata|finnhub|alphavantage|synthetic
     TWELVEDATA_API_KEY: str = os.getenv("TWELVEDATA_API_KEY", "")
     FINNHUB_API_KEY: str = os.getenv("FINNHUB_API_KEY", "")
+    ALPHAVANTAGE_API_KEY: str = os.getenv("ALPHAVANTAGE_API_KEY", "")
     MARKET_CACHE_TTL: float = float(os.getenv("MARKET_CACHE_TTL", "12"))   # seconds
 
     # --- Trade execution ---

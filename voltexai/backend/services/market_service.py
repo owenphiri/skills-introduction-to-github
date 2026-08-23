@@ -191,6 +191,8 @@ async def _fetch_quote(symbol: str, inst: dict) -> "Quote":
     # 1) real vendor (Twelve Data covers FX/metals/crypto/indices/stocks; Finnhub stocks)
     if provider != "synthetic":
         real = await data_providers.twelvedata_quote(symbol)
+        if real is None:
+            real = await data_providers.alphavantage_quote(symbol)
         if real is None and inst["asset_class"] == "stocks":
             real = await data_providers.finnhub_quote(symbol)
         if real:
@@ -277,6 +279,8 @@ async def get_candles_live(symbol: str, timeframe: str = "M15",
         return []
     if settings.MARKET_DATA_PROVIDER != "synthetic":
         real = await data_providers.twelvedata_candles(symbol, timeframe, count)
+        if real is None:
+            real = await data_providers.alphavantage_candles(symbol, timeframe, count)
         if real:
             return real
     return get_candles(symbol, timeframe, count)
