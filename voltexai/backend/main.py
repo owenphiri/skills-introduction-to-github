@@ -15,7 +15,8 @@ from .database import init_db, engine
 from .middleware.hardening import SecurityHeadersMiddleware, RequestContextMiddleware
 from .routes import (auth_router, ai_router, payment_router,
                      market_router, signal_router, directory_router, fund_router,
-                     trade_router, kyc_router, ecosystem_router, competition_router)
+                     trade_router, kyc_router, ecosystem_router, competition_router,
+                     social_router)
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s")
@@ -77,6 +78,7 @@ app.include_router(trade_router)
 app.include_router(kyc_router)
 app.include_router(ecosystem_router)
 app.include_router(competition_router)
+app.include_router(social_router)
 
 
 @app.get("/")

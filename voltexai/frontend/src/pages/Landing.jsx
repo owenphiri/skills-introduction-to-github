@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { NavBar } from "../components/NavBar";
 import { Footer } from "../components/Footer";
+import { Testimonials } from "../components/Testimonials";
 import { Sparkline } from "../components/Chart";
 import { marketsService } from "../services/markets";
 import { signalsService } from "../services/signals";
@@ -142,6 +143,16 @@ export default function Landing() {
           </div>
         </section>
       )}
+
+      <section className="vx-section vx-section--alt">
+        <h2 className="vx-section-title">Loved by traders across the globe 🌍</h2>
+        <div style={{ maxWidth: 1180, margin: "0 auto" }}>
+          <Testimonials limit={3} />
+          <div style={{ textAlign: "center", marginTop: 24 }}>
+            <Link to="/success" className="vx-btn-secondary vx-btn-lg">Read the success stories →</Link>
+          </div>
+        </div>
+      </section>
 
       <section className="vx-cta-band">
         <h2>Ready to trade with an edge?</h2>

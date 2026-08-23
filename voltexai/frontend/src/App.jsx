@@ -5,6 +5,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { SocialProof } from "./components/SocialProof";
 
 import Landing from "./pages/Landing";
 import Markets from "./pages/Markets";
@@ -19,6 +20,7 @@ import Competition from "./pages/Competition";
 import Store from "./pages/Store";
 import Pay from "./pages/Pay";
 import Vision from "./pages/Vision";
+import Success from "./pages/Success";
 
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -39,6 +41,7 @@ export default function App() {
     <ErrorBoundary>
     <AuthProvider>
       <BrowserRouter>
+        <SocialProof />
         <Routes>
           {/* Public marketing + data surfaces */}
           <Route path="/" element={<Landing />} />
@@ -54,6 +57,7 @@ export default function App() {
           <Route path="/store" element={<Store />} />
           <Route path="/pay" element={<Pay />} />
           <Route path="/vision" element={<Vision />} />
+          <Route path="/success" element={<Success />} />
 
           {/* Auth */}
           <Route path="/login" element={<Login />} />

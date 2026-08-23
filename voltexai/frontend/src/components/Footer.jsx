@@ -9,6 +9,7 @@ const COLS = [
   ]},
   { title: "Grow", links: [
     ["Voltex Academy", "/academy"], ["Voltex Competition", "/competition"],
+    ["Success Stories", "/success"],
     ["Voltex Prop Intel", "/prop-firms"], ["Voltex Broker Intel", "/brokers"],
   ]},
   { title: "Money", links: [

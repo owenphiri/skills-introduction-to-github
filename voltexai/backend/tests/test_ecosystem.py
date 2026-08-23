@@ -59,3 +59,12 @@ def test_competition_join_and_leaderboard(client, paid_user):
 
 def test_competition_join_requires_auth(client):
     assert client.post("/api/competition/weekly-sprint/join").status_code == 401
+
+
+def test_social_testimonials_and_proof(client):
+    t = client.get("/api/social/testimonials").json()
+    assert len(t["testimonials"]) >= 3 and t["stats"]
+    p = client.get("/api/social/proof").json()
+    assert p["count"] > 0
+    ev = p["events"][0]
+    assert {"type", "name", "location", "detail"} <= set(ev)
