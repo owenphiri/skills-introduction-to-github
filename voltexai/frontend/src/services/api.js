@@ -1,7 +1,16 @@
 // src/services/api.js
 // VoltexAI - HTTP client with automatic JWT injection and 401 -> refresh flow.
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
+// API base resolution:
+//  1. VITE_API_URL (set in Vercel/host env) always wins.
+//  2. On localhost, default to the local dev backend.
+//  3. Otherwise (production) default to the live Render API.
+const DEFAULT_PROD_API = "https://voltexai-api.onrender.com";
+const _isLocal =
+  typeof window !== "undefined" &&
+  /^(localhost|127\.0\.0\.1|\[::1\])$/.test(window.location.hostname);
+const API_BASE =
+  import.meta.env.VITE_API_URL || (_isLocal ? "http://localhost:8000" : DEFAULT_PROD_API);
 
 const TOKEN_KEY = "voltexai_access";
 const REFRESH_KEY = "voltexai_refresh";
