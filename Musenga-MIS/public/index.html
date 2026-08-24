@@ -3587,13 +3587,13 @@ function resetSlider(){startSlider();}
    AUTHENTICATION  (login / register / forgot username / forgot password)
    ============================================================ */
 let _regRole="student";
-const ROLES=[["student","Student"],["parent","Parent / Guardian"],["teacher","Subject Teacher"],["hod","Head of Department"],["deputy","Deputy Head Teacher"],["headteacher","Head Teacher"],["counselor","Guidance & Counselling"],["accountant","Finance Department"],["storekeeper","Stores & Procurement"],["admin","Administrator"]];
+const ROLES=[["student","Pupil"],["parent","Parent / Guardian"],["teacher","Subject Teacher"],["hod","Head of Department"],["deputy","Deputy Head Teacher"],["headteacher","Head Teacher"],["counselor","Guidance & Counselling"],["accountant","Finance Department"],["storekeeper","Stores & Procurement"],["admin","Administrator"]];
 // Self-registration is deliberately limited to student/parent: every staff
 // role must be provisioned by an admin (Staff & Users), so there is no
 // client-side path — tampered or not — from the public register form to a
 // staff/admin account.
 const SELF_REG_ROLES=ROLES.filter(r=>["student","parent"].includes(r[0]));
-const ROLE_META={admin:{label:"Administrator",ico:"\u{1F6E1}\uFE0F",color:"#5C6B66"},headteacher:{label:"Head Teacher",ico:"\u{1F393}",color:"#4C1D95"},deputy:{label:"Deputy Head Teacher",ico:"\u{1F4CB}",color:"#6D28D9"},hod:{label:"Head of Department",ico:"\u{1F4DA}",color:"#8B5CF6"},teacher:{label:"Subject Teacher",ico:"\u270F\uFE0F",color:"#2c6fa8"},counselor:{label:"Guidance & Counselling",ico:"\u{1F49B}",color:"#C77B2A"},accountant:{label:"Finance Department",ico:"\u{1F4B0}",color:"#A8862F"},storekeeper:{label:"Stores & Procurement",ico:"\u{1F4E6}",color:"#8a6d2f"},parent:{label:"Parent / Guardian",ico:"\u{1F46A}",color:"#B23B3B"},student:{label:"Student",ico:"\u{1F392}",color:"#6D28D9"}};
+const ROLE_META={admin:{label:"Administrator",ico:"\u{1F6E1}\uFE0F",color:"#5C6B66"},headteacher:{label:"Head Teacher",ico:"\u{1F393}",color:"#4C1D95"},deputy:{label:"Deputy Head Teacher",ico:"\u{1F4CB}",color:"#6D28D9"},hod:{label:"Head of Department",ico:"\u{1F4DA}",color:"#8B5CF6"},teacher:{label:"Subject Teacher",ico:"\u270F\uFE0F",color:"#2c6fa8"},counselor:{label:"Guidance & Counselling",ico:"\u{1F49B}",color:"#C77B2A"},accountant:{label:"Finance Department",ico:"\u{1F4B0}",color:"#A8862F"},storekeeper:{label:"Stores & Procurement",ico:"\u{1F4E6}",color:"#8a6d2f"},parent:{label:"Parent / Guardian",ico:"\u{1F46A}",color:"#B23B3B"},student:{label:"Pupil",ico:"\u{1F392}",color:"#6D28D9"}};
 const EFFECTIVE={admin:["admin"],headteacher:["headteacher","admin"],deputy:["deputy","admin"],hod:["hod","teacher"],teacher:["teacher"],counselor:["counselor"],accountant:["accountant"],storekeeper:["storekeeper"],parent:["parent"],student:["student"]};
 const effRoles=()=>EFFECTIVE[SESSION?.role]||[SESSION?.role];
 const DEPTS_SEED=[
@@ -3818,7 +3818,7 @@ const NAV=[
  {g:"Overview",items:[
    {id:"dash",ico:"🏠",label:"Dashboard",roles:"*"} ]},
  {g:"Academics",items:[
-   {id:"students",ico:"🎓",label:"Students",roles:["admin","teacher","accountant"]},
+   {id:"students",ico:"🎓",label:"Pupils",roles:["admin","teacher","accountant"]},
    {id:"grading",ico:"📊",label:"Results & Grading",roles:["admin","teacher"]},
    {id:"timetable",ico:"🗓️",label:"Timetable",roles:["admin","teacher","student"]},
    {id:"careers",ico:"🎯",label:"Career Guidance",roles:"*"},
@@ -3838,7 +3838,7 @@ const NAV=[
    {id:"aicoding",ico:"💻",label:"Coding Tutor",roles:["student"]} ]},
  {g:"Administration",items:[
    {id:"certificates",ico:"📜",label:"Certificates",roles:["admin","teacher"]},
-   {id:"ids",ico:"🪪",label:"Student ID Cards",roles:["admin","teacher"]},
+   {id:"ids",ico:"🪪",label:"Pupil ID Cards",roles:["admin","teacher"]},
    {id:"comms",ico:"💬",label:"Communications",roles:["admin","teacher","counselor"]},
    {id:"procurement",ico:"📦",label:"Procurement",roles:["admin","storekeeper","accountant"]},
    {id:"stores",ico:"🏬",label:"Stores & Assets",roles:["admin","storekeeper"]},
@@ -3986,18 +3986,18 @@ PAGES.dash=async()=>{
   grid.append(honours);
   // quick actions
   const qa=panel("⚡ Quick Actions");
-  const acts=[["🎓 Add Student","students"],["📊 Enter Results","grading"],["📜 Generate Certificate","certificates"],["🪪 Print ID Card","ids"]];
+  const acts=[["🎓 Add Pupil","students"],["📊 Enter Results","grading"],["📜 Generate Certificate","certificates"],["🪪 Print ID Card","ids"]];
   acts.forEach(([l,p])=>{if((NAV.flatMap(g=>g.items).find(i=>i.id===p)||{}).roles && can(NAV.flatMap(g=>g.items).find(i=>i.id===p)))qa.append(el("button",{class:"btn btn-ghost btn-block",style:"margin-bottom:10px;justify-content:flex-start",onclick:()=>go(p)},l));});
   qa.append(el("div",{style:"font-size:12px;color:var(--muted);margin-top:8px"},"🔒 All data stored securely & offline on this device."));
   grid.append(qa);
   m.append(grid);
 };
 
-/* ---- Students ---- */
+/* ---- Pupils ---- */
 PAGES.students=async()=>{
   const m=$("#main");
-  m.append(head("Students","Manage learner records",[
-    el("button",{class:"btn btn-primary btn-sm",onclick:()=>studentForm()},"+ Add Student")]));
+  m.append(head("Pupils","Manage learner records",[
+    el("button",{class:"btn btn-primary btn-sm",onclick:()=>studentForm()},"+ Add Pupil")]));
   const students=(await dbGetAll("students")).sort((a,b)=>a.class.localeCompare(b.class)||a.fullName.localeCompare(b.fullName));
   const filterWrap=el("div",{style:"display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap"});
   const fcls=el("select",{class:"",style:"padding:9px 12px;border:1.5px solid var(--line);border-radius:10px"},
@@ -4009,7 +4009,7 @@ PAGES.students=async()=>{
     const q=search.value.toLowerCase(),cf=fcls.value;
     const rows=students.filter(s=>(!cf||s.class.startsWith(cf))&&(!q||s.fullName.toLowerCase().includes(q)||s.admissionNo.toLowerCase().includes(q)));
     p.innerHTML="";
-    if(!rows.length){p.append(emptyState("🎓","No students found."));return;}
+    if(!rows.length){p.append(emptyState("🎓","No pupils found."));return;}
     const tw=el("div",{class:"table-wrap"});const t=el("table");
     t.append(el("thead",{},el("tr",{},...["Adm. No","Full Name","Class","Sex","Guardian","Actions"].map(h=>el("th",{},h)))));
     const tb=el("tbody");
@@ -4025,7 +4025,7 @@ PAGES.students=async()=>{
 };
 function studentForm(s){
   const isEdit=!!s;const cls=ALL_CLASSES();
-  appModal(isEdit?"Edit Student":"Add Student",[
+  appModal(isEdit?"Edit Pupil":"Add Pupil",[
     el("div",{class:"grid-form"},
       inp("Full Name","sf_name",s?.fullName||""),
       sel("Class","sf_class",cls,s?.class||cls[0]),
@@ -4042,8 +4042,8 @@ function studentForm(s){
     await dbPut("students",rec);
     if(!s){await dbPut("gamipoints",{id:rec.id,studentId:rec.id,name:name,class:rec.class,points:{academic:0,hardwork:0,discipline:0,attendance:0,leadership:0,citizen:0},badges:[]});}
     else{const g=await dbGet("gamipoints",rec.id);if(g){g.name=name;g.class=rec.class;await dbPut("gamipoints",g);}}
-    await audit((s?"edit":"add")+"-student:"+name);toast("Student saved","ok");go("students");
-  },isEdit?"Update":"Add Student");
+    await audit((s?"edit":"add")+"-student:"+name);toast("Pupil saved","ok");go("students");
+  },isEdit?"Update":"Add Pupil");
 }
 async function delStudent(s){if(!confirm("Delete "+s.fullName+"?"))return;await dbDel("students",s.id);await dbDel("gamipoints",s.id);await audit("del-student:"+s.fullName);toast("Deleted","warn");go("students");}
 
@@ -4068,7 +4068,7 @@ PAGES.grading=async()=>{
       el("div",{class:"actions"},el("button",{class:"btn btn-gold btn-sm",onclick:()=>saveSheet(cls,subId,term,roster)},"💾 Save Marks"))));
     if(!roster.length){p.append(emptyState("📊","No students in "+cls));return;}
     const tw=el("div",{class:"table-wrap"});const t=el("table");
-    t.append(el("thead",{},el("tr",{},...["Student",`Mid /${g.midMax}`,`End /${g.endMax}`,"Total /100","Grade"].map(h=>el("th",{},h)))));
+    t.append(el("thead",{},el("tr",{},...["Pupil",`Mid /${g.midMax}`,`End /${g.endMax}`,"Total /100","Grade"].map(h=>el("th",{},h)))));
     const tb=el("tbody");
     roster.forEach(s=>{
       const ex=gradesAll.find(x=>x.studentId===s.id&&x.subjectId===subId&&x.term===term)||{};
@@ -4115,7 +4115,7 @@ PAGES.gami=async()=>{
   const board=(await dbGetAll("gamipoints")).map(g=>({...g,total:Object.values(g.points||{}).reduce((a,b)=>a+b,0)})).sort((a,b)=>b.total-a.total);
   const max=board[0]?.total||1;
   const p=panel("🏆 Term Leaderboard");
-  if(!board.length){p.append(emptyState("🏅","No students yet."));}
+  if(!board.length){p.append(emptyState("🏅","No pupils yet."));}
   else{const ldr=el("div",{class:"gami-leader"});
     board.forEach((g,i)=>{const rowEl=el("div",{class:"gami-row",style:"flex-direction:column;align-items:stretch"});
       const top=el("div",{style:"display:flex;align-items:center;gap:14px"},
@@ -4145,10 +4145,10 @@ function awardPoints(g){
   },"Save Points");
 }
 
-/* ---- Student ID cards (crest corners · exam number for G12 · no QR) ---- */
+/* ---- Pupil ID cards (crest corners · exam number for G12 · no QR) ---- */
 PAGES.ids=async()=>{
   const m=$("#main");
-  m.append(head("Student ID Cards","Official IDs for examinations — auto-issued by MUSENGA DAY SS. Grade 12 cards show the examination number."));
+  m.append(head("Pupil ID Cards","Official IDs for examinations — auto-issued by MUSENGA DAY SS. Grade 12 cards show the examination number."));
   const students=await dbGetAll("students");
   const ctrl=el("div",{style:"display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px"});
   const ssel=el("select",{style:"flex:1;min-width:220px;padding:10px;border:1.5px solid var(--line);border-radius:10px"},
@@ -4350,7 +4350,7 @@ PAGES.counseling=async()=>{
 function counselForm(){
   dbGetAll("students").then(students=>{
     appModal("New Case Note (Confidential)",[
-      sel("Student","cn_s",students.map(s=>[s.id,s.fullName+" · "+s.class]),students[0]?.id),
+      sel("Pupil","cn_s",students.map(s=>[s.id,s.fullName+" · "+s.class]),students[0]?.id),
       sel("Category","cn_cat",["Academic","Personal","Behavioural","Family","Health","Career"]),
       el("div",{class:"field"},el("label",{},"Confidential Note"),el("textarea",{id:"cn_note",rows:"4",style:"width:100%;padding:11px;border:1.5px solid var(--line);border-radius:10px"}))
     ],async()=>{const note=$("#cn_note").value.trim();if(!note){toast("Note required","err");return false;}
@@ -4403,7 +4403,7 @@ PAGES.certificates=async()=>{
   m.append(head("Certificates","Auto-certified by MUSENGA DAY SECONDARY SCHOOL on generation."));
   const students=await dbGetAll("students");
   const ctrl=el("div",{style:"display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px"});
-  const ssel=el("select",{style:"min-width:200px;padding:10px;border:1.5px solid var(--line);border-radius:10px"},el("option",{value:""},"— Student —"),...students.map(s=>el("option",{value:s.id},s.fullName+" · "+s.class)));
+  const ssel=el("select",{style:"min-width:200px;padding:10px;border:1.5px solid var(--line);border-radius:10px"},el("option",{value:""},"— Pupil —"),...students.map(s=>el("option",{value:s.id},s.fullName+" · "+s.class)));
   const tsel=el("select",{style:"padding:10px;border:1.5px solid var(--line);border-radius:10px"},...["Certificate of Completion","Academic Excellence","Discipline & Conduct","Leadership","Participation","Best Performance"].map(t=>el("option",{},t)));
   ctrl.append(ssel,tsel,el("button",{class:"btn btn-primary btn-sm",onclick:gen},"Generate"),el("button",{class:"btn btn-gold btn-sm no-print",onclick:()=>window.print()},"🖨 Print"));
   m.append(ctrl);
@@ -4758,7 +4758,7 @@ PAGES.examanalysis=async()=>{
     host.append(panel("📈 Grade Distribution",el("div",{html:svgBar(distData)})));
     // ranking table
     const p=panel("🏆 Class Ranking");const tw=el("div",{class:"table-wrap"});const t=el("table");
-    t.append(el("thead",{},el("tr",{},...["Pos","Student","Mid","End","Total","Grade"].map(h=>el("th",{},h)))));
+    t.append(el("thead",{},el("tr",{},...["Pos","Pupil","Mid","End","Total","Grade"].map(h=>el("th",{},h)))));
     const tb=el("tbody");
     st.rows.forEach(r=>tb.append(el("tr",{},el("td",{html:"<b>"+r.pos+"</b>"}),el("td",{},r.name),el("td",{},r.mid),el("td",{},r.end),el("td",{html:"<b>"+r.total+"</b>"}),el("td",{html:`<span class="tag ${r.band.tag}">${r.band.grade}</span>`}))));
     t.append(tb);tw.append(t);p.append(tw);host.append(p);
@@ -4862,9 +4862,9 @@ PAGES.comms=async()=>{
     const list=students.filter(s=>!clsSel.value||s.class===clsSel.value);
     host.innerHTML="";
     const p=panel(`📋 Recipients (${list.length})`);
-    if(!list.length){p.append(emptyState("💬","No students in this selection."));host.append(p);return;}
+    if(!list.length){p.append(emptyState("💬","No pupils in this selection."));host.append(p);return;}
     const tw=el("div",{class:"table-wrap"});const t=el("table");
-    t.append(el("thead",{},el("tr",{},...["Student","Class","Guardian","Phone","Send"].map(h=>el("th",{},h)))));
+    t.append(el("thead",{},el("tr",{},...["Pupil","Class","Guardian","Phone","Send"].map(h=>el("th",{},h)))));
     const tb=el("tbody");
     list.forEach(s=>{
       const msg=()=>ta.value.replace(/{name}/g,s.fullName).replace(/{class}/g,s.class).replace(/{guardian}/g,s.guardian||"Parent/Guardian").replace(/{term}/g,termSel.value).replace(/{school}/g,"MUSENGA DAY SS");
@@ -4878,7 +4878,7 @@ PAGES.comms=async()=>{
         el("td",{},el("div",{style:"display:flex;gap:6px"},waBtn,smsBtn))));
     });
     t.append(tb);tw.append(t);p.append(tw);
-    p.append(el("div",{style:"font-size:12px;color:var(--muted);margin-top:10px"},"Tip: add a guardian phone in the Students module (use 09… or 07… numbers) to enable sending."));
+    p.append(el("div",{style:"font-size:12px;color:var(--muted);margin-top:10px"},"Tip: add a guardian phone in the Pupils module (use 09… or 07… numbers) to enable sending."));
     host.append(p);
   };
   clsSel.onchange=renderList;termSel.onchange=renderList;ta.oninput=()=>{};renderList();
@@ -5185,12 +5185,12 @@ const stamp=()=>new Date().toISOString().slice(0,10);
 
 /* ---------- dataset builders ---------- */
 const EXPORTS={
-  students:{label:"Students",ico:"🎓",async build(){const s=(await dbGetAll("students")).sort((a,b)=>a.class.localeCompare(b.class)||a.fullName.localeCompare(b.fullName));
-    return{title:"Student Register",cols:["Adm No","Full Name","Class","Sex","Guardian","Phone"],rows:s.map(x=>[x.admissionNo,x.fullName,x.class,x.sex||"",x.guardian||"",x.phone||""])};}},
+  students:{label:"Pupils",ico:"🎓",async build(){const s=(await dbGetAll("students")).sort((a,b)=>a.class.localeCompare(b.class)||a.fullName.localeCompare(b.fullName));
+    return{title:"Pupil Register",cols:["Adm No","Full Name","Class","Sex","Guardian","Phone"],rows:s.map(x=>[x.admissionNo,x.fullName,x.class,x.sex||"",x.guardian||"",x.phone||""])};}},
   grades:{label:"Results & Grades",ico:"📊",async build(){const[g,st,sub]=await Promise.all([dbGetAll("grades"),dbGetAll("students"),dbGetAll("subjects")]);
     const rows=g.sort((a,b)=>(a.class||"").localeCompare(b.class||"")).map(x=>{const s=st.find(y=>y.id===x.studentId),su=sub.find(y=>y.id===x.subjectId),b=bandOf(x.total);
       return[s?.fullName||"?",x.class||"",su?.name||"?",x.term||"",x.mid,x.end,x.total,b.grade];});
-    return{title:"Examination Results",cols:["Student","Class","Subject","Term","Mid /"+_settings.grading.midMax,"End /"+_settings.grading.endMax,"Total /100","Grade"],rows};}},
+    return{title:"Examination Results",cols:["Pupil","Class","Subject","Term","Mid /"+_settings.grading.midMax,"End /"+_settings.grading.endMax,"Total /100","Grade"],rows};}},
   timetable:{label:"Timetables",ico:"🗓️",async build(){const[tts,sub]=await Promise.all([dbGetAll("timetable"),dbGetAll("subjects")]);const rows=[];
     tts.forEach(tt=>{_settings.days.forEach(day=>_settings.periods.forEach((pr,pi)=>{if(pr.break)return;const c=tt.slots[day+"-"+pi];if(c)rows.push([tt.id,day,pr.s+"–"+pr.e,sub.find(s=>s.id===c.subjectId)?.name||"?",c.teacher||""]);}));});
     return{title:"Class Timetables",cols:["Class","Day","Time","Subject","Teacher"],rows};}},
@@ -5203,12 +5203,12 @@ const EXPORTS={
   teachers:{label:"Professional Teachers",ico:"💧",async build(){const t=(await dbGetAll("teachers")).sort((a,b)=>teacherTotal(b)-teacherTotal(a));
     return{title:"Teaching Staff & Droplets",cols:["Name","Role","Specialised Subjects","Droplets","Tier"],rows:t.map(x=>[x.name,x.role||"Teacher",(x.subjects||[]).join(", "),teacherTotal(x),dropTier(teacherTotal(x)).t])};}},
   honours:{label:"Honours Board",ico:"🏅",async build(){const b=(await dbGetAll("gamipoints")).map(g=>({...g,total:Object.values(g.points||{}).reduce((a,b)=>a+b,0)})).sort((a,b)=>b.total-a.total);
-    return{title:"Student Honours Board",cols:["Pos","Student","Class","Academic","Hard Work","Discipline","Attendance","Leadership","Citizen","Total"],
+    return{title:"Pupil Honours Board",cols:["Pos","Pupil","Class","Academic","Hard Work","Discipline","Attendance","Leadership","Citizen","Total"],
       rows:b.map((g,i)=>[i+1,g.name,g.class,g.points.academic||0,g.points.hardwork||0,g.points.discipline||0,g.points.attendance||0,g.points.leadership||0,g.points.citizen||0,g.total])};}},
   comms:{label:"Communications Log",ico:"💬",async build(){const c=(await dbGetAll("comms")).sort((a,b)=>b.ts-a.ts);
-    return{title:"Communications Log",cols:["Date","Channel","Student","Class","By"],rows:c.map(x=>[new Date(x.ts).toLocaleString(),x.channel,x.name,x.class,x.by||""])};}},
+    return{title:"Communications Log",cols:["Date","Channel","Pupil","Class","By"],rows:c.map(x=>[new Date(x.ts).toLocaleString(),x.channel,x.name,x.class,x.by||""])};}},
   certificates:{label:"Certificates Log",ico:"📜",async build(){const c=(await dbGetAll("certificates")).sort((a,b)=>b.ts-a.ts);
-    return{title:"Certificates Issued",cols:["Date","Type","Student","Serial","Issued By"],rows:c.map(x=>[new Date(x.ts).toLocaleDateString(),x.type,x.name,x.serial,x.issuedBy||""])};}}
+    return{title:"Certificates Issued",cols:["Date","Type","Pupil","Serial","Issued By"],rows:c.map(x=>[new Date(x.ts).toLocaleDateString(),x.type,x.name,x.serial,x.issuedBy||""])};}}
 };
 
 /* ---------- CSV ---------- */
@@ -5486,8 +5486,8 @@ const QUICK_ACTIONS={
   headteacher:[["analytics","📈","Analytics","School performance"],["staff","👥","Staff & Users","Manage accounts"],["orgchart","🏛","Organisation","Whole-school chart"],["examanalysis","🧮","Exam Analysis","Results breakdown"],["export","📤","Export Center","Reports & data"],["settings","⚙️","Settings","Configure school"]],
   deputy:[["analytics","📈","Analytics","School performance"],["attendance","✅","Attendance","Daily registers"],["orgchart","🏛","Organisation","Whole-school chart"],["assessments","📝","Assessments","All assessments"],["reportcards","🧾","Report Cards","Termly reports"],["staff","👥","Staff","Accounts"]],
   hod:[["mydept","📚","My Department","Teachers & assessments"],["assessments","📝","Assessments","Department work"],["grading","📊","Results","Enter & view marks"],["attendance","✅","Attendance","Class registers"],["timetable","🗓️","Timetable","Lessons"],["gami","🏅","Honours","Learner points"]],
-  teacher:[["grading","📊","Enter Results","Mark sheets"],["assessments","📝","My Assessments","Tests, quizzes, work"],["attendance","✅","Attendance","Take register"],["timetable","🗓️","Timetable","My lessons"],["students","🎓","Students","Class lists"],["gami","🏅","Honours","Award points"]],
-  counselor:[["counseling","🔒","Counselling","Confidential cases"],["students","🎓","Students","Learner records"],["careers","🎯","Careers","Guidance pathways"],["gami","🏅","Honours","Conduct points"]],
+  teacher:[["grading","📊","Enter Results","Mark sheets"],["assessments","📝","My Assessments","Tests, quizzes, work"],["attendance","✅","Attendance","Take register"],["timetable","🗓️","Timetable","My lessons"],["students","🎓","Pupils","Class lists"],["gami","🏅","Honours","Award points"]],
+  counselor:[["counseling","🔒","Counselling","Confidential cases"],["students","🎓","Pupils","Learner records"],["careers","🎯","Careers","Guidance pathways"],["gami","🏅","Honours","Conduct points"]],
   accountant:[["finance","💰","Finance","Fees & collections"],["feepay","🧾","Fees & Payments","Record payments"],["procurement","📦","Procurement","Purchases"],["stores","🏬","Stores","Assets"],["export","📤","Export","Data"]],
   storekeeper:[["stores","🏬","Stores & Assets","Inventory"],["procurement","📦","Procurement","Items"],["export","📤","Export","Stock data"]],
   parent:[["mychild","👪","My Child","Results & attendance"],["careers","🎯","Careers","Guidance"],["gami","🏅","Honours","Achievements"]],
@@ -5545,7 +5545,7 @@ PAGES.orgchart=async()=>{
     el("div",{class:"ro"},(teachers.length?teachers.map(t=>t.fullName).join(" · "):"To be assigned")))),conn());
   const sc=(await dbGetAll("students")).length;
   org.append(el("div",{class:"org-layer"},el("div",{class:"org-box wide",style:"border-top-color:var(--emerald)"},
-    el("div",{class:"ico"},"🎒"),el("div",{class:"nm"},"Students"),el("div",{class:"ro"},sc+" learners · Forms 1–4 & Grades 10–12"))));
+    el("div",{class:"ico"},"🎒"),el("div",{class:"nm"},"Pupils"),el("div",{class:"ro"},sc+" learners · Forms 1–4 & Grades 10–12"))));
   m.append(panel("",org));
 };
 
@@ -5664,9 +5664,9 @@ PAGES.attendance=async()=>{
       el("div",{class:"actions"},
         el("button",{class:"btn btn-gold btn-sm",onclick:()=>save(rec,roster)},"💾 Save Register"),
         el("button",{class:"btn btn-ghost btn-sm",onclick:()=>notifyAbsent(rec,roster)},"📨 Notify Absentees"))));
-    if(!roster.length){p.append(emptyState("✅","No students in "+cls));host.append(p);return;}
+    if(!roster.length){p.append(emptyState("✅","No pupils in "+cls));host.append(p);return;}
     const tw=el("div",{class:"table-wrap"});const t=el("table");
-    t.append(el("thead",{},el("tr",{},...["Student","Status"].map(h=>el("th",{},h)))));
+    t.append(el("thead",{},el("tr",{},...["Pupil","Status"].map(h=>el("th",{},h)))));
     const tb=el("tbody");
     roster.forEach(s=>{const cur=rec.records[s.id]||"P";const tr=el("tr");tr.dataset.sid=s.id;
       const mk=(code,lab)=>{const b=el("button",{class:"att-btn "+code+(cur===code?" sel":""),onclick:()=>{rec.records[s.id]=code;tr.querySelectorAll(".att-btn").forEach(x=>x.classList.remove("sel"));b.classList.add("sel");}},lab);return b;};
@@ -5827,10 +5827,10 @@ PAGES.autosms=async()=>{
   const render=()=>{const list=students.filter(s=>(!clsSel.value||s.class===clsSel.value)&&normPhone(s.phone));
     host.innerHTML="";
     const p=panel(`📲 Recipients with phone numbers (${list.length})`);
-    if(!list.length){p.append(emptyState("📲","No students with phone numbers in this selection. Add guardian phones in Students."));host.append(p);return;}
+    if(!list.length){p.append(emptyState("📲","No pupils with phone numbers in this selection. Add guardian phones in Pupils."));host.append(p);return;}
     p.append(el("button",{class:"btn btn-primary",style:"margin-bottom:12px",onclick:()=>sendAll(list)},"📤 Send to all "+list.length+" via Gateway"));
     const tw=el("div",{class:"table-wrap"});const t=el("table");
-    t.append(el("thead",{},el("tr",{},...["Student","Class","Parent Phone","Status"].map(h=>el("th",{},h)))));
+    t.append(el("thead",{},el("tr",{},...["Pupil","Class","Parent Phone","Status"].map(h=>el("th",{},h)))));
     const tb=el("tbody");list.forEach(s=>{const tr=el("tr");tr.dataset.sid=s.id;
       tr.append(el("td",{},s.fullName),el("td",{},el("span",{class:"tag b"},s.class)),el("td",{},"+"+normPhone(s.phone)),el("td",{class:"st"},"—"));tb.append(tr);});
     t.append(tb);tw.append(t);p.append(tw);host.append(p);};
@@ -5908,7 +5908,7 @@ PAGES.finance=async()=>{
   const recent=payments.sort((a,b)=>b.ts-a.ts).slice(0,10);
   if(!recent.length)rp.append(emptyState("🧾","No payments recorded yet."));
   else{const tw2=el("div",{class:"table-wrap"});const t2=el("table");
-    t2.append(el("thead",{},el("tr",{},...["Date","Receipt","Student","Term","Amount","Method"].map(h=>el("th",{},h)))));
+    t2.append(el("thead",{},el("tr",{},...["Date","Receipt","Pupil","Term","Amount","Method"].map(h=>el("th",{},h)))));
     const tb2=el("tbody");recent.forEach(p=>{const s=students.find(x=>x.id===p.studentId);
       tb2.append(el("tr",{},el("td",{},new Date(p.ts).toLocaleDateString()),el("td",{html:"<b>"+esc(p.receiptNo)+"</b>"}),el("td",{},s?.fullName||"—"),el("td",{},p.term),el("td",{},money(p.amount)),el("td",{},p.method)));});
     t2.append(tb2);tw2.append(t2);rp.append(tw2);}
@@ -5990,10 +5990,10 @@ PAGES.feepay=async()=>{
 };
 
 /* ============================================================
-   STUDENT TRANSFERS (In / Out)
+   PUPIL TRANSFERS (In / Out)
    ============================================================ */
 PAGES.transfers=async()=>{
-  const m=$("#main");m.append(head("Student Transfers","Admit transfers in, and release learners transferring out.",[
+  const m=$("#main");m.append(head("Pupil Transfers","Admit transfers in, and release learners transferring out.",[
     el("button",{class:"btn btn-primary btn-sm",onclick:transferIn},"➕ Transfer In"),
     el("button",{class:"btn btn-gold btn-sm",onclick:()=>transferOut()},"➖ Transfer Out")]));
   const logs=(await dbGetAll("transfers")).sort((a,b)=>b.ts-a.ts);
@@ -6508,7 +6508,7 @@ async function buildOrgSvg(){
       <text x="${hodX[i]}" y="${yHOD+19}" text-anchor="middle" fill="#fff" font-family="Georgia,serif" font-size="11" font-weight="700">${orgEsc(trunc(hod?.fullName||"HOD Vacant",16))}</text>
       <text x="${hodX[i]}" y="${yHOD+36}" text-anchor="middle" fill="#EDE7FA" font-family="Arial" font-size="8">${orgEsc(trunc(d.name,22))}</text></g>`;});
   s+=wideBox(yTea,"#2563EB","Subject Teachers",teachers.length?trunc(teachers.map(t=>t.fullName).join(" · "),120):"To be assigned");
-  s+=wideBox(yStu,"#16A34A","Students",sc+" learners · Forms 1–4 (M/S/U/E) & Grades 10–12 (M/S/U)");
+  s+=wideBox(yStu,"#16A34A","Pupils",sc+" learners · Forms 1–4 (M/S/U/E) & Grades 10–12 (M/S/U)");
   const H=yStu+BH+24;
   const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">
     <rect width="${W}" height="${H}" fill="#ffffff"/>
