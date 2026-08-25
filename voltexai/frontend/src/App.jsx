@@ -7,6 +7,7 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { SocialProof } from "./components/SocialProof";
 import { SocialRail } from "./components/Social";
+import { PromoModal } from "./components/PromoModal";
 
 import Landing from "./pages/Landing";
 import Markets from "./pages/Markets";
@@ -44,6 +45,7 @@ import FAQ from "./pages/FAQ";
 import Journal from "./pages/Journal";
 import Calculators from "./pages/Calculators";
 import EAs from "./pages/EAs";
+import SignalsPro from "./pages/SignalsPro";
 
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -66,6 +68,7 @@ export default function App() {
       <BrowserRouter>
         <SocialProof />
         <SocialRail />
+        <PromoModal />
         <Routes>
           {/* Public marketing + data surfaces */}
           <Route path="/" element={<Landing />} />
@@ -105,6 +108,7 @@ export default function App() {
           <Route path="/faq" element={<FAQ />} />
           <Route path="/calculators" element={<Calculators />} />
           <Route path="/eas" element={<EAs />} />
+          <Route path="/pro-signals" element={<SignalsPro />} />
 
           {/* Auth */}
           <Route path="/login" element={<Login />} />
