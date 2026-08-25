@@ -63,6 +63,28 @@ def test_low_score_not_published(client, monkeypatch):
     assert r.status_code == 200 and r.json()["published"] is False
 
 
+def test_admin_create_and_event(client, admin_user, free_user, monkeypatch):
+    from backend.config import settings
+    monkeypatch.setattr(settings, "MT5_GATEWAY_KEY", "")   # force JWT-only path
+    # non-admin cannot create
+    assert client.post("/api/pro-signals",
+                       json={"symbol": "EURUSD", "direction": "buy", "entry": 1.10, "sl": 1.09},
+                       headers=free_user["headers"]).status_code == 403
+    # admin creates a strong signal
+    r = client.post("/api/pro-signals", headers=admin_user["headers"], json={
+        "symbol": "NAS100", "direction": "buy", "entry": 20000, "sl": 19950,
+        "signal_id": "ADM-1", "htf": True, "liquidity": True, "ob": True,
+        "fvg": True, "trend": True, "momentum": True})
+    assert r.status_code == 201 and r.json()["published"] is True
+    # admin fires a lifecycle event via JWT (no gateway key set)
+    ev = client.post("/api/pro-signals/ADM-1/events",
+                     json={"event": "closed", "result_r": 2.0}, headers=admin_user["headers"])
+    assert ev.status_code == 200 and ev.json()["status"] == "closed"
+    # /me now exposes role for client-side gating
+    assert client.get("/api/auth/me", headers=admin_user["headers"]).json()["role"] == "admin"
+    assert client.get("/api/auth/me", headers=free_user["headers"]).json()["role"] == "user"
+
+
 def test_vip_user_sees_full_detail(client, paid_user, monkeypatch):
     from backend.config import settings
     monkeypatch.setattr(settings, "TRADINGVIEW_WEBHOOK_SECRET", "")

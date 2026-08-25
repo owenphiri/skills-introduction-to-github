@@ -1595,3 +1595,19 @@ body {
 @media (max-width: 480px) {
   .vx-promo-head { font-size: 1.7rem; }
 }
+
+/* Admin signals desk */
+.vx-flag-row { display: flex; flex-wrap: wrap; gap: .4rem; }
+.vx-flag { display: inline-flex; align-items: center; gap: .3rem; font-size: .72rem; padding: .35rem .6rem;
+  border: 1px solid var(--vx-border); border-radius: 999px; cursor: pointer; color: var(--vx-text-dim); }
+.vx-flag.on { border-color: var(--vx-success); color: var(--vx-success); }
+.vx-flag input { display: none; }
+.vx-admin-list { display: flex; flex-direction: column; gap: .5rem; }
+.vx-admin-row { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;
+  background: var(--vx-bg-card); border: 1px solid var(--vx-border); border-radius: 12px; padding: .8rem 1rem; }
+.vx-admin-main b { display: block; }
+.vx-admin-main span { font-size: .8rem; }
+.vx-admin-actions { display: flex; flex-wrap: wrap; gap: .3rem; }
+.vx-mini-btn { font-size: .7rem; padding: .25rem .5rem; border-radius: 7px; border: 1px solid var(--vx-border);
+  background: var(--vx-bg-elev); color: var(--vx-text-dim); cursor: pointer; }
+.vx-mini-btn:hover { color: var(--vx-text); border-color: var(--vx-primary); }

@@ -40,6 +40,9 @@ export function NavBar() {
         <div className="vx-nav-actions">
           {user ? (
             <>
+              {user.role === "admin" && (
+                <Link to="/admin/signals" className="vx-btn-ghost vx-btn-sm">🛠️ Admin</Link>
+              )}
               <Link to="/account" className="vx-nav-user">
                 {user.full_name?.split(" ")[0] || "Account"}
                 <span className={`vx-plan-chip vx-plan-chip--${user.plan || "free"}`}>
