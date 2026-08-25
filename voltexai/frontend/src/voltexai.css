@@ -1620,3 +1620,20 @@ body {
   transition: transform .16s ease, box-shadow .16s ease; }
 .vx-tg-cta:hover { transform: translateY(-2px); box-shadow: 0 10px 26px rgba(34,158,217,.25); }
 .vx-tg-cta b { display: block; }
+
+/* RL scoring UI */
+.vx-ai-badge { font-size: .68rem; font-weight: 800; padding: .15rem .5rem; border-radius: 999px;
+  background: var(--vx-accent-soft); color: var(--vx-accent); }
+.vx-rl-panel .vx-rl-head { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: .5rem; }
+.vx-rl-status { font-size: .62rem; font-weight: 800; text-transform: uppercase; padding: .1rem .45rem; border-radius: 999px;
+  background: var(--vx-bg-elev); color: var(--vx-text-dim); }
+.vx-rl-status.optimized { background: color-mix(in srgb, var(--vx-success) 22%, transparent); color: var(--vx-success); }
+.vx-rl-status.learning { background: color-mix(in srgb, var(--vx-warn) 22%, transparent); color: var(--vx-warn); }
+.vx-rl-weights { display: flex; flex-direction: column; gap: .4rem; margin-top: .5rem; }
+.vx-rl-weight { display: grid; grid-template-columns: 130px 1fr 48px; align-items: center; gap: .6rem; font-size: .8rem; }
+.vx-rl-weight > span { color: var(--vx-text-dim); text-transform: capitalize; }
+.vx-rl-bar { height: 8px; background: var(--vx-bg-elev); border-radius: 999px; overflow: hidden; }
+.vx-rl-bar > div { height: 100%; }
+.vx-rl-bar > div.pos { background: var(--vx-success); }
+.vx-rl-bar > div.neg { background: var(--vx-danger); }
+.vx-rl-weight b { text-align: right; font-family: var(--vx-font-mono); font-size: .78rem; }

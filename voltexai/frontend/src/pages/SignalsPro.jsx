@@ -51,6 +51,9 @@ function SignalCard({ s }) {
 
       <div className="vx-sig-foot">
         <span className="vx-chip">RR 1:{s.risk_reward}</span>
+        {s.combined_score != null && (
+          <span className="vx-ai-badge" title={`RL win-probability score ${s.rl_score}`}>🧠 AI {Math.round(s.combined_score)}</span>
+        )}
         <span className={`vx-sig-status s-${s.status}`}>{STATUS_LABEL[s.status] || s.status}</span>
         {s.result_r != null && (
           <span className={s.result_r >= 0 ? "vx-up" : "vx-down"}>{s.result_r >= 0 ? "+" : ""}{s.result_r}R</span>
