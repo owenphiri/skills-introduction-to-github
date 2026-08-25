@@ -1515,3 +1515,83 @@ body {
   .vx-calc-grid { grid-template-columns: 1fr; }
   .vx-fib-grid { grid-template-columns: 1fr; }
 }
+
+/* ============================================================
+   Voltex Signals Pro + Investing-style Promo CTA
+   ============================================================ */
+
+/* Promo modal */
+.vx-promo-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.72); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center; z-index: 200; padding: 1rem;
+  animation: vx-fade-in .25s ease; }
+@keyframes vx-fade-in { from { opacity: 0; } to { opacity: 1; } }
+.vx-promo { position: relative; width: 100%; max-width: 420px; border-radius: 22px; overflow: hidden;
+  padding: 2rem 1.75rem 1.75rem; color: #fff; text-align: center;
+  background: linear-gradient(160deg, #4d2b8c 0%, #7a3fb0 30%, #e0632a 78%, #ff8f5e 100%);
+  box-shadow: 0 30px 80px rgba(0,0,0,.5); animation: vx-promo-pop .35s cubic-bezier(.22,.61,.36,1); }
+@keyframes vx-promo-pop { from { transform: translateY(24px) scale(.96); opacity: 0; } to { transform: none; opacity: 1; } }
+.vx-promo-x { position: absolute; top: .75rem; right: 1rem; background: rgba(255,255,255,.25); border: none;
+  color: #fff; width: 34px; height: 34px; border-radius: 50%; font-size: 1.4rem; cursor: pointer; line-height: 1; }
+.vx-promo-ribbon { position: absolute; top: 18px; left: -60px; transform: rotate(-45deg); width: 220px;
+  background: var(--vx-accent, #c2f53d); color: #0a0e1a; font-size: .58rem; font-weight: 800; letter-spacing: .04em;
+  text-align: center; padding: .3rem 0; overflow: hidden; white-space: nowrap; }
+.vx-promo-brand { font-family: var(--vx-font-display); font-weight: 800; font-size: 1.1rem; margin-bottom: .75rem; }
+.vx-promo-head { font-family: var(--vx-font-display); font-size: 2.1rem; line-height: 1.05; margin: 0 0 .75rem; font-weight: 800; }
+.vx-promo-sub { font-size: .95rem; line-height: 1.5; margin: 0 0 1rem; opacity: .95; }
+.vx-promo-rating { display: flex; flex-direction: column; align-items: center; gap: .1rem; margin-bottom: 1rem; }
+.vx-stars { color: #ffd54a; font-size: 1.1rem; letter-spacing: .1em; }
+.vx-promo-rating .vx-muted { color: rgba(255,255,255,.85); font-size: .78rem; }
+.vx-promo-list { list-style: none; padding: 0; margin: 0 0 1.25rem; text-align: left; display: grid; gap: .4rem; }
+.vx-promo-list li { font-size: .88rem; background: rgba(255,255,255,.12); border-radius: 10px; padding: .5rem .7rem; }
+.vx-promo-cta { display: flex; align-items: center; justify-content: center; gap: .5rem; width: 100%;
+  background: #10e0a0; color: #062b22; font-weight: 800; font-size: 1.05rem; text-decoration: none;
+  padding: .95rem; border-radius: 999px; transition: transform .15s ease, box-shadow .15s ease; }
+.vx-promo-cta:hover { transform: translateY(-2px); box-shadow: 0 10px 26px rgba(16,224,160,.5); }
+.vx-promo-dismiss { display: block; margin: .8rem auto 0; background: none; border: none; color: rgba(255,255,255,.85);
+  font-size: .82rem; cursor: pointer; text-decoration: underline; }
+
+/* Performance strip */
+.vx-perf-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: .75rem;
+  background: var(--vx-bg-card); border: 1px solid var(--vx-border); border-radius: 16px; padding: 1.1rem; margin: 1.25rem 0; }
+.vx-perf { text-align: center; }
+.vx-perf b { display: block; font-family: var(--vx-font-display); font-size: 1.5rem; }
+.vx-perf span { font-size: .72rem; color: var(--vx-text-dim); text-transform: uppercase; letter-spacing: .05em; }
+
+/* VIP banner */
+.vx-vip-banner { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--vx-accent) 20%, transparent), transparent);
+  border: 1px solid var(--vx-accent); border-radius: 14px; padding: 1rem 1.25rem; margin-bottom: 1.25rem; }
+
+/* Signal cards */
+.vx-sig-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.1rem; }
+.vx-sig-card { position: relative; background: var(--vx-bg-card); border: 1px solid var(--vx-border); border-radius: 16px;
+  padding: 1.2rem; overflow: hidden; }
+.vx-sig-card.locked .vx-sig-levels { filter: none; }
+.vx-sig-top { display: flex; justify-content: space-between; align-items: flex-start; gap: .75rem; }
+.vx-sig-top h3 { margin: .2rem 0; display: flex; align-items: center; gap: .5rem; }
+.vx-sig-grade { font-size: .72rem; font-weight: 800; letter-spacing: .04em; color: var(--vx-accent); }
+.vx-sig-dir { font-size: .7rem; font-weight: 800; padding: .12rem .45rem; border-radius: 6px; }
+.vx-sig-dir.buy { background: color-mix(in srgb, var(--vx-success) 22%, transparent); color: var(--vx-success); }
+.vx-sig-dir.sell { background: color-mix(in srgb, var(--vx-danger) 22%, transparent); color: var(--vx-danger); }
+.vx-ring-text { font: 800 15px var(--vx-font-display, sans-serif); }
+.vx-sig-levels { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; margin: 1rem 0; }
+.vx-sig-lvl { background: var(--vx-bg-elev); border-radius: 9px; padding: .5rem; text-align: center; }
+.vx-sig-lvl span { display: block; font-size: .66rem; color: var(--vx-text-dim); text-transform: uppercase; }
+.vx-sig-lvl b { font-family: var(--vx-font-mono); font-size: .9rem; }
+.vx-sig-lvl.up b { color: var(--vx-success); }
+.vx-sig-foot { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+.vx-sig-status { font-size: .68rem; font-weight: 800; padding: .15rem .5rem; border-radius: 999px;
+  background: var(--vx-bg-elev); color: var(--vx-text-dim); }
+.vx-sig-status.s-active { color: var(--vx-accent); }
+.vx-sig-status.s-closed { color: var(--vx-success); }
+.vx-sig-status.s-cancelled { color: var(--vx-danger); }
+.vx-sig-lock { display: block; margin-top: .9rem; text-align: center; text-decoration: none; font-size: .82rem;
+  background: color-mix(in srgb, var(--vx-accent) 14%, transparent); color: var(--vx-text); border: 1px dashed var(--vx-accent);
+  border-radius: 10px; padding: .55rem; }
+.vx-week-report { margin-top: 1.75rem; background: var(--vx-bg-card); border: 1px solid var(--vx-border);
+  border-radius: 14px; padding: 1.1rem 1.3rem; }
+.vx-week-report h3 { margin: 0 0 .3rem; }
+
+@media (max-width: 480px) {
+  .vx-promo-head { font-size: 1.7rem; }
+}

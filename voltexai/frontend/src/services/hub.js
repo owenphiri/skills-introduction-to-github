@@ -17,6 +17,12 @@ export const easService = {
   fleet: () => api.get("/api/eas"),
 };
 
+export const proSignalsService = {
+  feed: (limit = 20) => api.get(`/api/pro-signals/feed?limit=${limit}`),
+  performance: () => api.get("/api/pro-signals/performance"),
+  one: (uuid) => api.get(`/api/pro-signals/${uuid}`),
+};
+
 export const sessionsService = {
   status: () => api.get("/api/sessions"),
 };

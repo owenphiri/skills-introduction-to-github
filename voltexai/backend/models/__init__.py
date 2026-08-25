@@ -8,9 +8,10 @@ from .kyc import KycRecord, KycStatus
 from .competition import ContestEntry
 from .community import Post
 from .journal import JournalTrade
+from .signals import ProSignal, ProSignalEvent
 
 __all__ = [
-    "ContestEntry", "Post", "JournalTrade",
+    "ContestEntry", "Post", "JournalTrade", "ProSignal", "ProSignalEvent",
     "User", "UserRole",
     "Subscription", "PlanTier", "SubStatus", "Provider",
     "Payment", "PaymentStatus",

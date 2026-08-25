@@ -17,7 +17,8 @@ from .routes import (auth_router, ai_router, payment_router,
                      market_router, signal_router, directory_router, fund_router,
                      trade_router, kyc_router, ecosystem_router, competition_router,
                      social_router, hub_router, community_router,
-                     dashboard_router, company_router, journal_router)
+                     dashboard_router, company_router, journal_router,
+                     pro_signals_router)
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s")
@@ -85,6 +86,7 @@ app.include_router(community_router)
 app.include_router(dashboard_router)
 app.include_router(company_router)
 app.include_router(journal_router)
+app.include_router(pro_signals_router)
 
 
 @app.get("/")

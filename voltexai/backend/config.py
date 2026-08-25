@@ -50,6 +50,18 @@ class Settings(BaseSettings):
     ALPHAVANTAGE_API_KEY: str = os.getenv("ALPHAVANTAGE_API_KEY", "")
     MARKET_CACHE_TTL: float = float(os.getenv("MARKET_CACHE_TTL", "12"))   # seconds
 
+    # --- Voltex Signals SaaS (TradingView -> engine -> Telegram/MT5) ---
+    # Shared secret TradingView must include in its webhook body ("secret").
+    TRADINGVIEW_WEBHOOK_SECRET: str = os.getenv("TRADINGVIEW_WEBHOOK_SECRET", "")
+    # Minimum Voltex Quality Score (0-100) to accept & publish a signal.
+    SIGNAL_MIN_SCORE: int = int(os.getenv("SIGNAL_MIN_SCORE", "70"))
+    # Telegram bot + channels for Free/VIP publishing (blank = no-op / logged only).
+    TELEGRAM_BOT_TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN", "")
+    TELEGRAM_FREE_CHANNEL: str = os.getenv("TELEGRAM_FREE_CHANNEL", "")   # @channel or -100id
+    TELEGRAM_VIP_CHANNEL: str = os.getenv("TELEGRAM_VIP_CHANNEL", "")
+    # Shared key the MT5 EA / gateway uses to pull signals and post executions.
+    MT5_GATEWAY_KEY: str = os.getenv("MT5_GATEWAY_KEY", "")
+
     # --- Trade execution ---
     # BROKER "paper" = built-in simulated broker (safe default, no real money).
     #        "alpaca" = real Alpaca API (paper or live per ALPACA_BASE_URL).
