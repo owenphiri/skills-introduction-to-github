@@ -38,6 +38,32 @@ function Histogram({ data }) {
   );
 }
 
+function SurvivalCurve({ curve }) {
+  if (!curve.length) return <p className="vx-muted">No VIP tenure data yet.</p>;
+  const w = 640, h = 170, pad = 10;
+  const step = curve.length > 1 ? (w - pad * 2) / (curve.length - 1) : 0;
+  const y = (v) => h - pad - (v / 100) * (h - pad * 2);
+  const pts = curve.map((c, i) => `${(pad + i * step).toFixed(1)},${y(c.pct).toFixed(1)}`);
+  return (
+    <svg className="vx-equity" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
+      {[0, 25, 50, 75, 100].map((g) => (
+        <line key={g} x1={pad} y1={y(g)} x2={w - pad} y2={y(g)} stroke="var(--vx-border)" strokeDasharray="3 4" />
+      ))}
+      <polyline points={pts.join(" ")} fill="none" stroke="var(--vx-accent)" strokeWidth="2.5" strokeLinejoin="round" />
+      {curve.map((c, i) => (
+        <circle key={i} cx={pad + i * step} cy={y(c.pct)} r="3" fill="var(--vx-accent)" />
+      ))}
+    </svg>
+  );
+}
+
+function cohortColor(pct) {
+  if (pct >= 66) return "color-mix(in srgb, var(--vx-success) 55%, transparent)";
+  if (pct >= 33) return "color-mix(in srgb, var(--vx-warn) 50%, transparent)";
+  if (pct > 0) return "color-mix(in srgb, var(--vx-danger) 45%, transparent)";
+  return "var(--vx-bg-elev)";
+}
+
 function RBars({ rows, unit = "R" }) {
   const max = Math.max(1, ...rows.map((r) => Math.abs(r.net_r)));
   return (
@@ -172,6 +198,43 @@ export default function AdminAnalytics() {
                     ))}
                   </div>
                 )}
+              </div>
+            </div>
+
+            <h2 className="vx-section-title">📈 Retention &amp; cohorts</h2>
+            <div className="vx-mini-stats" style={{ marginBottom: "1rem" }}>
+              <div><b>{d.retention.summary.converted}</b><span>VIP ever</span></div>
+              <div><b className="vx-up">{d.retention.summary.active}</b><span>Active</span></div>
+              <div><b className="vx-down">{d.retention.summary.churned}</b><span>Churned</span></div>
+              <div><b>{d.retention.summary.churn_rate}%</b><span>Churn rate</span></div>
+              <div><b>{d.retention.summary.recurring_share}%</b><span>Recurring</span></div>
+              <div><b>{d.retention.summary.avg_lifetime_days}d</b><span>Avg lifetime</span></div>
+            </div>
+
+            <div className="vx-journal-grid">
+              <div className="vx-panel">
+                <h3>VIP survival curve</h3>
+                <SurvivalCurve curve={d.retention.curve} />
+                <p className="vx-muted">% of VIP members still subscribed at each week of tenure.</p>
+              </div>
+              <div className="vx-panel">
+                <h3>Signup cohorts (by month)</h3>
+                <div className="vx-cohort-table">
+                  <div className="vx-cohort-head">
+                    <span>Cohort</span><span>Size</span><span>VIP</span><span>Active</span><span>Retention</span><span>⭐</span>
+                  </div>
+                  {d.retention.cohorts.length === 0 && <p className="vx-muted">No cohorts yet.</p>}
+                  {d.retention.cohorts.map((c) => (
+                    <div key={c.cohort} className="vx-cohort-row">
+                      <span><b>{c.cohort}</b></span>
+                      <span>{c.size}</span>
+                      <span>{c.converted}</span>
+                      <span>{c.active}</span>
+                      <span className="vx-cohort-cell" style={{ background: cohortColor(c.retention_pct) }}>{c.retention_pct}%</span>
+                      <span>{c.revenue_stars}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 
