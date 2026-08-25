@@ -46,6 +46,7 @@ import Journal from "./pages/Journal";
 import Calculators from "./pages/Calculators";
 import EAs from "./pages/EAs";
 import SignalsPro from "./pages/SignalsPro";
+import AdminSignals from "./pages/AdminSignals";
 
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -148,6 +149,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <Reconciliation />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/signals"
+            element={
+              <ProtectedRoute>
+                <AdminSignals />
               </ProtectedRoute>
             }
           />

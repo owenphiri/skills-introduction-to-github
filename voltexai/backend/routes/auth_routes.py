@@ -70,6 +70,7 @@ class MeOut(BaseModel):
     phone: str | None
     plan: str
     plan_status: str
+    role: str
     is_verified: bool
     created_at: datetime
 
@@ -81,6 +82,7 @@ def _user_to_me(user: User) -> MeOut:
         country=user.country, phone=user.phone,
         plan=(sub.plan.value if sub else "free"),
         plan_status=(sub.status.value if sub else "active"),
+        role=user.role.value,
         is_verified=user.is_verified, created_at=user.created_at,
     )
 

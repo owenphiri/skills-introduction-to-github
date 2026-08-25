@@ -21,6 +21,9 @@ export const proSignalsService = {
   feed: (limit = 20) => api.get(`/api/pro-signals/feed?limit=${limit}`),
   performance: () => api.get("/api/pro-signals/performance"),
   one: (uuid) => api.get(`/api/pro-signals/${uuid}`),
+  // admin (server enforces admin role)
+  create: (payload) => api.post("/api/pro-signals", payload),
+  event: (uuid, body) => api.post(`/api/pro-signals/${uuid}/events`, body),
 };
 
 export const sessionsService = {
