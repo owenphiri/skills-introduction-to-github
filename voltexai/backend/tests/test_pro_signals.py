@@ -96,3 +96,17 @@ def test_vip_user_sees_full_detail(client, paid_user, monkeypatch):
     assert feed["is_vip"] is True
     s = next(x for x in feed["signals"] if x["symbol"] == "US30")
     assert s["locked"] is False and s["sl"] is not None and s["tp4"] is not None
+
+
+def test_admin_analytics(client, admin_user, free_user):
+    assert client.get("/api/admin/analytics").status_code == 401
+    assert client.get("/api/admin/analytics", headers=free_user["headers"]).status_code == 403
+    d = client.get("/api/admin/analytics", headers=admin_user["headers"]).json()
+    for key in ("signals", "subscribers", "referrals", "rl"):
+        assert key in d
+    s = d["signals"]
+    for key in ("totals", "equity", "distribution", "by_symbol", "by_session",
+                "by_grade", "by_tier", "by_dow"):
+        assert key in s
+    assert len(s["by_dow"]) == 7 and len(s["distribution"]) == 6
+    assert "active_vip" in d["subscribers"] and "payout_stars" in d["referrals"]

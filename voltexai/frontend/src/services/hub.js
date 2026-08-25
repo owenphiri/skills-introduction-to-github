@@ -23,6 +23,10 @@ export const referralsService = {
   leaderboard: () => api.get("/api/referrals/leaderboard"),
 };
 
+export const adminService = {
+  analytics: () => api.get("/api/admin/analytics"),
+};
+
 export const proSignalsService = {
   feed: (limit = 20) => api.get(`/api/pro-signals/feed?limit=${limit}`),
   performance: () => api.get("/api/pro-signals/performance"),
