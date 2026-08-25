@@ -24,6 +24,7 @@ const COLS = [
   { title: "Money", links: [
     ["Voltex Alpha (AUM)", "/aum"], ["Voltex Pay", "/pay"],
     ["Voltex Store", "/store"], ["Pricing", "/pricing"], ["Offers", "/offers"],
+    ["Refer & Earn", "/referrals"],
   ]},
   { title: "Company", links: [
     ["About Us", "/about"], ["Careers", "/careers"], ["Press", "/press"],

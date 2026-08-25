@@ -36,6 +36,7 @@ class RegisterIn(BaseModel):
     full_name: str | None = None
     country: str | None = None
     phone: str | None = None
+    referral_code: str | None = None
 
 
 class LoginIn(BaseModel):
@@ -113,6 +114,13 @@ def register(data: RegisterIn, request: Request, db: Session = Depends(get_db)):
     db.refresh(user)
     get_or_create_free(db, user)
     db.refresh(user)
+    # affiliate: attribute a pending referral when a code was supplied
+    if data.referral_code:
+        try:
+            from ..services import referral_service
+            referral_service.attribute(db, data.referral_code, referred_user_id=user.id)
+        except Exception:
+            pass
     # fire-and-forget transactional emails (best-effort)
     try:
         email_service.send_verification_email(

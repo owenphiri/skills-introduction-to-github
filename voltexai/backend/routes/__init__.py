@@ -17,6 +17,7 @@ from .company_routes import router as company_router
 from .journal_routes import router as journal_router
 from .pro_signals_routes import router as pro_signals_router
 from .telegram_routes import router as telegram_router
+from .referral_routes import router as referral_router
 
 __all__ = [
     "auth_router", "ai_router", "payment_router",
@@ -24,4 +25,5 @@ __all__ = [
     "trade_router", "kyc_router", "ecosystem_router", "competition_router",
     "social_router", "hub_router", "community_router", "dashboard_router",
     "company_router", "journal_router", "pro_signals_router", "telegram_router",
+    "referral_router",
 ]

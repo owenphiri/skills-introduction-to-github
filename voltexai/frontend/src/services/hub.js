@@ -17,6 +17,12 @@ export const easService = {
   fleet: () => api.get("/api/eas"),
 };
 
+export const referralsService = {
+  me: () => api.get("/api/referrals/me"),
+  track: (code) => api.post("/api/referrals/track", { code }),
+  leaderboard: () => api.get("/api/referrals/leaderboard"),
+};
+
 export const proSignalsService = {
   feed: (limit = 20) => api.get(`/api/pro-signals/feed?limit=${limit}`),
   performance: () => api.get("/api/pro-signals/performance"),

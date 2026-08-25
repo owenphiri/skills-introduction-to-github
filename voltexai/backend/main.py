@@ -18,7 +18,7 @@ from .routes import (auth_router, ai_router, payment_router,
                      trade_router, kyc_router, ecosystem_router, competition_router,
                      social_router, hub_router, community_router,
                      dashboard_router, company_router, journal_router,
-                     pro_signals_router, telegram_router)
+                     pro_signals_router, telegram_router, referral_router)
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s")
@@ -42,7 +42,33 @@ async def lifespan(_: FastAPI):
     from .services.oanda_stream import oanda_stream
     if oanda_stream.configured() and settings.MARKET_DATA_PROVIDER != "synthetic":
         await oanda_stream.start()
+
+    # background VIP-expiry sweep (only when the Telegram bot is configured)
+    import asyncio
+    from .services import telegram_service, telegram_bot
+    from .database import SessionLocal
+
+    async def _vip_expiry_loop():
+        while True:
+            await asyncio.sleep(settings.VIP_EXPIRY_SWEEP_SECONDS)
+            db = SessionLocal()
+            try:
+                res = await telegram_bot.expire_sweep(db)
+                if res.get("removed"):
+                    logger.info("VIP expiry sweep: %s", res)
+            except Exception as e:
+                logger.warning("VIP expiry sweep failed: %s", e)
+            finally:
+                db.close()
+
+    sweep_task = None
+    if telegram_service.configured():
+        sweep_task = asyncio.create_task(_vip_expiry_loop())
+        logger.info("VIP expiry sweep scheduled every %ss", settings.VIP_EXPIRY_SWEEP_SECONDS)
+
     yield
+    if sweep_task:
+        sweep_task.cancel()
     await oanda_stream.stop()
     logger.info("Shutting down")
 
@@ -88,6 +114,7 @@ app.include_router(company_router)
 app.include_router(journal_router)
 app.include_router(pro_signals_router)
 app.include_router(telegram_router)
+app.include_router(referral_router)
 
 
 @app.get("/")

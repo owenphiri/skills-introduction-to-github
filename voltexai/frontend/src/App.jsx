@@ -8,6 +8,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { SocialProof } from "./components/SocialProof";
 import { SocialRail } from "./components/Social";
 import { PromoModal } from "./components/PromoModal";
+import { ReferralCapture } from "./components/ReferralCapture";
 
 import Landing from "./pages/Landing";
 import Markets from "./pages/Markets";
@@ -47,6 +48,7 @@ import Calculators from "./pages/Calculators";
 import EAs from "./pages/EAs";
 import SignalsPro from "./pages/SignalsPro";
 import AdminSignals from "./pages/AdminSignals";
+import Referrals from "./pages/Referrals";
 
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -70,6 +72,7 @@ export default function App() {
         <SocialProof />
         <SocialRail />
         <PromoModal />
+        <ReferralCapture />
         <Routes>
           {/* Public marketing + data surfaces */}
           <Route path="/" element={<Landing />} />
@@ -165,6 +168,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <Kyc />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/referrals"
+            element={
+              <ProtectedRoute>
+                <Referrals />
               </ProtectedRoute>
             }
           />

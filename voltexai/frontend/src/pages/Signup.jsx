@@ -30,9 +30,12 @@ export default function Signup() {
     }
     setBusy(true);
     try {
+      let referral_code;
+      try { referral_code = localStorage.getItem("vx_ref") || undefined; } catch { /* ignore */ }
       await register({
         ...form,
         email: form.email.trim().toLowerCase(),
+        ...(referral_code ? { referral_code } : {}),
       });
       navigate("/terminal", { replace: true });
     } catch (err) {

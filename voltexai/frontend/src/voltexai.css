@@ -1637,3 +1637,11 @@ body {
 .vx-rl-bar > div.pos { background: var(--vx-success); }
 .vx-rl-bar > div.neg { background: var(--vx-danger); }
 .vx-rl-weight b { text-align: right; font-family: var(--vx-font-mono); font-size: .78rem; }
+
+/* Referral copy rows */
+.vx-copy-row { display: grid; grid-template-columns: 130px 1fr auto; align-items: center; gap: .75rem;
+  padding: .55rem 0; border-bottom: 1px solid var(--vx-border); }
+.vx-copy-row:last-child { border-bottom: none; }
+.vx-copy-row code { font-family: var(--vx-font-mono); font-size: .82rem; background: var(--vx-bg-elev);
+  padding: .4rem .6rem; border-radius: 8px; overflow-x: auto; white-space: nowrap; }
+@media (max-width: 560px) { .vx-copy-row { grid-template-columns: 1fr auto; } .vx-copy-row > .vx-muted { grid-column: 1 / -1; } }

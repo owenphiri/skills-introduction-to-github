@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from ..config import settings
 from ..database import get_db
 from ..models import User, UserRole, TelegramSubscriber
-from ..middleware.auth_middleware import get_current_user
+from ..middleware.auth_middleware import get_current_user, get_current_user_optional
 from ..services import telegram_bot, telegram_service
 
 logger = logging.getLogger(__name__)
@@ -48,6 +48,16 @@ async def set_webhook(request: Request, user: User = Depends(get_current_user)):
         "allowed_updates": ["message", "callback_query", "pre_checkout_query"],
     })
     return {"requested_url": url, "telegram": res}
+
+
+@router.post("/expire-sweep")
+async def expire_sweep(x_gateway_key: str | None = Header(default=None),
+                       user: User | None = Depends(get_current_user_optional),
+                       db: Session = Depends(get_db)):
+    gateway_ok = bool(settings.MT5_GATEWAY_KEY) and x_gateway_key == settings.MT5_GATEWAY_KEY
+    if not gateway_ok and not (user and user.role == UserRole.ADMIN):
+        raise HTTPException(401, "admin or gateway key required")
+    return await telegram_bot.expire_sweep(db)
 
 
 @router.get("/vip/{telegram_id}")
