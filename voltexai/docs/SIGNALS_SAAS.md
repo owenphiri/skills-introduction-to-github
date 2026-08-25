@@ -49,3 +49,27 @@ signal, and posts the basic card to Free and the full setup to VIP.
   (Trader/Elite plan) or admins get the full entry zone, SL and TP2–TP4.
 - `GET /api/pro-signals/performance` — win rate, profit factor, total R, weekly report.
 - Admin can post a manual signal: `POST /api/pro-signals` (JWT, admin role).
+
+## Telegram bot + Stars subscriptions (Phase 3)
+
+Extra env vars:
+| Variable | Purpose |
+|---|---|
+| `TELEGRAM_WEBHOOK_SECRET` | secret path segment for the webhook |
+| `TELEGRAM_BOT_USERNAME` | bot handle for deep links (default `VoltexAIForexBot`) |
+
+Setup:
+1. Create the bot with **@BotFather**, set `TELEGRAM_BOT_TOKEN`.
+2. In BotFather, enable payments with **Telegram Stars** (no provider token needed).
+3. Add the bot as **admin** of the VIP channel (`TELEGRAM_VIP_CHANNEL`) so it can mint invite links.
+4. As an admin user call **`POST /api/telegram/set-webhook`** (JWT) — it registers
+   `https://voltexai-api.onrender.com/api/telegram/webhook/<secret>` with Telegram.
+
+Commands: `/start /help /vip /subscribe /signals /performance /status /rules /support`
+plus an inline menu. Plans (Stars): **VIP Basic 30d = 499⭐ (recurring)**,
+**VIP Pro 90d = 1299⭐**, **VIP Elite 365d = 3999⭐**.
+
+Payment flow: buy button → `sendInvoice` (XTR) → `pre_checkout_query` auto-approved
+→ `successful_payment` grants/extends `vip_until`, records the charge, and DMs a
+single-use VIP channel invite link. The MT5 EA / server can check VIP with
+`GET /api/telegram/vip/{telegram_id}` (gateway key).

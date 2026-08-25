@@ -9,9 +9,11 @@ from .competition import ContestEntry
 from .community import Post
 from .journal import JournalTrade
 from .signals import ProSignal, ProSignalEvent
+from .telegram import TelegramSubscriber
 
 __all__ = [
     "ContestEntry", "Post", "JournalTrade", "ProSignal", "ProSignalEvent",
+    "TelegramSubscriber",
     "User", "UserRole",
     "Subscription", "PlanTier", "SubStatus", "Provider",
     "Payment", "PaymentStatus",
