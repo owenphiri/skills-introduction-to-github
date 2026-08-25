@@ -10,10 +10,11 @@ from .community import Post
 from .journal import JournalTrade
 from .signals import ProSignal, ProSignalEvent
 from .telegram import TelegramSubscriber
+from .rl import RLModelState, RLObservation
 
 __all__ = [
     "ContestEntry", "Post", "JournalTrade", "ProSignal", "ProSignalEvent",
-    "TelegramSubscriber",
+    "TelegramSubscriber", "RLModelState", "RLObservation",
     "User", "UserRole",
     "Subscription", "PlanTier", "SubStatus", "Provider",
     "Payment", "PaymentStatus",

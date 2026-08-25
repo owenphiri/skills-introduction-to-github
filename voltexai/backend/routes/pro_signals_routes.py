@@ -23,9 +23,9 @@ from sqlalchemy.orm import Session
 
 from ..config import settings
 from ..database import get_db
-from ..models import User, PlanTier, UserRole, ProSignal, ProSignalEvent
+from ..models import User, PlanTier, UserRole, ProSignal, ProSignalEvent, RLObservation
 from ..middleware.auth_middleware import get_current_user, get_current_user_optional
-from ..services import signal_score, telegram_service
+from ..services import signal_score, telegram_service, rl_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/pro-signals", tags=["pro-signals"])
@@ -99,9 +99,14 @@ async def _ingest(payload: dict, db: Session, tier: str = "vip") -> dict:
     except ValueError as e:
         raise HTTPException(422, str(e))
 
-    if sig["quality_score"] < settings.SIGNAL_MIN_SCORE:
+    # RL self-optimizing layer: blend the learned P(win) with the base score.
+    rl = rl_service.score(db, sig["components"], sig["quality_score"])
+    # Gate on the RL-combined score once the model has learned enough; else base.
+    gate_score = rl["combined_score"] if rl["updates"] >= 5 else sig["quality_score"]
+    if gate_score < settings.SIGNAL_MIN_SCORE:
         return {"received": True, "published": False, "grade": sig["grade"],
-                "quality_score": sig["quality_score"],
+                "quality_score": sig["quality_score"], "rl_score": rl["rl_score"],
+                "combined_score": rl["combined_score"],
                 "reason": f"below min score {settings.SIGNAL_MIN_SCORE}"}
 
     sid = str(payload.get("signal_id") or "").strip() or f"{sig['symbol']}-{_uuid.uuid4().hex[:10]}"
@@ -120,10 +125,13 @@ async def _ingest(payload: dict, db: Session, tier: str = "vip") -> dict:
     db.add(row)
     db.commit()
     db.refresh(row)
+    rl_service.record(db, sid, sig["components"], sig["quality_score"],
+                      rl["rl_score"], rl["combined_score"])
 
     published = await telegram_service.publish_signal(sig)
     return {"received": True, "published": True, "signal_uuid": sid,
             "grade": sig["grade"], "quality_score": sig["quality_score"],
+            "rl_score": rl["rl_score"], "combined_score": rl["combined_score"],
             "telegram": published}
 
 
@@ -156,8 +164,24 @@ def feed(limit: int = 20, tier: str = "all",
     if tier in ("free", "vip"):
         q = q.filter(ProSignal.tier == tier)
     rows = q.limit(min(limit, 100)).all()
-    return {"is_vip": vip, "count": len(rows),
-            "signals": [_public(s, vip) for s in rows]}
+    # attach RL scores from the observation table (single query, migration-free)
+    uuids = [s.signal_uuid for s in rows]
+    obs = {o.signal_uuid: o for o in
+           db.query(RLObservation).filter(RLObservation.signal_uuid.in_(uuids)).all()} if uuids else {}
+    out = []
+    for s in rows:
+        d = _public(s, vip)
+        o = obs.get(s.signal_uuid)
+        if o:
+            d["rl_score"] = o.rl_score
+            d["combined_score"] = o.combined_score
+        out.append(d)
+    return {"is_vip": vip, "count": len(rows), "signals": out}
+
+
+@router.get("/rl/model")
+def rl_model(db: Session = Depends(get_db)):
+    return rl_service.model_view(db)
 
 
 @router.get("/performance")
@@ -237,6 +261,7 @@ async def _apply_event(uuid: str, data: EventIn, db: Session) -> dict:
         s.status = "closed" if data.event != "cancelled" else "cancelled"
         if data.result_r is not None:
             s.result_r = data.result_r
+            rl_service.learn(db, uuid, data.result_r)   # RL learns from the outcome
     elif data.event == "filled":
         s.status = "filled"
     else:

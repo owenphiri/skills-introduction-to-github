@@ -70,7 +70,7 @@ def quality_score(payload: dict, levels: dict) -> tuple[float, dict]:
             comps[name] = 1.0 if flag is True else (0.0 if flag is False else 0.5)
     score = round(sum(comps[n] * WEIGHTS[n] for n in WEIGHTS), 1)
     breakdown = {n: round(comps[n] * WEIGHTS[n], 1) for n in WEIGHTS}
-    return score, breakdown
+    return score, breakdown, comps
 
 
 def build_signal(payload: dict) -> dict:
@@ -91,7 +91,7 @@ def build_signal(payload: dict) -> dict:
         raise ValueError(f"stop loss is on the wrong side for a {direction}")
 
     levels = compute_levels(entry, sl, direction)
-    score, breakdown = quality_score(payload, levels)
+    score, breakdown, comps = quality_score(payload, levels)
     g = grade(score)
     return {
         "symbol": symbol, "direction": direction,
@@ -101,7 +101,7 @@ def build_signal(payload: dict) -> dict:
         "tp3": levels["tps"][2], "tp4": levels["tps"][3],
         "risk": levels["risk"], "risk_reward": levels["risk_reward"],
         "quality_score": score, "grade": g, "grade_emoji": grade_emoji(g),
-        "breakdown": breakdown,
+        "breakdown": breakdown, "components": comps,
         "strategy": payload.get("strategy") or "Voltex AI",
         "session": payload.get("session"),
     }

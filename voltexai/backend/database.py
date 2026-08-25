@@ -66,5 +66,5 @@ def init_db():
     voltexai/supabase/schema.sql (or Alembic) over auto-create."""
     from .models import (user, subscription, conversation, payment,  # noqa: F401
                          trading, kyc, competition, community, journal, signals,
-                         telegram)
+                         telegram, rl)
     Base.metadata.create_all(bind=engine)

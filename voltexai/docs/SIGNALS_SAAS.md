@@ -73,3 +73,22 @@ Payment flow: buy button → `sendInvoice` (XTR) → `pre_checkout_query` auto-a
 → `successful_payment` grants/extends `vip_until`, records the charge, and DMs a
 single-use VIP channel invite link. The MT5 EA / server can check VIP with
 `GET /api/telegram/vip/{telegram_id}` (gateway key).
+
+## RL self-optimizing scoring (Phase 4)
+
+An online contextual-bandit layer learns which confluence components actually
+produce winners and re-scores incoming signals accordingly:
+
+- **Features:** the 0–1 confluence vector (structure, liquidity, OB, FVG, trend,
+  momentum, session, RR, HTF) captured on every signal (`rl_observations`).
+- **Model:** online logistic regression predicting P(win); one SGD step per
+  closed trade, reward-weighted by |R|. Weights persist in `rl_model_state`.
+- **Scoring:** `rl_score = P(win)×100`; `combined_score` blends the deterministic
+  base score with the RL score, trusting RL more as it accumulates updates
+  (confidence = updates/(updates+20), capped 70%). Once the model has ≥5 updates
+  the min-score gate uses `combined_score`, so only setups the model believes in
+  get published.
+- **Learning:** `POST /{uuid}/events` with a closing `result_r` triggers a step.
+- **Inspect:** `GET /api/pro-signals/rl/model` returns learned importance, win
+  rate, confidence and status (learning → optimized). Shown on the admin desk;
+  `rl_score`/`combined_score` appear on the feed and signal cards.

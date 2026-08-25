@@ -15,6 +15,7 @@ export default function AdminSignals() {
   const { user } = useAuth();
   const [feed, setFeed] = useState(null);
   const [perf, setPerf] = useState(null);
+  const [rl, setRl] = useState(null);
   const [form, setForm] = useState(EMPTY);
   const [flags, setFlags] = useState(Object.fromEntries(FLAGS.map((f) => [f, true])));
   const [msg, setMsg] = useState("");
@@ -23,6 +24,7 @@ export default function AdminSignals() {
   const load = () => {
     proSignalsService.feed(50).then(setFeed).catch(() => {});
     proSignalsService.performance().then(setPerf).catch(() => {});
+    proSignalsService.rlModel().then(setRl).catch(() => {});
   };
   useEffect(() => { if (user?.role === "admin") load(); }, [user]);
 
@@ -82,6 +84,28 @@ export default function AdminSignals() {
             <div className="vx-perf"><b>{perf.active}</b><span>Active</span></div>
             <div className="vx-perf"><b>{perf.total_signals}</b><span>Total</span></div>
             <div className="vx-perf"><b>{perf.best_pair || "—"}</b><span>Best pair</span></div>
+          </div>
+        )}
+
+        {rl && (
+          <div className="vx-panel vx-rl-panel">
+            <div className="vx-rl-head">
+              <h3>🧠 RL Model <span className={`vx-rl-status ${rl.status}`}>{rl.status}</span></h3>
+              <span className="vx-muted">{rl.updates} updates · {rl.win_rate}% win · confidence {Math.round(rl.confidence * 100)}%</span>
+            </div>
+            <p className="vx-muted">Learned component importance (what actually predicts winners):</p>
+            <div className="vx-rl-weights">
+              {rl.importance.map((f) => (
+                <div key={f.feature} className="vx-rl-weight">
+                  <span>{f.feature.replace(/_/g, " ")}</span>
+                  <div className="vx-rl-bar">
+                    <div className={f.weight >= 0 ? "pos" : "neg"}
+                      style={{ width: `${Math.min(100, Math.abs(f.weight) * 30)}%` }} />
+                  </div>
+                  <b className={f.weight >= 0 ? "vx-up" : "vx-down"}>{f.weight}</b>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
