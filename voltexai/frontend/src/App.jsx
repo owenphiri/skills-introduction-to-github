@@ -49,6 +49,7 @@ import EAs from "./pages/EAs";
 import SignalsPro from "./pages/SignalsPro";
 import AdminSignals from "./pages/AdminSignals";
 import Referrals from "./pages/Referrals";
+import AdminAnalytics from "./pages/AdminAnalytics";
 
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -160,6 +161,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <AdminSignals />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/analytics"
+            element={
+              <ProtectedRoute>
+                <AdminAnalytics />
               </ProtectedRoute>
             }
           />

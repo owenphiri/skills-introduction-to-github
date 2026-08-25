@@ -1645,3 +1645,25 @@ body {
 .vx-copy-row code { font-family: var(--vx-font-mono); font-size: .82rem; background: var(--vx-bg-elev);
   padding: .4rem .6rem; border-radius: 8px; overflow-x: auto; white-space: nowrap; }
 @media (max-width: 560px) { .vx-copy-row { grid-template-columns: 1fr auto; } .vx-copy-row > .vx-muted { grid-column: 1 / -1; } }
+
+/* Admin analytics */
+.vx-hist { display: flex; align-items: flex-end; gap: .5rem; height: 180px; padding-top: 1rem; }
+.vx-hist-col { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; gap: .35rem; }
+.vx-hist-bar { width: 100%; background: linear-gradient(180deg, var(--vx-primary), var(--vx-accent));
+  border-radius: 6px 6px 0 0; min-height: 3px; position: relative; display: flex; justify-content: center; align-items: flex-start; }
+.vx-hist-bar span { position: absolute; top: -1.1rem; font-size: .72rem; font-weight: 700; color: var(--vx-text-dim); }
+.vx-hist-col small { font-size: .66rem; color: var(--vx-text-dim); text-align: center; }
+.vx-rbars { display: flex; flex-direction: column; gap: .45rem; }
+.vx-rbar-row { display: grid; grid-template-columns: 90px 1fr 60px auto; align-items: center; gap: .6rem; font-size: .8rem; }
+.vx-rbar-label { color: var(--vx-text-dim); text-transform: capitalize; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vx-rbar-track { height: 10px; background: var(--vx-bg-elev); border-radius: 999px; overflow: hidden; }
+.vx-rbar-fill { height: 100%; border-radius: 999px; }
+.vx-rbar-fill.pos { background: var(--vx-success); }
+.vx-rbar-fill.neg { background: var(--vx-danger); }
+.vx-rbar-row b { text-align: right; font-family: var(--vx-font-mono); font-size: .76rem; }
+.vx-rbar-row small { white-space: nowrap; }
+.vx-mini-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: .6rem; }
+.vx-mini-stats > div { text-align: center; background: var(--vx-bg-elev); border-radius: 10px; padding: .6rem .3rem; }
+.vx-mini-stats b { display: block; font-family: var(--vx-font-display); font-size: 1.15rem; }
+.vx-mini-stats span { font-size: .66rem; color: var(--vx-text-dim); }
+@media (max-width: 560px) { .vx-rbar-row { grid-template-columns: 70px 1fr 50px; } .vx-rbar-row small { display: none; } }

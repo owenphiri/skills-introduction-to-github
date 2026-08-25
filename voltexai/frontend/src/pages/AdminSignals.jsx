@@ -74,6 +74,7 @@ export default function AdminSignals() {
           <span className="vx-eyebrow">Admin Desk</span>
           <h1>🛠️ Signals Admin</h1>
           <p className="vx-muted">Publish manual signals and manage the live lifecycle.</p>
+          <Link to="/admin/analytics" className="vx-btn-primary vx-btn-sm">📊 Open Analytics</Link>
         </div>
 
         {perf && (
