@@ -18,5 +18,7 @@ class TelegramSubscriber(Base):
     stars_paid = Column(Integer, nullable=False, default=0)
     is_recurring = Column(Boolean, nullable=False, default=False)
     last_charge_id = Column(String(128), nullable=True)
+    expired_notified = Column(Boolean, nullable=False, default=False)  # renewal DM sent after lapse
+    ref_code = Column(String(32), nullable=True)                        # referral code they joined with
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     last_seen = Column(DateTime, default=datetime.utcnow, nullable=False)

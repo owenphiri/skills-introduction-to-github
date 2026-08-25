@@ -92,3 +92,16 @@ produce winners and re-scores incoming signals accordingly:
 - **Inspect:** `GET /api/pro-signals/rl/model` returns learned importance, win
   rate, confidence and status (learning → optimized). Shown on the admin desk;
   `rl_score`/`combined_score` appear on the feed and signal cards.
+
+## VIP-expiry automation + affiliate system (Phase 5)
+
+VIP expiry: a background sweep (every `VIP_EXPIRY_SWEEP_SECONDS`, default 1h,
+only when the bot is configured) kicks lapsed VIPs from the channel (ban+unban)
+and DMs a renewal offer — idempotent via `expired_notified`. Manual run:
+`POST /api/telegram/expire-sweep` (admin JWT or gateway key).
+
+Affiliate: every user gets a code + links (`GET /api/referrals/me`). Web signups
+(`referral_code` on register) and bot `/start <CODE>` deep links create pending
+referrals; a VIP purchase qualifies them and credits the referrer 20% of the
+Stars paid. `POST /api/referrals/track` counts a click; `GET /api/referrals/leaderboard`
+ranks affiliates. Dashboard at `/referrals`; `?ref=CODE` is captured site-wide.

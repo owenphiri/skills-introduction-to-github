@@ -62,6 +62,8 @@ class Settings(BaseSettings):
     TELEGRAM_BOT_USERNAME: str = os.getenv("TELEGRAM_BOT_USERNAME", "VoltexAIForexBot")
     # secret path segment for the bot webhook (Telegram -> /api/telegram/webhook/<secret>)
     TELEGRAM_WEBHOOK_SECRET: str = os.getenv("TELEGRAM_WEBHOOK_SECRET", "")
+    # how often the background VIP-expiry sweep runs (seconds)
+    VIP_EXPIRY_SWEEP_SECONDS: int = int(os.getenv("VIP_EXPIRY_SWEEP_SECONDS", "3600"))
     # Shared key the MT5 EA / gateway uses to pull signals and post executions.
     MT5_GATEWAY_KEY: str = os.getenv("MT5_GATEWAY_KEY", "")
 

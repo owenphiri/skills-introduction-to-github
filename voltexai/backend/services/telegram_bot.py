@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 from ..config import settings
 from ..models import TelegramSubscriber, ProSignal
 from . import telegram_service as tg
+from . import referral_service
 
 logger = logging.getLogger(__name__)
 
@@ -138,6 +139,14 @@ async def _grant_vip(db: Session, tg_user: dict, sp: dict):
     row.last_charge_id = sp.get("telegram_payment_charge_id")
     db.commit()
 
+    # affiliate: credit the referrer on this conversion
+    try:
+        referral_service.qualify(db, referred_telegram_id=tg_user["id"],
+                                 stars=int(sp.get("total_amount", plan["stars"])),
+                                 note=f"VIP {plan_id}")
+    except Exception as e:
+        logger.warning("referral qualify failed: %s", e)
+
     # generate a single-use VIP channel invite (bot must be admin of the channel)
     link = None
     ch = settings.TELEGRAM_VIP_CHANNEL
@@ -184,11 +193,40 @@ async def dispatch(update: dict, db: Session) -> dict:
     if msg.get("text"):
         chat_id = msg["chat"]["id"]
         row = _sub(db, msg["from"])
-        cmd = msg["text"].strip().lower().lstrip("/").split("@")[0].split()[0]
+        parts = msg["text"].strip().split()
+        cmd = parts[0].lower().lstrip("/").split("@")[0]
+        arg = parts[1] if len(parts) > 1 else None
+        # /start <CODE> deep link -> attribute the referral to this Telegram user
+        if cmd == "start" and arg and not row.ref_code:
+            row.ref_code = arg.upper()
+            db.commit()
+            referral_service.attribute(db, arg, referred_telegram_id=msg["from"]["id"])
         await _route(chat_id, cmd, row, db)
         return {"handled": "command", "cmd": cmd}
 
     return {"handled": "ignored"}
+
+
+async def expire_sweep(db) -> dict:
+    """Kick lapsed VIPs from the channel and DM a renewal offer. Idempotent."""
+    now = datetime.utcnow()
+    lapsed = (db.query(TelegramSubscriber)
+              .filter(TelegramSubscriber.vip_until.isnot(None),
+                      TelegramSubscriber.vip_until < now,
+                      TelegramSubscriber.expired_notified == False).all())  # noqa: E712
+    ch = settings.TELEGRAM_VIP_CHANNEL
+    for row in lapsed:
+        if ch:
+            await tg.api_call("banChatMember", {"chat_id": ch, "user_id": row.telegram_id,
+                                                "until_date": int(now.timestamp()) + 40})
+            await tg.api_call("unbanChatMember", {"chat_id": ch, "user_id": row.telegram_id,
+                                                  "only_if_banned": True})
+        await _send(row.telegram_id,
+                    "⏳ Your Voltex VIP has expired. Renew to keep full setups, live "
+                    "management and MT5 auto-execution ⚡\n\n/vip to resubscribe.")
+        row.expired_notified = True
+    db.commit()
+    return {"checked": len(lapsed), "removed": len(lapsed)}
 
 
 async def _route(chat_id, key, row, db):
