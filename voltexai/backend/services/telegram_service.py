@@ -20,6 +20,23 @@ def configured() -> bool:
     return bool(settings.TELEGRAM_BOT_TOKEN)
 
 
+async def api_call(method: str, payload: dict) -> dict:
+    """Call any Bot API method. No-op (logged) when the bot token is unset."""
+    if not configured():
+        logger.info("[telegram:noop] %s %s", method, list(payload.keys()))
+        return {"ok": False, "reason": "telegram not configured"}
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            r = await client.post(f"{_API}/bot{settings.TELEGRAM_BOT_TOKEN}/{method}", json=payload)
+            data = r.json()
+            if not data.get("ok"):
+                logger.warning("telegram %s error: %s", method, data.get("description"))
+            return data
+    except Exception as e:
+        logger.warning("telegram %s failed: %s", method, e)
+        return {"ok": False, "reason": str(e)}
+
+
 def _channel(tier: str) -> str | None:
     return settings.TELEGRAM_VIP_CHANNEL if tier == "vip" else settings.TELEGRAM_FREE_CHANNEL
 

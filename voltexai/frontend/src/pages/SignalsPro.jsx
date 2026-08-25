@@ -125,6 +125,14 @@ export default function SignalsPro() {
           ))}
         </div>
 
+        <a className="vx-tg-cta" href="https://t.me/VoltexAIForexBot" target="_blank" rel="noopener noreferrer">
+          <div>
+            <b>📲 Get signals on Telegram</b>
+            <span className="vx-muted">Free channel + VIP with full setups & MT5 auto-execution. Subscribe with Telegram Stars ⭐.</span>
+          </div>
+          <span className="vx-btn-primary vx-btn-sm">Open @VoltexAIForexBot →</span>
+        </a>
+
         {perf?.week && (
           <div className="vx-week-report">
             <h3>📊 This week</h3>

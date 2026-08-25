@@ -59,6 +59,9 @@ class Settings(BaseSettings):
     TELEGRAM_BOT_TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN", "")
     TELEGRAM_FREE_CHANNEL: str = os.getenv("TELEGRAM_FREE_CHANNEL", "")   # @channel or -100id
     TELEGRAM_VIP_CHANNEL: str = os.getenv("TELEGRAM_VIP_CHANNEL", "")
+    TELEGRAM_BOT_USERNAME: str = os.getenv("TELEGRAM_BOT_USERNAME", "VoltexAIForexBot")
+    # secret path segment for the bot webhook (Telegram -> /api/telegram/webhook/<secret>)
+    TELEGRAM_WEBHOOK_SECRET: str = os.getenv("TELEGRAM_WEBHOOK_SECRET", "")
     # Shared key the MT5 EA / gateway uses to pull signals and post executions.
     MT5_GATEWAY_KEY: str = os.getenv("MT5_GATEWAY_KEY", "")
 
