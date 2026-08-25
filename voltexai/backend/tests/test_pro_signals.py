@@ -102,8 +102,11 @@ def test_admin_analytics(client, admin_user, free_user):
     assert client.get("/api/admin/analytics").status_code == 401
     assert client.get("/api/admin/analytics", headers=free_user["headers"]).status_code == 403
     d = client.get("/api/admin/analytics", headers=admin_user["headers"]).json()
-    for key in ("signals", "subscribers", "referrals", "rl"):
+    for key in ("signals", "subscribers", "retention", "referrals", "rl"):
         assert key in d
+    ret = d["retention"]
+    assert set(ret) >= {"cohorts", "curve", "summary"}
+    assert {"converted", "active", "churned", "churn_rate", "avg_lifetime_days"} <= set(ret["summary"])
     s = d["signals"]
     for key in ("totals", "equity", "distribution", "by_symbol", "by_session",
                 "by_grade", "by_tier", "by_dow"):

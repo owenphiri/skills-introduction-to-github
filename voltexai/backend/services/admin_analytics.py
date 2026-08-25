@@ -119,6 +119,48 @@ def _plan_breakdown(active) -> list[dict]:
     return [{"plan": k, "count": v} for k, v in sorted(agg.items(), key=lambda x: -x[1])]
 
 
+def _retention(db: Session) -> dict:
+    """Subscriber cohorts (by join month) + a VIP survival curve by tenure weeks."""
+    now = datetime.utcnow()
+    subs = db.query(TelegramSubscriber).all()
+    vip = [s for s in subs if s.vip_until]                 # ever converted to VIP
+    active = [s for s in vip if s.vip_until > now]
+    churned = [s for s in vip if s.vip_until <= now]
+
+    # cohorts by first-seen month (last 6)
+    cohorts = defaultdict(list)
+    for s in subs:
+        cohorts[s.created_at.strftime("%Y-%m")].append(s)
+    cohort_rows = []
+    for month in sorted(cohorts)[-6:]:
+        grp = cohorts[month]
+        conv = [s for s in grp if s.vip_until]
+        act = [s for s in conv if s.vip_until > now]
+        cohort_rows.append({
+            "cohort": month, "size": len(grp), "converted": len(conv),
+            "active": len(act), "churned": len(conv) - len(act),
+            "conversion_pct": _r(len(conv) / len(grp) * 100, 1) if grp else 0,
+            "retention_pct": _r(len(act) / len(conv) * 100, 1) if conv else 0,
+            "revenue_stars": sum(s.stars_paid or 0 for s in grp),
+        })
+
+    # survival curve: % of VIP subs whose tenure reaches >= k weeks
+    curve = []
+    if vip:
+        tenures = [max(0, (s.vip_until - s.created_at).days) // 7 for s in vip]
+        n = len(tenures)
+        for k in range(0, 9):
+            curve.append({"week": k, "pct": _r(sum(1 for t in tenures if t >= k) / n * 100, 1)})
+
+    summary = {
+        "converted": len(vip), "active": len(active), "churned": len(churned),
+        "churn_rate": _r(len(churned) / len(vip) * 100, 1) if vip else 0,
+        "recurring_share": _r(sum(1 for s in active if s.is_recurring) / len(active) * 100, 1) if active else 0,
+        "avg_lifetime_days": _r(sum((s.vip_until - s.created_at).days for s in vip) / len(vip), 1) if vip else 0,
+    }
+    return {"cohorts": cohort_rows, "curve": curve, "summary": summary}
+
+
 def _referral_analytics(db: Session) -> dict:
     accounts = db.query(ReferralAccount).all()
     refs = db.query(Referral).all()
@@ -142,6 +184,7 @@ def snapshot(db: Session) -> dict:
         "generated_at": datetime.utcnow().isoformat(),
         "signals": _signal_analytics(db),
         "subscribers": _subscriber_analytics(db),
+        "retention": _retention(db),
         "referrals": _referral_analytics(db),
         "rl": rl_service.model_view(db),
     }

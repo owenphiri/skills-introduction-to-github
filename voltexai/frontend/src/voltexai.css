@@ -1667,3 +1667,12 @@ body {
 .vx-mini-stats b { display: block; font-family: var(--vx-font-display); font-size: 1.15rem; }
 .vx-mini-stats span { font-size: .66rem; color: var(--vx-text-dim); }
 @media (max-width: 560px) { .vx-rbar-row { grid-template-columns: 70px 1fr 50px; } .vx-rbar-row small { display: none; } }
+
+/* Retention cohort table */
+.vx-cohort-table { display: flex; flex-direction: column; gap: 3px; }
+.vx-cohort-head, .vx-cohort-row { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr 1.2fr 1fr; gap: .4rem;
+  align-items: center; font-size: .8rem; }
+.vx-cohort-head { color: var(--vx-text-dim); font-size: .68rem; text-transform: uppercase; letter-spacing: .04em;
+  padding-bottom: .3rem; border-bottom: 1px solid var(--vx-border); }
+.vx-cohort-row span { padding: .35rem .2rem; }
+.vx-cohort-cell { border-radius: 6px; text-align: center; font-weight: 700; font-family: var(--vx-font-mono); }
