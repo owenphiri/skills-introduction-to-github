@@ -33,7 +33,7 @@ SOCIALS = [
      "url": "https://wa.me/260972446895?text=Hi%20VoltexAI%2C%20I%27d%20like%20to%20know%20more%20about%20the%20plans"},
     {"id": "tiktok", "label": "TikTok", "handle": "@OWENPHI52786718",
      "url": "https://www.tiktok.com/@OWENPHI52786718"},
-    {"id": "youtube", "label": "YouTube", "handle": "VoltexAI TV",
+    {"id": "youtube", "label": "VoltexAI TV", "handle": "VoltexAI TV",
      "url": "https://www.youtube.com/@owenphiri316"},
 ]
 
