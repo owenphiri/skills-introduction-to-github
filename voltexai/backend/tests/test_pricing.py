@@ -32,6 +32,8 @@ def test_annual_billing_discount(client):
     b = body["billing"]
     assert b["months_free"] == 2 and b["discount_pct"] == 17
     assert "2 months free" in b["label"]
+    # annual plans carry a money-back guarantee window
+    assert b["moneyback_days"] == 30
 
     by_id = {p["id"]: p for p in body["plans"]}
     # 2 months free -> annual = 10x monthly
