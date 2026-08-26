@@ -21,8 +21,8 @@ COMPANY = {
 # Official community channels. Handles/URLs are the single source of truth for
 # every social surface (footer, dashboard, social rail).
 SOCIALS = [
-    {"id": "x", "label": "X", "handle": "@VoltexAI",
-     "url": "https://x.com/VoltexAI"},
+    {"id": "x", "label": "X", "handle": "@OWENPHI52786718",
+     "url": "https://x.com/OWENPHI52786718"},
     {"id": "telegram", "label": "Telegram", "handle": "VoltexAI",
      "url": "https://t.me/VoltexAI"},
     {"id": "facebook", "label": "Facebook", "handle": "VoltexAI",

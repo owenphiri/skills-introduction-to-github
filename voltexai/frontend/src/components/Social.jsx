@@ -2,7 +2,7 @@
 // Handles are centralised here and mirror the backend catalog (/api/dashboard).
 
 export const SOCIALS = [
-  { id: "x", label: "X", url: "https://x.com/VoltexAI" },
+  { id: "x", label: "X", url: "https://x.com/OWENPHI52786718" },
   { id: "telegram", label: "Telegram", url: "https://t.me/VoltexAI" },
   { id: "facebook", label: "Facebook", url: "https://facebook.com/VoltexAI" },
   { id: "whatsapp", label: "WhatsApp", url: "https://wa.me/260972446895?text=Hi%20VoltexAI%2C%20I%27d%20like%20to%20know%20more%20about%20the%20plans" },
