@@ -55,5 +55,4 @@ def billing_summary() -> dict:
         "months_free": settings.PLAN_ANNUAL_MONTHS_FREE,
         "discount_pct": discount_pct(),
         "label": f"{settings.PLAN_ANNUAL_MONTHS_FREE} months free",
-        "moneyback_days": settings.PLAN_ANNUAL_MONEYBACK_DAYS,
     }

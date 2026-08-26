@@ -18,7 +18,7 @@ from ..database import get_db
 from ..config import settings
 from ..models import User, Payment, PaymentStatus
 from ..services import (stripe_service, flutterwave_service, subscription_service,
-                        pricing_service, refund_service)
+                        pricing_service)
 from ..middleware.auth_middleware import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -243,27 +243,3 @@ def cancel_subscription(user: User = Depends(get_current_user),
     # FLW subscriptions cancel via dashboard or call FLW API directly
     subscription_service.downgrade_to_free(db, user.id, reason="cancelled")
     return {"message": "Subscription cancelled; access continues until period end."}
-
-
-# ---------- self-serve refund (annual money-back guarantee) ----------
-@router.get("/refund/eligibility")
-def refund_eligibility(user: User = Depends(get_current_user),
-                       db: Session = Depends(get_db)):
-    """Whether the caller can self-refund under the annual money-back guarantee."""
-    return refund_service.eligibility(db, user)
-
-
-@router.post("/refund")
-def request_refund(user: User = Depends(get_current_user),
-                   db: Session = Depends(get_db)):
-    """Issue a full refund of the caller's annual payment within the guarantee
-    window, cancel the plan, and drop to Free."""
-    try:
-        result = refund_service.process(db, user)
-    except ValueError as e:
-        # Not eligible (window passed, monthly plan, nothing to refund, …)
-        raise HTTPException(400, str(e))
-    except Exception as e:
-        logger.exception("Refund failed for user %s", user.id)
-        raise HTTPException(502, f"Refund could not be processed: {e}")
-    return {"message": "Refund issued. Your plan has been set to Free.", **result}

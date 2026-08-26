@@ -5,7 +5,6 @@ Used by international users / card payments. Local African mobile money goes thr
 Flutterwave instead.
 """
 from __future__ import annotations
-import json
 import logging
 import stripe
 
@@ -62,22 +61,6 @@ def verify_webhook(payload: bytes, signature: str) -> stripe.Event:
         sig_header=signature,
         secret=settings.STRIPE_WEBHOOK_SECRET,
     )
-
-
-def refund_payment(payment) -> dict:
-    """Refund a Stripe charge in full using the payment_intent recorded on the
-    Checkout Session. No-op (simulated) when STRIPE_SECRET_KEY is unset."""
-    if not settings.STRIPE_SECRET_KEY:
-        return {"simulated": True, "provider": "stripe"}
-    try:
-        obj = json.loads(payment.raw_payload or "{}")
-    except (ValueError, TypeError):
-        obj = {}
-    payment_intent = obj.get("payment_intent")
-    if not payment_intent:
-        raise ValueError("No payment_intent on record; refund via the Stripe dashboard.")
-    refund = stripe.Refund.create(payment_intent=payment_intent)
-    return {"provider": "stripe", "id": refund.id, "status": refund.status}
 
 
 def cancel_subscription(stripe_sub_id: str) -> dict:

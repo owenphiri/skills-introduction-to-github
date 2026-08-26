@@ -7,13 +7,11 @@ import { aiService } from "../services/ai";
 export default function Account() {
   const { user, refreshUser, logout } = useAuth();
   const [quota, setQuota] = useState(null);
-  const [refund, setRefund] = useState(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
 
   useEffect(() => {
     aiService.quota().then(setQuota).catch(() => {});
-    paymentsService.refundEligibility().then(setRefund).catch(() => {});
   }, []);
 
   async function cancel() {
@@ -25,21 +23,6 @@ export default function Account() {
       await refreshUser();
     } catch (e) {
       setMsg(e.message || "Cancel failed");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function requestRefund() {
-    if (!confirm("Request a full refund of your annual plan? This cancels your subscription and returns you to the Free plan.")) return;
-    setBusy(true); setMsg("");
-    try {
-      const res = await paymentsService.requestRefund();
-      setMsg(res.message);
-      setRefund({ eligible: false });
-      await refreshUser();
-    } catch (e) {
-      setMsg(e.message || "Refund failed");
     } finally {
       setBusy(false);
     }
@@ -83,18 +66,6 @@ export default function Account() {
             </button>
           )}
         </div>
-        {refund?.eligible && (
-          <div className="vx-refund-box">
-            <p>
-              <strong>🛡 {refund.moneyback_days}-day money-back guarantee.</strong>{" "}
-              You're within the window ({refund.days_left} day{refund.days_left === 1 ? "" : "s"} left).
-              Not satisfied? Get a full refund of your annual plan — no questions asked.
-            </p>
-            <button onClick={requestRefund} disabled={busy} className="vx-btn-secondary">
-              {busy ? "Processing…" : "Request refund"}
-            </button>
-          </div>
-        )}
         {msg && <div className="vx-info">{msg}</div>}
       </section>
 
