@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { paymentsService } from "../services/payments";
 import { useAuth } from "../contexts/AuthContext";
+import { Testimonials } from "../components/Testimonials";
 
 export default function Pricing() {
   const { user } = useAuth();
@@ -195,6 +196,40 @@ export default function Pricing() {
           );
         })}
       </div>
+
+      <section className="vx-pricing-social">
+        <div className="vx-pricing-social-head">
+          <span className="vx-eyebrow">Loved across the globe</span>
+          <h2>Traders who bet on themselves — and won.</h2>
+          <p className="vx-muted">
+            Join a community spanning 14+ countries. Trade Smart. Trade Safe. Trade Consistently.
+          </p>
+        </div>
+        <Testimonials limit={3} />
+      </section>
+
+      <section className="vx-pricing-cta">
+        <div>
+          <h2>Financial freedom — bridging the gap.</h2>
+          <p>
+            Start free today, upgrade the moment you're ready. Every paid plan is
+            month-to-month or annual (save 17%), and you can cancel anytime.
+          </p>
+        </div>
+        <div className="vx-pricing-cta-actions">
+          {user ? (
+            <a href="#top" className="vx-btn-primary" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
+              Choose your plan
+            </a>
+          ) : (
+            <>
+              <a href="/signup" className="vx-btn-primary">Get started free</a>
+              <a href="/login" className="vx-btn-secondary">I already have an account</a>
+            </>
+          )}
+          <small className="vx-muted">No card required to start · Cancel anytime</small>
+        </div>
+      </section>
     </div>
   );
 }
