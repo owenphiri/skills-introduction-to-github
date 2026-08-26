@@ -72,8 +72,59 @@ def detect(candles: list[dict], dp: int = 5) -> dict:
     pattern = None
     plan = None
 
+    # ---- Triple Top / Triple Bottom (three equal extremes) ----
+    if len(ph) >= 3:
+        a, b, c = ph[-3], ph[-2], ph[-1]
+        if _close(highs[a], highs[b], tol) and _close(highs[b], highs[c], tol):
+            troughs = [i for i in pl if a < i < c]
+            if troughs:
+                neck = min(lows[t] for t in troughs)
+                top = max(highs[a], highs[b], highs[c])
+                entry, sl = neck - tol * 0.25, top + tol * 0.5
+                pattern = {"name": "Triple Top", "type": "bearish", "confidence": 84,
+                           "description": "Three equal highs rejected at resistance; breaking the neckline is a strong reversal signal.",
+                           "points": [{"i": a, "price": round(highs[a], dp), "label": "Top 1"},
+                                      {"i": b, "price": round(highs[b], dp), "label": "Top 2"},
+                                      {"i": c, "price": round(highs[c], dp), "label": "Top 3"}],
+                           "neckline": round(neck, dp)}
+                plan = _plan("sell", entry, sl, top - neck, dp)
+    if pattern is None and len(pl) >= 3:
+        a, b, c = pl[-3], pl[-2], pl[-1]
+        if _close(lows[a], lows[b], tol) and _close(lows[b], lows[c], tol):
+            peaks = [i for i in ph if a < i < c]
+            if peaks:
+                neck = max(highs[p] for p in peaks)
+                bottom = min(lows[a], lows[b], lows[c])
+                entry, sl = neck + tol * 0.25, bottom - tol * 0.5
+                pattern = {"name": "Triple Bottom", "type": "bullish", "confidence": 84,
+                           "description": "Three equal lows held at support; breaking the neckline is a strong reversal signal.",
+                           "points": [{"i": a, "price": round(lows[a], dp), "label": "Bottom 1"},
+                                      {"i": b, "price": round(lows[b], dp), "label": "Bottom 2"},
+                                      {"i": c, "price": round(lows[c], dp), "label": "Bottom 3"}],
+                           "neckline": round(neck, dp)}
+                plan = _plan("buy", entry, sl, neck - bottom, dp)
+
+    # ---- Rectangle / range consolidation (flat top & flat bottom) ----
+    if pattern is None and len(ph) >= 2 and len(pl) >= 2:
+        h1, h2 = highs[ph[-2]], highs[ph[-1]]
+        l1, l2 = lows[pl[-2]], lows[pl[-1]]
+        if _close(h1, h2, tol) and _close(l1, l2, tol) and (h1 - l1) > atr * 2.2:
+            res, sup = (h1 + h2) / 2, (l1 + l2) / 2
+            height = res - sup
+            if price - sup < res - price:                        # nearer support -> long the range
+                entry, sl, direction = sup + tol * 0.5, sup - tol, "buy"
+            else:
+                entry, sl, direction = res - tol * 0.5, res + tol, "sell"
+            pattern = {"name": "Rectangle", "type": "bullish" if direction == "buy" else "bearish",
+                       "confidence": 66,
+                       "description": "Price consolidating between horizontal support and resistance — fade the bands or trade the eventual breakout.",
+                       "points": [{"i": ph[-1], "price": round(res, dp), "label": "Resistance"},
+                                  {"i": pl[-1], "price": round(sup, dp), "label": "Support"}],
+                       "neckline": round(res if direction == "sell" else sup, dp)}
+            plan = _plan(direction, entry, sl, height, dp)
+
     # ---- Double Top (bearish) ----
-    if len(ph) >= 2 and len(pl) >= 1:
+    if pattern is None and len(ph) >= 2 and len(pl) >= 1:
         a, b = ph[-2], ph[-1]
         troughs = [i for i in pl if a < i < b]
         if troughs and _close(highs[a], highs[b], tol):
@@ -178,20 +229,36 @@ def detect(candles: list[dict], dp: int = 5) -> dict:
             pole_height = max(c["high"] for c in pole) - min(c["low"] for c in pole)
             if abs(pole_move) > atr * 3 and 0 < cons_range < pole_height * 0.6:
                 flag_i, pole_i = n - M, n - (M + 18)
-                if pole_move > 0:                # bull flag
+                # pennant if the consolidation is converging, else a (parallel) flag
+                r1 = max(c["high"] for c in cons[:M // 2]) - min(c["low"] for c in cons[:M // 2])
+                r2 = max(c["high"] for c in cons[M // 2:]) - min(c["low"] for c in cons[M // 2:])
+                pennant = r2 < r1 * 0.7
+                if pole_move > 0:                # bullish continuation
                     entry, sl = cons_hi + tol * 0.25, cons_lo - tol * 0.5
-                    pattern = {"name": "Bull Flag", "type": "bullish", "confidence": 76,
-                               "description": "A strong up-impulse (pole) then a tight pullback (flag); a break above the flag targets the pole's height projected up.",
+                    name = "Bull Pennant" if pennant else "Bull Flag"
+                    desc = ("A strong up-impulse (pole) then a small symmetrical "
+                            "consolidation (pennant); a break higher targets the pole's height."
+                            if pennant else
+                            "A strong up-impulse (pole) then a tight pullback (flag); a break "
+                            "above the flag targets the pole's height projected up.")
+                    pattern = {"name": name, "type": "bullish", "confidence": 76,
+                               "description": desc,
                                "points": [{"i": pole_i, "price": round(pole[0]["close"], dp), "label": "Pole"},
-                                          {"i": flag_i, "price": round(cons_hi, dp), "label": "Flag"}],
+                                          {"i": flag_i, "price": round(cons_hi, dp), "label": name.split()[1]}],
                                "neckline": round(cons_hi, dp)}
                     plan = _plan("buy", entry, sl, pole_height, dp)
-                else:                            # bear flag
+                else:                            # bearish continuation
                     entry, sl = cons_lo - tol * 0.25, cons_hi + tol * 0.5
-                    pattern = {"name": "Bear Flag", "type": "bearish", "confidence": 76,
-                               "description": "A strong down-impulse (pole) then a tight bounce (flag); a break below the flag targets the pole's height projected down.",
+                    name = "Bear Pennant" if pennant else "Bear Flag"
+                    desc = ("A strong down-impulse (pole) then a small symmetrical "
+                            "consolidation (pennant); a break lower targets the pole's height."
+                            if pennant else
+                            "A strong down-impulse (pole) then a tight bounce (flag); a break "
+                            "below the flag targets the pole's height projected down.")
+                    pattern = {"name": name, "type": "bearish", "confidence": 76,
+                               "description": desc,
                                "points": [{"i": pole_i, "price": round(pole[0]["close"], dp), "label": "Pole"},
-                                          {"i": flag_i, "price": round(cons_lo, dp), "label": "Flag"}],
+                                          {"i": flag_i, "price": round(cons_lo, dp), "label": name.split()[1]}],
                                "neckline": round(cons_lo, dp)}
                     plan = _plan("sell", entry, sl, pole_height, dp)
 
@@ -217,6 +284,28 @@ def detect(candles: list[dict], dp: int = 5) -> dict:
                                   {"i": pl[-1], "price": round(l2, dp), "label": "Lower"}],
                        "neckline": round(h2, dp)}
             plan = _plan("buy", entry, sl, range1, dp)
+
+    # ---- Ascending / Descending channel (parallel sloping trend lines) ----
+    if pattern is None and len(ph) >= 2 and len(pl) >= 2:
+        h1, h2 = highs[ph[-2]], highs[ph[-1]]
+        l1, l2 = lows[pl[-2]], lows[pl[-1]]
+        parallel = abs((h2 - l2) - (h1 - l1)) < atr * 0.9
+        if parallel and h2 > h1 + tol * 0.3 and l2 > l1 + tol * 0.3:   # ascending channel
+            entry, sl = price, l2 - tol
+            pattern = {"name": "Ascending Channel", "type": "bullish", "confidence": 68,
+                       "description": "Higher highs and higher lows between two parallel rising lines — buy pullbacks to the lower rail while the channel holds.",
+                       "points": [{"i": ph[-1], "price": round(h2, dp), "label": "Upper rail"},
+                                  {"i": pl[-1], "price": round(l2, dp), "label": "Lower rail"}],
+                       "neckline": round(l2, dp)}
+            plan = _plan("buy", entry, sl, h1 - l1, dp)
+        elif parallel and h2 < h1 - tol * 0.3 and l2 < l1 - tol * 0.3:  # descending channel
+            entry, sl = price, h2 + tol
+            pattern = {"name": "Descending Channel", "type": "bearish", "confidence": 68,
+                       "description": "Lower highs and lower lows between two parallel falling lines — sell rallies to the upper rail while the channel holds.",
+                       "points": [{"i": ph[-1], "price": round(h2, dp), "label": "Upper rail"},
+                                  {"i": pl[-1], "price": round(l2, dp), "label": "Lower rail"}],
+                       "neckline": round(h2, dp)}
+            plan = _plan("sell", entry, sl, h1 - l1, dp)
 
     # ---- Fallback: trend continuation / range ----
     if pattern is None:
@@ -267,3 +356,27 @@ def detect(candles: list[dict], dp: int = 5) -> dict:
         "candles": [{"t": c["time"], "o": round(c["open"], dp), "h": round(c["high"], dp),
                      "l": round(c["low"], dp), "c": round(c["close"], dp)} for c in candles],
     }
+
+
+def confluence(per_tf: list[dict]) -> dict:
+    """Aggregate per-timeframe pattern reads into one overall bias + label."""
+    if not per_tf:
+        return {"score": 0, "label": "No data", "direction": "neutral",
+                "bullish": 0, "bearish": 0, "agreement": 0, "timeframes": []}
+    n = len(per_tf)
+    score = sum((p["confidence"] if p["direction"] == "buy" else -p["confidence"]) for p in per_tf) / n
+    bull = sum(1 for p in per_tf if p["direction"] == "buy")
+    bear = n - bull
+    if score >= 40:
+        label, direction = "Strong Bullish", "buy"
+    elif score >= 15:
+        label, direction = "Bullish", "buy"
+    elif score <= -40:
+        label, direction = "Strong Bearish", "sell"
+    elif score <= -15:
+        label, direction = "Bearish", "sell"
+    else:
+        label, direction = "Mixed", "neutral"
+    return {"score": round(score, 1), "label": label, "direction": direction,
+            "bullish": bull, "bearish": bear,
+            "agreement": round(max(bull, bear) / n * 100), "timeframes": per_tf}

@@ -29,6 +29,7 @@ export const adminService = {
 
 export const patternsService = {
   detect: (symbol, timeframe) => api.get(`/api/patterns?symbol=${symbol}&timeframe=${timeframe}`),
+  confluence: (symbol) => api.get(`/api/patterns/confluence?symbol=${symbol}`),
 };
 
 export const proSignalsService = {
