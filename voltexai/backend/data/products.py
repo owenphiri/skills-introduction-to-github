@@ -48,6 +48,10 @@ PRODUCTS = [
      "icon": "👁️", "route": "/vision", "accent": "#a06bff",
      "blurb": "Upload any chart screenshot — Vision reads structure, liquidity and "
               "order blocks, then writes the full trade plan."},
+    {"id": "patterns", "name": "Voltex Chart Patterns", "tag": "Pattern Recognition",
+     "icon": "📐", "route": "/patterns", "accent": "#4dd0e1",
+     "blurb": "Automatic chart-pattern detection on a live candlestick chart — with "
+              "entry, stop, TP1–TP3 and break-even drawn for you to guide the trade."},
     {"id": "scanner", "name": "Voltex Scanner", "tag": "Market Scanner",
      "icon": "🛰️", "route": "/scanner", "accent": "#45e0a0",
      "blurb": "Continuously scans the entire market for high-confluence setups and "

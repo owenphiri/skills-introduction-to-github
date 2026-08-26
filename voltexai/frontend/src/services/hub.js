@@ -27,6 +27,10 @@ export const adminService = {
   analytics: () => api.get("/api/admin/analytics"),
 };
 
+export const patternsService = {
+  detect: (symbol, timeframe) => api.get(`/api/patterns?symbol=${symbol}&timeframe=${timeframe}`),
+};
+
 export const proSignalsService = {
   feed: (limit = 20) => api.get(`/api/pro-signals/feed?limit=${limit}`),
   performance: () => api.get("/api/pro-signals/performance"),

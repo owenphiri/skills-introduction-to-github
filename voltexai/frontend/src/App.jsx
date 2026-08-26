@@ -23,6 +23,7 @@ import Competition from "./pages/Competition";
 import Store from "./pages/Store";
 import Pay from "./pages/Pay";
 import Vision from "./pages/Vision";
+import Patterns from "./pages/Patterns";
 import Success from "./pages/Success";
 import Sentiment from "./pages/Sentiment";
 import Live from "./pages/Live";
@@ -89,6 +90,7 @@ export default function App() {
           <Route path="/store" element={<Store />} />
           <Route path="/pay" element={<Pay />} />
           <Route path="/vision" element={<Vision />} />
+          <Route path="/patterns" element={<Patterns />} />
           <Route path="/success" element={<Success />} />
           <Route path="/sentiment" element={<Sentiment />} />
           <Route path="/live" element={<Live />} />

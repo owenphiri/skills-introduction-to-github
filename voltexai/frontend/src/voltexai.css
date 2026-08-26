@@ -1676,3 +1676,35 @@ body {
   padding-bottom: .3rem; border-bottom: 1px solid var(--vx-border); }
 .vx-cohort-row span { padding: .35rem .2rem; }
 .vx-cohort-cell { border-radius: 6px; text-align: center; font-weight: 700; font-family: var(--vx-font-mono); }
+
+/* Voltex Chart Patterns */
+.vx-pat-controls { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.vx-pat-controls select { background: var(--vx-bg-card); border: 1px solid var(--vx-border); color: var(--vx-text);
+  border-radius: 10px; padding: .55rem .8rem; font-family: inherit; font-weight: 600; }
+.vx-tf-tabs { display: flex; gap: .3rem; }
+.vx-tf-tabs button { background: var(--vx-bg-card); border: 1px solid var(--vx-border); color: var(--vx-text-dim);
+  border-radius: 8px; padding: .45rem .7rem; font-size: .8rem; cursor: pointer; }
+.vx-tf-tabs button.active { background: var(--vx-primary); color: #fff; border-color: var(--vx-primary); }
+.vx-pat-banner { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;
+  border: 1px solid var(--vx-border); border-left: 4px solid var(--vx-border); border-radius: 14px;
+  padding: 1rem 1.25rem; margin-bottom: 1rem; background: var(--vx-bg-card); }
+.vx-pat-banner.bullish { border-left-color: var(--vx-success); }
+.vx-pat-banner.bearish { border-left-color: var(--vx-danger); }
+.vx-pat-banner h2 { margin: .2rem 0; display: flex; align-items: center; gap: .5rem; }
+.vx-pat-conf { text-align: center; }
+.vx-pat-conf b { display: block; font-family: var(--vx-font-display); font-size: 1.8rem; color: var(--vx-accent); }
+.vx-pat-conf span { font-size: .7rem; color: var(--vx-text-dim); text-transform: uppercase; }
+.vx-chart-wrap { background: var(--vx-bg-card); border: 1px solid var(--vx-border); border-radius: 14px; padding: .75rem; overflow: hidden; }
+.vx-chart { width: 100%; height: auto; display: block; }
+.vx-chart-tag { fill: #06121f; font: 700 9px var(--vx-font-mono, monospace); }
+.vx-chart-pt { fill: var(--vx-text); font: 700 9px var(--vx-font-body, sans-serif); }
+.vx-chart-legend { display: flex; gap: 1rem; flex-wrap: wrap; padding: .5rem .25rem 0; font-size: .72rem; color: var(--vx-text-dim); }
+.vx-chart-legend span { display: inline-flex; align-items: center; gap: .35rem; }
+.vx-chart-legend i { width: 14px; height: 3px; border-radius: 2px; display: inline-block; }
+.vx-pat-plan { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: .6rem; margin: 1rem 0; }
+.vx-pat-lvl { background: var(--vx-bg-card); border: 1px solid var(--vx-border); border-left: 3px solid var(--lc, var(--vx-border));
+  border-radius: 10px; padding: .6rem .8rem; }
+.vx-pat-lvl span { display: block; font-size: .68rem; text-transform: uppercase; letter-spacing: .05em; color: var(--vx-text-dim); }
+.vx-pat-lvl b { font-family: var(--vx-font-mono); font-size: 1rem; }
+.vx-pat-lvl.rr { border-left-color: var(--vx-accent); }
+.vx-pat-lvl.rr b { color: var(--vx-accent); }
