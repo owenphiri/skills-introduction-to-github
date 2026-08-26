@@ -165,6 +165,59 @@ def detect(candles: list[dict], dp: int = 5) -> dict:
                        "neckline": round(min(l1, l2), dp)}
             plan = _plan("sell", entry, sl, h1 - min(l1, l2), dp)
 
+    # ---- Bull / Bear Flag (strong pole + tight counter-trend consolidation) ----
+    if pattern is None and n >= 32:
+        M = 10                                   # consolidation window (the flag)
+        cons = candles[-M:]
+        cons_hi = max(c["high"] for c in cons)
+        cons_lo = min(c["low"] for c in cons)
+        cons_range = cons_hi - cons_lo
+        pole = candles[-(M + 18):-M]
+        if pole:
+            pole_move = pole[-1]["close"] - pole[0]["close"]
+            pole_height = max(c["high"] for c in pole) - min(c["low"] for c in pole)
+            if abs(pole_move) > atr * 3 and 0 < cons_range < pole_height * 0.6:
+                flag_i, pole_i = n - M, n - (M + 18)
+                if pole_move > 0:                # bull flag
+                    entry, sl = cons_hi + tol * 0.25, cons_lo - tol * 0.5
+                    pattern = {"name": "Bull Flag", "type": "bullish", "confidence": 76,
+                               "description": "A strong up-impulse (pole) then a tight pullback (flag); a break above the flag targets the pole's height projected up.",
+                               "points": [{"i": pole_i, "price": round(pole[0]["close"], dp), "label": "Pole"},
+                                          {"i": flag_i, "price": round(cons_hi, dp), "label": "Flag"}],
+                               "neckline": round(cons_hi, dp)}
+                    plan = _plan("buy", entry, sl, pole_height, dp)
+                else:                            # bear flag
+                    entry, sl = cons_lo - tol * 0.25, cons_hi + tol * 0.5
+                    pattern = {"name": "Bear Flag", "type": "bearish", "confidence": 76,
+                               "description": "A strong down-impulse (pole) then a tight bounce (flag); a break below the flag targets the pole's height projected down.",
+                               "points": [{"i": pole_i, "price": round(pole[0]["close"], dp), "label": "Pole"},
+                                          {"i": flag_i, "price": round(cons_lo, dp), "label": "Flag"}],
+                               "neckline": round(cons_lo, dp)}
+                    plan = _plan("sell", entry, sl, pole_height, dp)
+
+    # ---- Rising / Falling Wedge (both lines slope the same way, converging) ----
+    if pattern is None and len(ph) >= 2 and len(pl) >= 2:
+        h1, h2 = highs[ph[-2]], highs[ph[-1]]
+        l1, l2 = lows[pl[-2]], lows[pl[-1]]
+        range1, range2 = h1 - l1, h2 - l2
+        converging = 0 < range2 < range1 * 0.85
+        if converging and h2 > h1 + tol * 0.2 and l2 > l1 + tol * 0.2:   # rising wedge -> bearish
+            entry, sl = l2 - tol * 0.25, h2 + tol * 0.5
+            pattern = {"name": "Rising Wedge", "type": "bearish", "confidence": 70,
+                       "description": "Rising but converging highs and lows — momentum fading; a break of the lower line resolves lower.",
+                       "points": [{"i": ph[-1], "price": round(h2, dp), "label": "Upper"},
+                                  {"i": pl[-1], "price": round(l2, dp), "label": "Lower"}],
+                       "neckline": round(l2, dp)}
+            plan = _plan("sell", entry, sl, range1, dp)
+        elif converging and h2 < h1 - tol * 0.2 and l2 < l1 - tol * 0.2:  # falling wedge -> bullish
+            entry, sl = h2 + tol * 0.25, l2 - tol * 0.5
+            pattern = {"name": "Falling Wedge", "type": "bullish", "confidence": 70,
+                       "description": "Falling but converging highs and lows — selling pressure fading; a break of the upper line resolves higher.",
+                       "points": [{"i": ph[-1], "price": round(h2, dp), "label": "Upper"},
+                                  {"i": pl[-1], "price": round(l2, dp), "label": "Lower"}],
+                       "neckline": round(h2, dp)}
+            plan = _plan("buy", entry, sl, range1, dp)
+
     # ---- Fallback: trend continuation / range ----
     if pattern is None:
         rng = resistance - support
