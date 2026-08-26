@@ -68,10 +68,34 @@ function Chart({ data }) {
   );
 }
 
+function ConfluenceBadge({ mtf }) {
+  if (!mtf || !mtf.timeframes.length) return null;
+  const cls = mtf.label.includes("Bullish") ? "bull" : mtf.label.includes("Bearish") ? "bear" : "mixed";
+  const pct = Math.min(100, Math.abs(mtf.score));
+  return (
+    <div className={`vx-mtf ${cls}`}>
+      <div className="vx-mtf-main">
+        <span className="vx-eyebrow">Multi-timeframe confluence</span>
+        <h3>{mtf.label} <small>{mtf.agreement}% agree</small></h3>
+        <div className="vx-mtf-bar"><div className={`vx-mtf-fill ${cls}`} style={{ width: `${pct}%` }} /></div>
+      </div>
+      <div className="vx-mtf-tfs">
+        {mtf.timeframes.map((t) => (
+          <div key={t.tf} className={`vx-mtf-chip ${t.direction === "buy" ? "up" : "down"}`}>
+            <b>{t.tf}</b>
+            <span>{t.direction === "buy" ? "▲" : "▼"} {t.pattern}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function Patterns() {
   const [symbol, setSymbol] = useState("EURUSD");
   const [tf, setTf] = useState("M15");
   const [d, setD] = useState(null);
+  const [mtf, setMtf] = useState(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -80,6 +104,13 @@ export default function Patterns() {
     patternsService.detect(symbol, tf).then((r) => { if (alive) setD(r); }).catch(() => {}).finally(() => alive && setLoading(false));
     return () => { alive = false; };
   }, [symbol, tf]);
+
+  useEffect(() => {
+    let alive = true;
+    setMtf(null);
+    patternsService.confluence(symbol).then((r) => { if (alive) setMtf(r); }).catch(() => {});
+    return () => { alive = false; };
+  }, [symbol]);
 
   const p = d?.pattern, pl = d?.plan;
   const fmt = (v) => (d ? Number(v).toFixed(d.decimals) : v);
@@ -107,6 +138,8 @@ export default function Patterns() {
             ))}
           </div>
         </div>
+
+        <ConfluenceBadge mtf={mtf} />
 
         {!d && <p className="vx-muted">Reading the chart…</p>}
         {d && (

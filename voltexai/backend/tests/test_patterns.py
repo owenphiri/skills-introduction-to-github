@@ -56,3 +56,43 @@ def test_detect_rising_wedge():
     seq = [80] + _ramp(80, 115, 5) + _ramp(115, 100, 5) + _ramp(100, 118, 5) + _ramp(118, 106, 5) + _ramp(106, 112, 4)
     d = cp.detect(_mk(seq), dp=2)
     assert d["pattern"]["name"] == "Rising Wedge" and d["plan"]["direction"] == "sell"
+
+
+def test_detect_triple_top_and_bottom():
+    from backend.services import chart_patterns as cp
+    tt = _mk([90] + _ramp(90, 120, 4) + _ramp(120, 100, 4) + _ramp(100, 120, 4) + _ramp(120, 100, 4) + _ramp(100, 120, 4) + _ramp(120, 104, 4))
+    assert cp.detect(tt, dp=2)["pattern"]["name"] == "Triple Top"
+    tb = _mk([130] + _ramp(130, 100, 4) + _ramp(100, 120, 4) + _ramp(120, 100, 4) + _ramp(100, 120, 4) + _ramp(120, 100, 4) + _ramp(100, 116, 4))
+    assert cp.detect(tb, dp=2)["pattern"]["name"] == "Triple Bottom"
+
+
+def test_detect_rectangle():
+    from backend.services import chart_patterns as cp
+    rect = _mk([110] + _ramp(110, 120, 3) + _ramp(120, 100, 3) + _ramp(100, 120, 3) + _ramp(120, 100, 3) + _ramp(100, 112, 3))
+    assert cp.detect(rect, dp=2)["pattern"]["name"] == "Rectangle"
+
+
+def test_detect_channel():
+    from backend.services import chart_patterns as cp
+    ch = _mk([80] + _ramp(80, 100, 4) + _ramp(100, 90, 4) + _ramp(90, 110, 4) + _ramp(110, 100, 4) + _ramp(100, 120, 4) + _ramp(120, 110, 4))
+    assert cp.detect(ch, dp=2)["pattern"]["name"] == "Ascending Channel"
+
+
+def test_detect_bull_pennant():
+    from backend.services import chart_patterns as cp
+    base = [100 + (0.1 if j % 2 else -0.1) for j in range(14)]
+    pole = [100 + (j + 1) * 1.4 for j in range(18)]
+    top = pole[-1]
+    cons, amp = [], 3.0
+    for j in range(10):
+        cons.append(top - (amp if j % 2 else 0)); amp *= 0.8
+    assert cp.detect(_mk(base + pole + cons), dp=2)["pattern"]["name"] == "Bull Pennant"
+
+
+def test_confluence_endpoint(client):
+    d = client.get("/api/patterns/confluence?symbol=EURUSD").json()
+    assert d["symbol"] == "EURUSD"
+    assert d["label"] in ("Strong Bullish", "Bullish", "Mixed", "Bearish", "Strong Bearish")
+    assert d["direction"] in ("buy", "sell", "neutral")
+    assert len(d["timeframes"]) >= 1 and 0 <= d["agreement"] <= 100
+    assert client.get("/api/patterns/confluence?symbol=NOPE").status_code == 404
