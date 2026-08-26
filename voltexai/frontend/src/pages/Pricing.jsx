@@ -5,6 +5,25 @@ import { paymentsService } from "../services/payments";
 import { useAuth } from "../contexts/AuthContext";
 import { Testimonials } from "../components/Testimonials";
 
+const PRICING_FAQ = [
+  { q: "Is there really a free plan?",
+    a: "Yes — Free is free forever. You get 10 AI Copilot calls a day, delayed market prices, community access and live-session replays, with no card required to start." },
+  { q: "What's the difference between monthly and annual billing?",
+    a: "Same features either way. Annual gives you 2 months free (about 17% off): you pay for 10 months up front and get the full year. You can switch between monthly and annual with the toggle above." },
+  { q: "Can I upgrade or downgrade later?",
+    a: "Anytime. Upgrades unlock the new tier's products immediately; downgrades take effect at the end of your current billing period, so you keep what you paid for until then." },
+  { q: "How do I pay?",
+    a: "Internationally, by card (Visa, Mastercard, Amex) through Stripe. In Africa, by mobile money — MTN MoMo, Airtel Money, M-Pesa — or local cards through Flutterwave, billed in ZMW and other local currencies." },
+  { q: "Which plans include VIP Pro Signals?",
+    a: "VIP Pro Signals — the Free and VIP Telegram channels plus in-app feed — are included from the Trader tier upward (Trader, Pro and Elite). Starter is a learn-the-markets tier without live signals or execution." },
+  { q: "Can I cancel anytime?",
+    a: "Yes. Cancel whenever you like and you keep full access through the end of the period you've already paid for — no lock-in, no cancellation fees." },
+  { q: "Do you charge in my local currency?",
+    a: "Prices are set in USD and shown in Zambian Kwacha (and other local currencies) for African customers. Flip the Africa / International toggle above to see your region's pricing." },
+  { q: "What happens when I hit my daily AI limit?",
+    a: "Each tier has a daily AI Copilot allowance (10 on Free up to 2,500 on Elite). If you reach it, the Copilot pauses until the next day — everything else on your plan keeps working. Upgrade any time for a higher limit." },
+];
+
 export default function Pricing() {
   const { user } = useAuth();
   const [plans, setPlans] = useState([]);
@@ -222,6 +241,21 @@ export default function Pricing() {
           </p>
         </div>
         <Testimonials limit={3} />
+      </section>
+
+      <section className="vx-pricing-faq">
+        <div className="vx-pricing-social-head">
+          <span className="vx-eyebrow">Questions</span>
+          <h2>Everything you need to know</h2>
+        </div>
+        <div className="vx-faq-list">
+          {PRICING_FAQ.map((f, i) => (
+            <details key={i} className="vx-faq-item">
+              <summary>{f.q}</summary>
+              <p>{f.a}</p>
+            </details>
+          ))}
+        </div>
       </section>
 
       <section className="vx-pricing-cta">
