@@ -7,16 +7,27 @@ from __future__ import annotations
 CATEGORIES = ["plans", "education", "tools", "merch"]
 
 PRODUCTS = [
-    # --- plans ---
+    # --- plans (5-tier product ladder) ---
+    {"id": "plan-starter", "category": "plans", "name": "Starter Plan",
+     "price_usd": 19, "period": "month", "icon": "🌱", "badge": "Best value",
+     "desc": "Everything to learn the markets — data, sentiment, journal, scanner.",
+     "features": ["60 AI calls/day", "Real-time data & sentiment",
+                  "Economic calendar", "Trade Journal (basic)", "Pattern scanner"]},
     {"id": "plan-trader", "category": "plans", "name": "Trader Plan",
-     "price_usd": 29, "period": "month", "icon": "⚡", "badge": "Popular",
-     "desc": "250 AI calls/day, chart vision, signal generation, history.",
-     "features": ["250 AI calls/day", "Voltex Vision", "Signal generation", "Email support"]},
+     "price_usd": 49, "period": "month", "icon": "⚡", "badge": None,
+     "desc": "VIP Pro Signals, full chart patterns, advanced journal, chart vision.",
+     "features": ["300 AI calls/day", "VIP Pro Signals", "Chart Patterns + MTF confluence",
+                  "Voltex Vision", "Advanced Journal + heatmap", "Email support"]},
+    {"id": "plan-pro", "category": "plans", "name": "Pro Plan",
+     "price_usd": 99, "period": "month", "icon": "🚀", "badge": "Popular",
+     "desc": "Automate and scale — MT5 EA, copy trading, prop-firm access.",
+     "features": ["800 AI calls/day", "VoltexAI MT5 EA", "Copy trading",
+                  "Prop-firm challenges", "Backtest critique", "Priority Claude"]},
     {"id": "plan-elite", "category": "plans", "name": "Elite Plan",
-     "price_usd": 99, "period": "month", "icon": "👑", "badge": "Best value",
-     "desc": "Everything, maxed — priority AI, live trading, 1:1 desk call.",
-     "features": ["2000 AI calls/day", "Priority Claude", "Live trading venues",
-                  "Monthly 1:1 (OFA)", "API access"]},
+     "price_usd": 199, "period": "month", "icon": "👑", "badge": "Most powerful",
+     "desc": "The whole arsenal — everything in Pro plus 1:1, API & futures early access.",
+     "features": ["2,500 AI calls/day", "Everything in Pro", "Monthly 1:1 (OFA)",
+                  "Futures prop-firm early access", "Public API access", "Dedicated support"]},
     # --- education ---
     {"id": "edu-smc", "category": "education", "name": "SMC Masterclass Bundle",
      "price_usd": 149, "period": "once", "icon": "🧩", "badge": None,

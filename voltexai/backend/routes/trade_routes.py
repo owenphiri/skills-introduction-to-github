@@ -41,9 +41,10 @@ def _plan(user: User) -> str:
 
 
 def _require_paid(user: User):
-    if _plan(user) == "free":
+    plan = user.subscription.plan if user.subscription else PlanTier.FREE
+    if not plan.at_least(PlanTier.TRADER):
         raise HTTPException(402,
-            "Trading requires a Trader or Elite plan. Upgrade to place orders.")
+            "Live trading requires a Trader, Pro or Elite plan. Upgrade to place orders.")
 
 
 @router.get("/broker")

@@ -25,37 +25,59 @@ router = APIRouter(prefix="/api/payments", tags=["payments"])
 
 
 # ---------- schemas ----------
+_PLAN_RE = "^(starter|trader|pro|elite)$"
+
+
 class CheckoutIn(BaseModel):
-    plan: str = Field(pattern="^(trader|elite)$")
+    plan: str = Field(pattern=_PLAN_RE)
 
 
 class FlutterwaveCheckoutIn(BaseModel):
-    plan: str = Field(pattern="^(trader|elite)$")
+    plan: str = Field(pattern=_PLAN_RE)
     currency: str = "ZMW"
     phone: str | None = None
 
 
 # ---------- public ----------
+def _zmw(usd: float) -> float:
+    return round(usd * settings.USD_TO_ZMW_RATE, 2)
+
+
 @router.get("/plans")
 def list_plans():
+    """5-tier product ladder. Each tier unlocks everything below it plus its own
+    products, so the feature list on each card is what's NEW at that tier."""
     return [
-        {"id": "free", "name": "Free", "usd": 0, "zmw": 0,
-         "ai_calls_per_day": settings.RATE_FREE,
-         "features": ["10 AI calls/day", "Basic market analysis",
-                      "Community access"]},
-        {"id": "trader", "name": "Trader", "usd": settings.PLAN_TRADER_USD,
-         "zmw": round(settings.PLAN_TRADER_USD * settings.USD_TO_ZMW_RATE, 2),
+        {"id": "free", "name": "Free", "tagline": "Get a feel for the edge.",
+         "usd": 0, "zmw": 0, "ai_calls_per_day": settings.RATE_FREE,
+         "features": ["10 AI Copilot calls/day", "Live market prices (delayed)",
+                      "Community access", "Live sessions replay"]},
+        {"id": "starter", "name": "Starter", "tagline": "Everything to learn the markets.",
+         "usd": settings.PLAN_STARTER_USD, "zmw": _zmw(settings.PLAN_STARTER_USD),
+         "ai_calls_per_day": settings.RATE_STARTER,
+         "features": ["60 AI Copilot calls/day", "Real-time market data & sentiment",
+                      "Economic calendar & resources", "Trade Journal (basic)",
+                      "Chart-pattern scanner"]},
+        {"id": "trader", "name": "Trader", "tagline": "Trade the plan, not the emotion.",
+         "usd": settings.PLAN_TRADER_USD, "zmw": _zmw(settings.PLAN_TRADER_USD),
          "ai_calls_per_day": settings.RATE_TRADER,
-         "features": ["250 AI calls/day", "Chart vision analysis",
-                      "Signal generation", "Conversation history",
-                      "Email support"]},
-        {"id": "elite", "name": "Elite", "usd": settings.PLAN_ELITE_USD,
-         "zmw": round(settings.PLAN_ELITE_USD * settings.USD_TO_ZMW_RATE, 2),
+         "features": ["300 AI Copilot calls/day", "VIP Pro Signals (Free + VIP channels)",
+                      "Chart Patterns — full library + MTF confluence",
+                      "Chart-vision analysis", "Advanced Journal + heatmap & calendar",
+                      "Trading calculators", "Email support"]},
+        {"id": "pro", "name": "Pro", "tagline": "Automate and scale.",
+         "usd": settings.PLAN_PRO_USD, "zmw": _zmw(settings.PLAN_PRO_USD),
+         "ai_calls_per_day": settings.RATE_PRO,
+         "features": ["800 AI Copilot calls/day", "VoltexAI MT5 Expert Advisor",
+                      "Copy trading", "Prop-firm challenge access",
+                      "Backtest critique", "Priority Claude access"]},
+        {"id": "elite", "name": "Elite", "tagline": "The whole VoltexAI arsenal.",
+         "usd": settings.PLAN_ELITE_USD, "zmw": _zmw(settings.PLAN_ELITE_USD),
          "ai_calls_per_day": settings.RATE_ELITE,
-         "features": ["2000 AI calls/day", "Priority Claude access",
-                      "Custom EA tuning chat", "Backtest critique",
+         "features": ["2,500 AI Copilot calls/day", "Everything in Pro",
                       "1:1 monthly call (Owens Forex Academy)",
-                      "API access (coming soon)"]},
+                      "Futures prop-firm early access", "Public API access",
+                      "Dedicated priority support"]},
     ]
 
 

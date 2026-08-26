@@ -98,8 +98,10 @@ class Settings(BaseSettings):
     STRIPE_SECRET_KEY: str = os.getenv("STRIPE_SECRET_KEY", "")
     STRIPE_PUBLISHABLE_KEY: str = os.getenv("STRIPE_PUBLISHABLE_KEY", "")
     STRIPE_WEBHOOK_SECRET: str = os.getenv("STRIPE_WEBHOOK_SECRET", "")
-    STRIPE_PRICE_TRADER: str = os.getenv("STRIPE_PRICE_TRADER", "")  # $29 plan
-    STRIPE_PRICE_ELITE: str = os.getenv("STRIPE_PRICE_ELITE", "")    # $99 plan
+    STRIPE_PRICE_STARTER: str = os.getenv("STRIPE_PRICE_STARTER", "")  # $19 plan
+    STRIPE_PRICE_TRADER: str = os.getenv("STRIPE_PRICE_TRADER", "")    # $49 plan
+    STRIPE_PRICE_PRO: str = os.getenv("STRIPE_PRICE_PRO", "")          # $99 plan
+    STRIPE_PRICE_ELITE: str = os.getenv("STRIPE_PRICE_ELITE", "")      # $199 plan
 
     # Flutterwave (African mobile money / ZMW)
     FLW_SECRET_KEY: str = os.getenv("FLW_SECRET_KEY", "")
@@ -107,15 +109,19 @@ class Settings(BaseSettings):
     FLW_ENCRYPTION_KEY: str = os.getenv("FLW_ENCRYPTION_KEY", "")
     FLW_WEBHOOK_HASH: str = os.getenv("FLW_WEBHOOK_HASH", "")
 
-    # Pricing (single source of truth)
-    PLAN_TRADER_USD: float = 29.00
-    PLAN_ELITE_USD: float = 99.00
+    # Pricing (single source of truth) — 5-tier product ladder
+    PLAN_STARTER_USD: float = 19.00
+    PLAN_TRADER_USD: float = 49.00
+    PLAN_PRO_USD: float = 99.00
+    PLAN_ELITE_USD: float = 199.00
     USD_TO_ZMW_RATE: float = float(os.getenv("USD_TO_ZMW_RATE", "26.5"))
 
     # Rate limits per plan (Claude calls per day)
     RATE_FREE: int = 10
-    RATE_TRADER: int = 250
-    RATE_ELITE: int = 2000
+    RATE_STARTER: int = 60
+    RATE_TRADER: int = 300
+    RATE_PRO: int = 800
+    RATE_ELITE: int = 2500
 
     # Brute-force throttle on unauthenticated auth endpoints (disable in tests)
     AUTH_THROTTLE_ENABLED: bool = os.getenv("AUTH_THROTTLE_ENABLED", "true").lower() == "true"

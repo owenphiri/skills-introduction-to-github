@@ -19,7 +19,12 @@ from ..config import settings
 logger = logging.getLogger(__name__)
 
 FLW_BASE = "https://api.flutterwave.com/v3"
-PLAN_USD = {"trader": settings.PLAN_TRADER_USD, "elite": settings.PLAN_ELITE_USD}
+PLAN_USD = {
+    "starter": settings.PLAN_STARTER_USD,
+    "trader": settings.PLAN_TRADER_USD,
+    "pro": settings.PLAN_PRO_USD,
+    "elite": settings.PLAN_ELITE_USD,
+}
 
 
 def _generate_tx_ref(user_id: int) -> str:

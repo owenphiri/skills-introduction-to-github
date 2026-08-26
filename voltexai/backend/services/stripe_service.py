@@ -1,6 +1,6 @@
 """
 VoltexAI - Stripe service
-Hosted Checkout Sessions for $29 (Trader) and $99 (Elite) plans.
+Hosted Checkout Sessions for the Starter/Trader/Pro/Elite plans.
 Used by international users / card payments. Local African mobile money goes through
 Flutterwave instead.
 """
@@ -16,7 +16,9 @@ stripe.api_key = settings.STRIPE_SECRET_KEY
 
 
 PLAN_TO_PRICE_ID = {
+    "starter": settings.STRIPE_PRICE_STARTER,
     "trader": settings.STRIPE_PRICE_TRADER,
+    "pro": settings.STRIPE_PRICE_PRO,
     "elite": settings.STRIPE_PRICE_ELITE,
 }
 
