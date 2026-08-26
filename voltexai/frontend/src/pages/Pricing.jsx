@@ -92,8 +92,10 @@ export default function Pricing() {
               <div className="vx-plan-head">
                 <h2>{p.name}</h2>
                 {p.id === "elite" && <span className="vx-badge">Most powerful</span>}
-                {p.id === "trader" && <span className="vx-badge vx-badge--accent">Popular</span>}
+                {p.id === "pro" && <span className="vx-badge vx-badge--accent">Popular</span>}
+                {p.id === "starter" && <span className="vx-badge vx-badge--soft">Best value</span>}
               </div>
+              {p.tagline && <p className="vx-plan-tagline">{p.tagline}</p>}
               <div className="vx-plan-price">
                 {region === "africa" ? (
                   <>

@@ -30,7 +30,7 @@ from ..services import signal_score, telegram_service, rl_service
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/pro-signals", tags=["pro-signals"])
 
-_VIP_PLANS = {PlanTier.TRADER, PlanTier.ELITE}
+_VIP_PLANS = {PlanTier.TRADER, PlanTier.PRO, PlanTier.ELITE}
 _CLOSE_EVENTS = {"closed", "cancelled", "sl"}
 
 

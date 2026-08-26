@@ -47,7 +47,9 @@ def _limit_for(user: User) -> int:
     plan = user.subscription.plan if user.subscription else PlanTier.FREE
     return {
         PlanTier.FREE: settings.RATE_FREE,
+        PlanTier.STARTER: settings.RATE_STARTER,
         PlanTier.TRADER: settings.RATE_TRADER,
+        PlanTier.PRO: settings.RATE_PRO,
         PlanTier.ELITE: settings.RATE_ELITE,
     }[plan]
 
