@@ -15,6 +15,7 @@ import secrets
 import httpx
 
 from ..config import settings
+from . import pricing_service
 
 logger = logging.getLogger(__name__)
 
@@ -40,15 +41,20 @@ def _convert_to_local(usd: float, currency: str) -> float:
 
 async def create_payment_link(user_id: int, email: str, full_name: str | None,
                               plan: str, currency: str = "ZMW",
-                              phone: str | None = None) -> dict:
-    """Create a hosted Flutterwave payment page for a subscription plan."""
+                              phone: str | None = None,
+                              interval: str = "month") -> dict:
+    """Create a hosted Flutterwave payment page for a subscription plan.
+    interval='year' charges the discounted annual price."""
     if plan not in PLAN_USD:
         raise ValueError(f"Unknown plan: {plan}")
+    if interval not in ("month", "year"):
+        raise ValueError(f"Unknown interval: {interval}")
     if not settings.FLW_SECRET_KEY:
         raise RuntimeError("FLW_SECRET_KEY not configured")
 
     tx_ref = _generate_tx_ref(user_id)
-    amount = _convert_to_local(PLAN_USD[plan], currency)
+    usd_amount = pricing_service.price_usd(plan, interval)
+    amount = _convert_to_local(usd_amount, currency)
 
     payload = {
         "tx_ref": tx_ref,
@@ -63,10 +69,11 @@ async def create_payment_link(user_id: int, email: str, full_name: str | None,
         },
         "customizations": {
             "title": "VoltexAI Subscription",
-            "description": f"VoltexAI {plan.title()} plan - monthly",
+            "description": f"VoltexAI {plan.title()} plan - {'annual' if interval == 'year' else 'monthly'}",
             "logo": f"{settings.BASE_URL}/static/voltexai-logo.png",
         },
-        "meta": {"user_id": user_id, "plan": plan, "usd_amount": PLAN_USD[plan]},
+        "meta": {"user_id": user_id, "plan": plan, "interval": interval,
+                 "usd_amount": usd_amount},
     }
 
     headers = {"Authorization": f"Bearer {settings.FLW_SECRET_KEY}",

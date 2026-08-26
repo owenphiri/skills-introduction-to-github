@@ -98,10 +98,15 @@ class Settings(BaseSettings):
     STRIPE_SECRET_KEY: str = os.getenv("STRIPE_SECRET_KEY", "")
     STRIPE_PUBLISHABLE_KEY: str = os.getenv("STRIPE_PUBLISHABLE_KEY", "")
     STRIPE_WEBHOOK_SECRET: str = os.getenv("STRIPE_WEBHOOK_SECRET", "")
-    STRIPE_PRICE_STARTER: str = os.getenv("STRIPE_PRICE_STARTER", "")  # $19 plan
-    STRIPE_PRICE_TRADER: str = os.getenv("STRIPE_PRICE_TRADER", "")    # $49 plan
-    STRIPE_PRICE_PRO: str = os.getenv("STRIPE_PRICE_PRO", "")          # $99 plan
-    STRIPE_PRICE_ELITE: str = os.getenv("STRIPE_PRICE_ELITE", "")      # $199 plan
+    STRIPE_PRICE_STARTER: str = os.getenv("STRIPE_PRICE_STARTER", "")  # $19/mo
+    STRIPE_PRICE_TRADER: str = os.getenv("STRIPE_PRICE_TRADER", "")    # $49/mo
+    STRIPE_PRICE_PRO: str = os.getenv("STRIPE_PRICE_PRO", "")          # $99/mo
+    STRIPE_PRICE_ELITE: str = os.getenv("STRIPE_PRICE_ELITE", "")      # $199/mo
+    # Annual (yearly) Stripe recurring prices — 2 months free
+    STRIPE_PRICE_STARTER_ANNUAL: str = os.getenv("STRIPE_PRICE_STARTER_ANNUAL", "")  # $190/yr
+    STRIPE_PRICE_TRADER_ANNUAL: str = os.getenv("STRIPE_PRICE_TRADER_ANNUAL", "")    # $490/yr
+    STRIPE_PRICE_PRO_ANNUAL: str = os.getenv("STRIPE_PRICE_PRO_ANNUAL", "")          # $990/yr
+    STRIPE_PRICE_ELITE_ANNUAL: str = os.getenv("STRIPE_PRICE_ELITE_ANNUAL", "")      # $1990/yr
 
     # Flutterwave (African mobile money / ZMW)
     FLW_SECRET_KEY: str = os.getenv("FLW_SECRET_KEY", "")
@@ -115,6 +120,10 @@ class Settings(BaseSettings):
     PLAN_PRO_USD: float = 99.00
     PLAN_ELITE_USD: float = 199.00
     USD_TO_ZMW_RATE: float = float(os.getenv("USD_TO_ZMW_RATE", "26.5"))
+
+    # Annual billing: pay for (12 - months_free) months → the rest is free.
+    # 2 months free ≈ 17% off. Single knob drives every annual price + savings copy.
+    PLAN_ANNUAL_MONTHS_FREE: int = int(os.getenv("PLAN_ANNUAL_MONTHS_FREE", "2"))
 
     # Rate limits per plan (Claude calls per day)
     RATE_FREE: int = 10

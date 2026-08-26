@@ -15,22 +15,32 @@ logger = logging.getLogger(__name__)
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
 
+# plan -> {interval -> Stripe recurring price id}
 PLAN_TO_PRICE_ID = {
-    "starter": settings.STRIPE_PRICE_STARTER,
-    "trader": settings.STRIPE_PRICE_TRADER,
-    "pro": settings.STRIPE_PRICE_PRO,
-    "elite": settings.STRIPE_PRICE_ELITE,
+    "starter": {"month": settings.STRIPE_PRICE_STARTER,
+                "year": settings.STRIPE_PRICE_STARTER_ANNUAL},
+    "trader": {"month": settings.STRIPE_PRICE_TRADER,
+               "year": settings.STRIPE_PRICE_TRADER_ANNUAL},
+    "pro": {"month": settings.STRIPE_PRICE_PRO,
+            "year": settings.STRIPE_PRICE_PRO_ANNUAL},
+    "elite": {"month": settings.STRIPE_PRICE_ELITE,
+              "year": settings.STRIPE_PRICE_ELITE_ANNUAL},
 }
 
 
-def create_checkout_session(user_email: str, user_id: int, plan: str) -> dict:
-    """Create a Stripe Checkout Session for a subscription plan."""
+def create_checkout_session(user_email: str, user_id: int, plan: str,
+                            interval: str = "month") -> dict:
+    """Create a Stripe Checkout Session for a subscription plan (monthly or annual)."""
     if plan not in PLAN_TO_PRICE_ID:
         raise ValueError(f"Unknown plan: {plan}")
-    price_id = PLAN_TO_PRICE_ID[plan]
+    if interval not in ("month", "year"):
+        raise ValueError(f"Unknown interval: {interval}")
+    price_id = PLAN_TO_PRICE_ID[plan][interval]
     if not price_id:
-        raise ValueError(f"STRIPE_PRICE_{plan.upper()} not configured")
+        suffix = "_ANNUAL" if interval == "year" else ""
+        raise ValueError(f"STRIPE_PRICE_{plan.upper()}{suffix} not configured")
 
+    meta = {"user_id": str(user_id), "plan": plan, "interval": interval}
     session = stripe.checkout.Session.create(
         mode="subscription",
         customer_email=user_email,
@@ -38,8 +48,8 @@ def create_checkout_session(user_email: str, user_id: int, plan: str) -> dict:
         success_url=f"{settings.FRONTEND_URL}/account?checkout=success&session_id={{CHECKOUT_SESSION_ID}}",
         cancel_url=f"{settings.FRONTEND_URL}/pricing?checkout=cancelled",
         client_reference_id=str(user_id),
-        metadata={"user_id": str(user_id), "plan": plan},
-        subscription_data={"metadata": {"user_id": str(user_id), "plan": plan}},
+        metadata=meta,
+        subscription_data={"metadata": meta},
     )
     return {"checkout_url": session.url, "session_id": session.id}
 
