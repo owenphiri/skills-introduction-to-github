@@ -244,6 +244,26 @@ body {
 }
 .vx-billing-note { margin: 12px 0 0; font-size: 13px; color: var(--vx-text-dim); }
 
+/* compact trust bar + annual nudge under the billing toggle */
+.vx-pricing-trust {
+  display: inline-flex; flex-wrap: wrap; align-items: center;
+  gap: 8px 14px; margin: 16px 0 0;
+  font-size: 13.5px; color: var(--vx-text-dim);
+}
+.vx-trust-stars { color: var(--vx-accent); letter-spacing: 1px; }
+.vx-trust-text b { color: var(--vx-text); }
+.vx-trust-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 12px; border-radius: 999px;
+  font-size: 12.5px; font-weight: 600; cursor: pointer;
+  color: #0a0e1a; background: var(--vx-accent);
+  border: 1px solid var(--vx-accent);
+}
+.vx-trust-chip.is-on {
+  cursor: default; color: var(--vx-accent);
+  background: rgba(194,245,61,0.12);
+}
+
 .vx-plan-price-wrap { display: flex; flex-direction: column; gap: 4px; }
 .vx-price-annual { margin: 0; font-size: 13px; color: var(--vx-text-dim); }
 .vx-price-saved { color: var(--vx-accent); font-weight: 600; }

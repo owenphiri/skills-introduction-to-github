@@ -110,6 +110,22 @@ export default function Pricing() {
         {annual && billing?.label && (
           <p className="vx-billing-note">Billed yearly — {billing.label}. Cancel anytime.</p>
         )}
+
+        <div className="vx-pricing-trust">
+          <span className="vx-trust-stars" aria-hidden="true">★★★★★</span>
+          <span className="vx-trust-text">
+            <b>4.8/5</b> from traders in <b>14+ countries</b>
+          </span>
+          {billing?.discount_pct ? (
+            annual ? (
+              <span className="vx-trust-chip is-on">✓ Saving {billing.discount_pct}% with annual</span>
+            ) : (
+              <button className="vx-trust-chip" onClick={() => setInterval("year")}>
+                Save {billing.discount_pct}% — switch to annual
+              </button>
+            )
+          ) : null}
+        </div>
       </header>
 
       {error && <div className="vx-error">{error}</div>}
