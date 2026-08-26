@@ -34,7 +34,7 @@ SOCIALS = [
     {"id": "tiktok", "label": "TikTok", "handle": "@OWENPHI52786718",
      "url": "https://www.tiktok.com/@OWENPHI52786718"},
     {"id": "youtube", "label": "YouTube", "handle": "VoltexAI TV",
-     "url": "https://www.youtube.com/@OWENPHI52786718"},
+     "url": "https://www.youtube.com/@owenphiri316"},
 ]
 
 PRODUCTS = [
