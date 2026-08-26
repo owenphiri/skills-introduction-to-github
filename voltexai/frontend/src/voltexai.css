@@ -446,6 +446,12 @@ body {
   margin: 12px 0;
 }
 .vx-account-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+.vx-refund-box {
+  margin-top: 16px; padding: 16px 18px; border-radius: 12px;
+  background: rgba(69,224,160,0.07);
+  border: 1px solid rgba(69,224,160,0.22);
+}
+.vx-refund-box p { margin: 0 0 12px; font-size: 14px; color: var(--vx-text); line-height: 1.55; }
 
 /* ---------- Terminal ---------- */
 .vx-terminal {

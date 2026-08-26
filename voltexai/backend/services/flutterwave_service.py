@@ -9,6 +9,7 @@ Docs: https://developer.flutterwave.com/docs/api
 from __future__ import annotations
 import hashlib
 import hmac
+import json
 import logging
 import secrets
 
@@ -89,6 +90,29 @@ async def create_payment_link(user_id: int, email: str, full_name: str | None,
 
     return {"checkout_url": data["data"]["link"], "tx_ref": tx_ref,
             "amount": amount, "currency": currency}
+
+
+def refund_transaction(payment) -> dict:
+    """Refund a Flutterwave charge in full using the transaction id recorded on
+    the payment. No-op (simulated) when FLW_SECRET_KEY is unset."""
+    if not settings.FLW_SECRET_KEY:
+        return {"simulated": True, "provider": "flutterwave"}
+    try:
+        obj = json.loads(payment.raw_payload or "{}")
+    except (ValueError, TypeError):
+        obj = {}
+    tx_id = obj.get("id")
+    if not tx_id:
+        raise ValueError("No transaction id on record; refund via the Flutterwave dashboard.")
+    headers = {"Authorization": f"Bearer {settings.FLW_SECRET_KEY}",
+               "Content-Type": "application/json"}
+    with httpx.Client(timeout=20.0) as client:
+        r = client.post(f"{FLW_BASE}/transactions/{tx_id}/refund",
+                        json={"amount": payment.amount}, headers=headers)
+        r.raise_for_status()
+        data = r.json()
+    return {"provider": "flutterwave", "status": data.get("status"),
+            "id": data.get("data", {}).get("id")}
 
 
 async def verify_transaction(transaction_id: str) -> dict:
