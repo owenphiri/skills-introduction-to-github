@@ -14,8 +14,4 @@ export const paymentsService = {
     api.post("/api/payments/flutterwave/checkout", { plan, interval, currency, phone }),
 
   cancel: () => api.post("/api/payments/cancel"),
-
-  // annual money-back guarantee
-  refundEligibility: () => api.get("/api/payments/refund/eligibility"),
-  requestRefund: () => api.post("/api/payments/refund"),
 };
