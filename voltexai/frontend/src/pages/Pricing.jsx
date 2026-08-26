@@ -7,6 +7,8 @@ import { useAuth } from "../contexts/AuthContext";
 export default function Pricing() {
   const { user } = useAuth();
   const [plans, setPlans] = useState([]);
+  const [billing, setBilling] = useState(null);
+  const [interval, setInterval] = useState("month"); // "month" | "year"
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [params] = useSearchParams();
@@ -20,8 +22,15 @@ export default function Pricing() {
   );
 
   useEffect(() => {
-    paymentsService.listPlans().then(setPlans).catch((e) => setError(e.message));
+    paymentsService.listPlans().then((r) => {
+      // API returns { billing, plans }; tolerate a bare array for safety.
+      const list = Array.isArray(r) ? r : r.plans;
+      setPlans(list || []);
+      if (!Array.isArray(r)) setBilling(r.billing);
+    }).catch((e) => setError(e.message));
   }, []);
+
+  const annual = interval === "year";
 
   async function startCheckout(plan, provider) {
     setError(""); setBusy(`${plan}-${provider}`);
@@ -29,10 +38,10 @@ export default function Pricing() {
       if (!user) { window.location.href = "/login"; return; }
       let res;
       if (provider === "stripe") {
-        res = await paymentsService.stripeCheckout(plan);
+        res = await paymentsService.stripeCheckout(plan, interval);
       } else {
         res = await paymentsService.flutterwaveCheckout({
-          plan, currency: "ZMW", phone: user.phone,
+          plan, interval, currency: "ZMW", phone: user.phone,
         });
       }
       window.location.href = res.checkout_url;
@@ -79,6 +88,27 @@ export default function Pricing() {
             International · Card (USD)
           </button>
         </div>
+
+        <div className="vx-billing-toggle" role="group" aria-label="Billing period">
+          <button
+            className={!annual ? "active" : ""}
+            onClick={() => setInterval("month")}
+          >
+            Monthly
+          </button>
+          <button
+            className={annual ? "active" : ""}
+            onClick={() => setInterval("year")}
+          >
+            Annual
+            {billing?.discount_pct ? (
+              <span className="vx-save-pill">Save {billing.discount_pct}%</span>
+            ) : null}
+          </button>
+        </div>
+        {annual && billing?.label && (
+          <p className="vx-billing-note">Billed yearly — {billing.label}. Cancel anytime.</p>
+        )}
       </header>
 
       {error && <div className="vx-error">{error}</div>}
@@ -96,23 +126,38 @@ export default function Pricing() {
                 {p.id === "starter" && <span className="vx-badge vx-badge--soft">Best value</span>}
               </div>
               {p.tagline && <p className="vx-plan-tagline">{p.tagline}</p>}
-              <div className="vx-plan-price">
-                {region === "africa" ? (
-                  <>
-                    <span className="vx-price-amount">
-                      {p.id === "free" ? "Free" : `K${p.zmw.toLocaleString()}`}
-                    </span>
-                    {isPaid && <span className="vx-price-period">/month</span>}
-                  </>
-                ) : (
-                  <>
-                    <span className="vx-price-amount">
-                      {p.id === "free" ? "Free" : `$${p.usd}`}
-                    </span>
-                    {isPaid && <span className="vx-price-period">/month</span>}
-                  </>
-                )}
-              </div>
+              {(() => {
+                const africa = region === "africa";
+                const cur = africa ? "K" : "$";
+                const fmt = (n) => `${cur}${Math.round(n).toLocaleString()}`;
+                // per-month figure shown as the headline
+                const perMonth = africa
+                  ? (annual ? p.zmw_annual / 12 : p.zmw)
+                  : (annual ? p.usd_annual_monthly : p.usd);
+                const yearTotal = africa ? p.zmw_annual : p.usd_annual;
+                const saved = africa ? (p.zmw * 12 - p.zmw_annual) : p.annual_savings_usd;
+                return (
+                  <div className="vx-plan-price-wrap">
+                    <div className="vx-plan-price">
+                      <span className="vx-price-amount">
+                        {p.id === "free" ? "Free" : fmt(perMonth)}
+                      </span>
+                      {isPaid && <span className="vx-price-period">/month</span>}
+                    </div>
+                    {isPaid && annual && (
+                      <p className="vx-price-annual">
+                        {fmt(yearTotal)} billed yearly
+                        {saved > 0 && <span className="vx-price-saved"> · save {fmt(saved)}</span>}
+                      </p>
+                    )}
+                    {isPaid && !annual && p.annual_discount_pct > 0 && (
+                      <button className="vx-price-switch" onClick={() => setInterval("year")}>
+                        Save {p.annual_discount_pct}% with annual
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
               <ul className="vx-plan-features">
                 {p.features.map((f) => <li key={f}>{f}</li>)}
               </ul>

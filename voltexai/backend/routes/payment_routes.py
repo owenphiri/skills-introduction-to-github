@@ -17,7 +17,8 @@ import stripe
 from ..database import get_db
 from ..config import settings
 from ..models import User, Payment, PaymentStatus
-from ..services import stripe_service, flutterwave_service, subscription_service
+from ..services import (stripe_service, flutterwave_service, subscription_service,
+                        pricing_service)
 from ..middleware.auth_middleware import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -26,59 +27,66 @@ router = APIRouter(prefix="/api/payments", tags=["payments"])
 
 # ---------- schemas ----------
 _PLAN_RE = "^(starter|trader|pro|elite)$"
+_INTERVAL_RE = "^(month|year)$"
 
 
 class CheckoutIn(BaseModel):
     plan: str = Field(pattern=_PLAN_RE)
+    interval: str = Field(default="month", pattern=_INTERVAL_RE)
 
 
 class FlutterwaveCheckoutIn(BaseModel):
     plan: str = Field(pattern=_PLAN_RE)
+    interval: str = Field(default="month", pattern=_INTERVAL_RE)
     currency: str = "ZMW"
     phone: str | None = None
 
 
 # ---------- public ----------
-def _zmw(usd: float) -> float:
-    return round(usd * settings.USD_TO_ZMW_RATE, 2)
+_TIERS = [
+    ("free", "Free", "Get a feel for the edge.", "RATE_FREE",
+     ["10 AI Copilot calls/day", "Live market prices (delayed)",
+      "Community access", "Live sessions replay"]),
+    ("starter", "Starter", "Everything to learn the markets.", "RATE_STARTER",
+     ["60 AI Copilot calls/day", "Real-time market data & sentiment",
+      "Economic calendar & resources", "Trade Journal (basic)",
+      "Chart-pattern scanner"]),
+    ("trader", "Trader", "Trade the plan, not the emotion.", "RATE_TRADER",
+     ["300 AI Copilot calls/day", "VIP Pro Signals (Free + VIP channels)",
+      "Chart Patterns — full library + MTF confluence", "Chart-vision analysis",
+      "Advanced Journal + heatmap & calendar", "Trading calculators", "Email support"]),
+    ("pro", "Pro", "Automate and scale.", "RATE_PRO",
+     ["800 AI Copilot calls/day", "VoltexAI MT5 Expert Advisor", "Copy trading",
+      "Prop-firm challenge access", "Backtest critique", "Priority Claude access"]),
+    ("elite", "Elite", "The whole VoltexAI arsenal.", "RATE_ELITE",
+     ["2,500 AI Copilot calls/day", "Everything in Pro",
+      "1:1 monthly call (Owens Forex Academy)", "Futures prop-firm early access",
+      "Public API access", "Dedicated priority support"]),
+]
 
 
 @router.get("/plans")
 def list_plans():
-    """5-tier product ladder. Each tier unlocks everything below it plus its own
-    products, so the feature list on each card is what's NEW at that tier."""
-    return [
-        {"id": "free", "name": "Free", "tagline": "Get a feel for the edge.",
-         "usd": 0, "zmw": 0, "ai_calls_per_day": settings.RATE_FREE,
-         "features": ["10 AI Copilot calls/day", "Live market prices (delayed)",
-                      "Community access", "Live sessions replay"]},
-        {"id": "starter", "name": "Starter", "tagline": "Everything to learn the markets.",
-         "usd": settings.PLAN_STARTER_USD, "zmw": _zmw(settings.PLAN_STARTER_USD),
-         "ai_calls_per_day": settings.RATE_STARTER,
-         "features": ["60 AI Copilot calls/day", "Real-time market data & sentiment",
-                      "Economic calendar & resources", "Trade Journal (basic)",
-                      "Chart-pattern scanner"]},
-        {"id": "trader", "name": "Trader", "tagline": "Trade the plan, not the emotion.",
-         "usd": settings.PLAN_TRADER_USD, "zmw": _zmw(settings.PLAN_TRADER_USD),
-         "ai_calls_per_day": settings.RATE_TRADER,
-         "features": ["300 AI Copilot calls/day", "VIP Pro Signals (Free + VIP channels)",
-                      "Chart Patterns — full library + MTF confluence",
-                      "Chart-vision analysis", "Advanced Journal + heatmap & calendar",
-                      "Trading calculators", "Email support"]},
-        {"id": "pro", "name": "Pro", "tagline": "Automate and scale.",
-         "usd": settings.PLAN_PRO_USD, "zmw": _zmw(settings.PLAN_PRO_USD),
-         "ai_calls_per_day": settings.RATE_PRO,
-         "features": ["800 AI Copilot calls/day", "VoltexAI MT5 Expert Advisor",
-                      "Copy trading", "Prop-firm challenge access",
-                      "Backtest critique", "Priority Claude access"]},
-        {"id": "elite", "name": "Elite", "tagline": "The whole VoltexAI arsenal.",
-         "usd": settings.PLAN_ELITE_USD, "zmw": _zmw(settings.PLAN_ELITE_USD),
-         "ai_calls_per_day": settings.RATE_ELITE,
-         "features": ["2,500 AI Copilot calls/day", "Everything in Pro",
-                      "1:1 monthly call (Owens Forex Academy)",
-                      "Futures prop-firm early access", "Public API access",
-                      "Dedicated priority support"]},
-    ]
+    """5-tier product ladder with monthly + annual pricing. Each tier unlocks
+    everything below it plus its own products, so the feature list on each card
+    is what's NEW at that tier. Annual billing bakes in the months-free discount."""
+    b = pricing_service.billing_summary()
+    out = []
+    for pid, name, tagline, rate_attr, features in _TIERS:
+        usd = pricing_service.monthly_usd(pid)
+        usd_year = pricing_service.annual_usd(pid)
+        out.append({
+            "id": pid, "name": name, "tagline": tagline,
+            "usd": usd, "zmw": pricing_service.zmw(usd),
+            # annual: total for the year, plus the per-month equivalent for display
+            "usd_annual": usd_year, "zmw_annual": pricing_service.zmw(usd_year),
+            "usd_annual_monthly": round(usd_year / 12, 2) if usd_year else 0,
+            "annual_savings_usd": pricing_service.annual_savings_usd(pid),
+            "annual_discount_pct": b["discount_pct"] if usd else 0,
+            "ai_calls_per_day": getattr(settings, rate_attr),
+            "features": features,
+        })
+    return {"billing": b, "plans": out}
 
 
 # ---------- create checkout ----------
@@ -87,6 +95,7 @@ def stripe_checkout(data: CheckoutIn, user: User = Depends(get_current_user)):
     try:
         result = stripe_service.create_checkout_session(
             user_email=user.email, user_id=user.id, plan=data.plan,
+            interval=data.interval,
         )
         return result
     except Exception as e:
@@ -102,7 +111,7 @@ async def flutterwave_checkout(data: FlutterwaveCheckoutIn,
         result = await flutterwave_service.create_payment_link(
             user_id=user.id, email=user.email, full_name=user.full_name,
             plan=data.plan, currency=data.currency,
-            phone=data.phone or user.phone,
+            phone=data.phone or user.phone, interval=data.interval,
         )
     except Exception as e:
         logger.exception("Flutterwave checkout failed")
@@ -137,11 +146,12 @@ async def stripe_webhook(request: Request,
         user_id = int(obj.get("client_reference_id") or
                       obj.get("metadata", {}).get("user_id", 0))
         plan = obj.get("metadata", {}).get("plan", "trader")
+        interval = obj.get("metadata", {}).get("interval", "month")
         sub_id = obj.get("subscription")
         if user_id:
             subscription_service.activate_plan(
                 db, user_id=user_id, plan=plan, provider="stripe",
-                external_id=sub_id, period_days=30,
+                external_id=sub_id, period_days=pricing_service.period_days(interval),
             )
             db.add(Payment(user_id=user_id, provider="stripe",
                            provider_ref=obj.get("id"),
@@ -184,6 +194,7 @@ async def flutterwave_webhook(request: Request,
         meta = data_obj.get("meta") or {}
         user_id = int(meta.get("user_id", 0) or 0)
         plan = meta.get("plan", "trader")
+        interval = meta.get("interval", "month")
         tx_ref = data_obj.get("tx_ref")
         status_ = data_obj.get("status")
 
@@ -198,7 +209,8 @@ async def flutterwave_webhook(request: Request,
                 if verify.get("data", {}).get("status") == "successful":
                     subscription_service.activate_plan(
                         db, user_id=user_id, plan=plan, provider="flutterwave",
-                        external_id=tx_ref, period_days=30,
+                        external_id=tx_ref,
+                        period_days=pricing_service.period_days(interval),
                     )
                     # Update payment record
                     p = (db.query(Payment)

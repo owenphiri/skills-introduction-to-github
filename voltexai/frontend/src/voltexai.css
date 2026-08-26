@@ -217,6 +217,42 @@ body {
   color: var(--vx-text);
   box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 }
+
+/* Monthly / Annual billing toggle */
+.vx-billing-toggle {
+  display: inline-flex; gap: 4px;
+  background: var(--vx-bg-elev);
+  padding: 4px; border-radius: 12px;
+  margin: 14px 0 0;
+}
+.vx-billing-toggle button {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: transparent; border: none;
+  color: var(--vx-text-dim);
+  padding: 10px 20px; border-radius: 8px;
+  cursor: pointer; font-weight: 600; font-size: 14px;
+}
+.vx-billing-toggle button.active {
+  background: var(--vx-bg-card); color: var(--vx-text);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+.vx-save-pill {
+  font-size: 11px; font-weight: 700;
+  padding: 2px 8px; border-radius: 999px;
+  background: var(--vx-accent); color: #0a0e1a;
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.vx-billing-note { margin: 12px 0 0; font-size: 13px; color: var(--vx-text-dim); }
+
+.vx-plan-price-wrap { display: flex; flex-direction: column; gap: 4px; }
+.vx-price-annual { margin: 0; font-size: 13px; color: var(--vx-text-dim); }
+.vx-price-saved { color: var(--vx-accent); font-weight: 600; }
+.vx-price-switch {
+  align-self: flex-start; margin: 2px 0 0;
+  background: none; border: none; padding: 0;
+  color: var(--vx-accent); font-size: 12.5px; font-weight: 600;
+  cursor: pointer; text-decoration: underline; text-underline-offset: 2px;
+}
 .vx-banner {
   margin: 24px 0;
   padding: 14px 18px;
