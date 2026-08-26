@@ -273,6 +273,15 @@ body {
   color: var(--vx-accent); font-size: 12.5px; font-weight: 600;
   cursor: pointer; text-decoration: underline; text-underline-offset: 2px;
 }
+.vx-guarantee-badge {
+  align-self: flex-start; margin: 4px 0 0;
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 10px; border-radius: 999px;
+  font-size: 11.5px; font-weight: 600;
+  color: var(--vx-success);
+  background: rgba(69,224,160,0.10);
+  border: 1px solid rgba(69,224,160,0.25);
+}
 .vx-banner {
   margin: 24px 0;
   padding: 14px 18px;

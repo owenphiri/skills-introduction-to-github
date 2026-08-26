@@ -124,6 +124,8 @@ class Settings(BaseSettings):
     # Annual billing: pay for (12 - months_free) months → the rest is free.
     # 2 months free ≈ 17% off. Single knob drives every annual price + savings copy.
     PLAN_ANNUAL_MONTHS_FREE: int = int(os.getenv("PLAN_ANNUAL_MONTHS_FREE", "2"))
+    # Money-back guarantee window (days) on annual plans. 0 disables the guarantee.
+    PLAN_ANNUAL_MONEYBACK_DAYS: int = int(os.getenv("PLAN_ANNUAL_MONEYBACK_DAYS", "30"))
 
     # Rate limits per plan (Claude calls per day)
     RATE_FREE: int = 10

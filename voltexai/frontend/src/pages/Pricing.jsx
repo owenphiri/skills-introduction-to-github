@@ -127,7 +127,12 @@ export default function Pricing() {
           </button>
         </div>
         {annual && billing?.label && (
-          <p className="vx-billing-note">Billed yearly — {billing.label}. Cancel anytime.</p>
+          <p className="vx-billing-note">
+            Billed yearly — {billing.label}.
+            {billing.moneyback_days > 0
+              ? ` ${billing.moneyback_days}-day money-back guarantee.`
+              : " Cancel anytime."}
+          </p>
         )}
 
         <div className="vx-pricing-trust">
@@ -191,6 +196,11 @@ export default function Pricing() {
                         Save {p.annual_discount_pct}% with annual
                       </button>
                     )}
+                    {isPaid && annual && billing?.moneyback_days > 0 && (
+                      <span className="vx-guarantee-badge">
+                        🛡 {billing.moneyback_days}-day money-back guarantee
+                      </span>
+                    )}
                   </div>
                 );
               })()}
@@ -249,7 +259,12 @@ export default function Pricing() {
           <h2>Everything you need to know</h2>
         </div>
         <div className="vx-faq-list">
-          {PRICING_FAQ.map((f, i) => (
+          {(billing?.moneyback_days > 0
+            ? [{ q: `Is there a money-back guarantee?`,
+                 a: `Yes — every annual plan is covered by a ${billing.moneyback_days}-day money-back guarantee. If VoltexAI isn't for you, tell us within ${billing.moneyback_days} days of your annual purchase and we'll refund you in full, no questions asked.` },
+               ...PRICING_FAQ]
+            : PRICING_FAQ
+          ).map((f, i) => (
             <details key={i} className="vx-faq-item">
               <summary>{f.q}</summary>
               <p>{f.a}</p>
@@ -277,7 +292,10 @@ export default function Pricing() {
               <a href="/login" className="vx-btn-secondary">I already have an account</a>
             </>
           )}
-          <small className="vx-muted">No card required to start · Cancel anytime</small>
+          <small className="vx-muted">
+            No card required to start · Cancel anytime
+            {billing?.moneyback_days > 0 && ` · ${billing.moneyback_days}-day money-back on annual`}
+          </small>
         </div>
       </section>
     </div>
