@@ -5,7 +5,7 @@ export const SOCIALS = [
   { id: "x", label: "X", url: "https://x.com/VoltexAI" },
   { id: "telegram", label: "Telegram", url: "https://t.me/VoltexAI" },
   { id: "facebook", label: "Facebook", url: "https://facebook.com/VoltexAI" },
-  { id: "whatsapp", label: "WhatsApp", url: "https://wa.me/260970000000" },
+  { id: "whatsapp", label: "WhatsApp", url: "https://wa.me/260972446895?text=Hi%20VoltexAI%2C%20I%27d%20like%20to%20know%20more%20about%20the%20plans" },
   { id: "tiktok", label: "TikTok", url: "https://www.tiktok.com/@voltexai" },
   { id: "youtube", label: "YouTube", url: "https://www.youtube.com/@VoltexAI" },
 ];
