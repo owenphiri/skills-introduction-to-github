@@ -1222,9 +1222,12 @@ body {
 .vx-social-bar.compact .vx-social-link { padding: .45rem; border-radius: 50%; }
 .vx-social-link:hover { color: #fff; transform: translateY(-2px); }
 .vx-social--x:hover { background: #000; border-color: #000; }
+.vx-social--instagram:hover { background: linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888); border-color: #dc2743; }
 .vx-social--telegram:hover { background: #229ed9; border-color: #229ed9; }
 .vx-social--facebook:hover { background: #1877f2; border-color: #1877f2; }
 .vx-social--whatsapp:hover { background: #25d366; border-color: #25d366; }
+.vx-social--tiktok:hover { background: #000; border-color: #000; }
+.vx-social--youtube:hover { background: #ff0000; border-color: #ff0000; }
 
 /* fixed vertical rail (all pages) */
 .vx-social-rail { position: fixed; right: 0; top: 50%; transform: translateY(-50%);
@@ -1234,9 +1237,12 @@ body {
   background: var(--vx-bg-elev); color: var(--vx-text-dim); transition: all .16s ease; }
 .vx-rail-icon:hover { color: #fff; }
 .vx-social-rail .vx-social--x:hover { background: #000; }
+.vx-social-rail .vx-social--instagram:hover { background: linear-gradient(45deg,#f09433,#dc2743,#bc1888); }
 .vx-social-rail .vx-social--telegram:hover { background: #229ed9; }
 .vx-social-rail .vx-social--facebook:hover { background: #1877f2; }
 .vx-social-rail .vx-social--whatsapp:hover { background: #25d366; }
+.vx-social-rail .vx-social--tiktok:hover { background: #000; }
+.vx-social-rail .vx-social--youtube:hover { background: #ff0000; }
 @media (max-width: 640px) { .vx-social-rail { display: none; } }
 
 /* --- KPI strip + cards --- */

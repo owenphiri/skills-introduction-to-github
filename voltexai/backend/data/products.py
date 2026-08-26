@@ -23,16 +23,18 @@ COMPANY = {
 SOCIALS = [
     {"id": "x", "label": "X", "handle": "@OWENPHI52786718",
      "url": "https://x.com/OWENPHI52786718"},
-    {"id": "telegram", "label": "Telegram", "handle": "VoltexAI",
-     "url": "https://t.me/VoltexAI"},
-    {"id": "facebook", "label": "Facebook", "handle": "VoltexAI",
-     "url": "https://facebook.com/VoltexAI"},
+    {"id": "instagram", "label": "Instagram", "handle": "@OWENPHI52786718",
+     "url": "https://instagram.com/OWENPHI52786718"},
+    {"id": "telegram", "label": "Telegram", "handle": "@OWENPHI52786718",
+     "url": "https://t.me/OWENPHI52786718"},
+    {"id": "facebook", "label": "Facebook", "handle": "OWENPHI52786718",
+     "url": "https://facebook.com/OWENPHI52786718"},
     {"id": "whatsapp", "label": "WhatsApp", "handle": "+260 972 446 895",
      "url": "https://wa.me/260972446895?text=Hi%20VoltexAI%2C%20I%27d%20like%20to%20know%20more%20about%20the%20plans"},
-    {"id": "tiktok", "label": "TikTok", "handle": "@VoltexAI",
-     "url": "https://www.tiktok.com/@voltexai"},
+    {"id": "tiktok", "label": "TikTok", "handle": "@OWENPHI52786718",
+     "url": "https://www.tiktok.com/@OWENPHI52786718"},
     {"id": "youtube", "label": "YouTube", "handle": "VoltexAI TV",
-     "url": "https://www.youtube.com/@VoltexAI"},
+     "url": "https://www.youtube.com/@OWENPHI52786718"},
 ]
 
 PRODUCTS = [
