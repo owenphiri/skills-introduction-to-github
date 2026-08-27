@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { NavBar } from "../components/NavBar";
 import { Footer } from "../components/Footer";
 import { Testimonials } from "../components/Testimonials";
+import { useI18n } from "../i18n";
 import { Sparkline } from "../components/Chart";
 import { marketsService } from "../services/markets";
 import { signalsService } from "../services/signals";
@@ -32,6 +33,7 @@ const STEPS = [
 ];
 
 export default function Landing() {
+  const { t } = useI18n();
   const [movers, setMovers] = useState({ gainers: [], losers: [] });
   const [signals, setSignals] = useState([]);
   const [products, setProducts] = useState([]);
@@ -50,16 +52,13 @@ export default function Landing() {
       <section className="vx-hero">
         <div className="vx-hero-copy">
           <span className="vx-eyebrow">Axion Labs Technologies · Owens Forex Academy</span>
-          <h1>Africa's <span className="vx-grad">AI trading terminal.</span></h1>
-          <p className="vx-hero-sub">
-            Live markets, powerful AI signals, chart vision, prop-firm & broker intel,
-            and a managed-alpha program — built Africa-first with mobile-money payments.
-          </p>
+          <h1>{t("land.heroPre")} <span className="vx-grad">{t("land.heroAccent")}</span></h1>
+          <p className="vx-hero-sub">{t("land.heroSub")}</p>
           <div className="vx-hero-cta">
-            <Link to="/signup" className="vx-btn-primary vx-btn-lg">Start free</Link>
-            <Link to="/markets" className="vx-btn-secondary vx-btn-lg">View live markets</Link>
+            <Link to="/signup" className="vx-btn-primary vx-btn-lg">{t("land.ctaStartFree")}</Link>
+            <Link to="/markets" className="vx-btn-secondary vx-btn-lg">{t("land.ctaViewMarkets")}</Link>
           </div>
-          <p className="vx-hero-tag">⚡ Trade Smart · Trade Safe · Trade Consistently</p>
+          <p className="vx-hero-tag">⚡ {t("footer.motto")}</p>
         </div>
 
         <aside className="vx-hero-panel">

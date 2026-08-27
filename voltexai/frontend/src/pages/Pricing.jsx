@@ -4,6 +4,7 @@ import { useSearchParams } from "react-router-dom";
 import { paymentsService } from "../services/payments";
 import { useAuth } from "../contexts/AuthContext";
 import { Testimonials } from "../components/Testimonials";
+import { useI18n } from "../i18n";
 
 const PRICING_FAQ = [
   { q: "Is there really a free plan?",
@@ -26,6 +27,7 @@ const PRICING_FAQ = [
 
 export default function Pricing() {
   const { user } = useAuth();
+  const { t } = useI18n();
   const [plans, setPlans] = useState([]);
   const [billing, setBilling] = useState(null);
   const [interval, setInterval] = useState("month"); // "month" | "year"
@@ -75,8 +77,8 @@ export default function Pricing() {
   return (
     <div className="vx-pricing">
       <header className="vx-pricing-header">
-        <h1>Power up your trading.</h1>
-        <p>Pick the plan that matches how active you are. Cancel anytime.</p>
+        <h1>{t("price.title")}</h1>
+        <p>{t("price.sub")}</p>
 
         {reason === "upgrade" && (
           <div className="vx-banner vx-banner--info">
@@ -114,15 +116,15 @@ export default function Pricing() {
             className={!annual ? "active" : ""}
             onClick={() => setInterval("month")}
           >
-            Monthly
+            {t("price.monthly")}
           </button>
           <button
             className={annual ? "active" : ""}
             onClick={() => setInterval("year")}
           >
-            Annual
+            {t("price.annual")}
             {billing?.discount_pct ? (
-              <span className="vx-save-pill">Save {billing.discount_pct}%</span>
+              <span className="vx-save-pill">{t("price.save")} {billing.discount_pct}%</span>
             ) : null}
           </button>
         </div>
@@ -199,16 +201,16 @@ export default function Pricing() {
               </ul>
 
               {isCurrent ? (
-                <button className="vx-btn-current" disabled>Current plan</button>
+                <button className="vx-btn-current" disabled>{t("price.currentPlan")}</button>
               ) : p.id === "free" ? (
-                <a href="/signup" className="vx-btn-secondary">Start free</a>
+                <a href="/signup" className="vx-btn-secondary">{t("price.startFree")}</a>
               ) : region === "africa" ? (
                 <button
                   className="vx-btn-primary"
                   disabled={busy === `${p.id}-flutterwave`}
                   onClick={() => startCheckout(p.id, "flutterwave")}
                 >
-                  {busy === `${p.id}-flutterwave` ? "Loading…" : "Pay with Mobile Money"}
+                  {busy === `${p.id}-flutterwave` ? "…" : t("price.payMomo")}
                 </button>
               ) : (
                 <button
@@ -216,7 +218,7 @@ export default function Pricing() {
                   disabled={busy === `${p.id}-stripe`}
                   onClick={() => startCheckout(p.id, "stripe")}
                 >
-                  {busy === `${p.id}-stripe` ? "Loading…" : "Pay with Card"}
+                  {busy === `${p.id}-stripe` ? "…" : t("price.payCard")}
                 </button>
               )}
 
