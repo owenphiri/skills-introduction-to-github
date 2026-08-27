@@ -1137,6 +1137,33 @@ body {
 /* --- Live sessions --- */
 .vx-sessions-head { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
 .vx-clock { font-family: var(--vx-font-mono); font-size: 1.4rem; font-weight: 700; }
+.vx-clock small { font-size: .7rem; color: var(--vx-text-dim); font-weight: 600; margin-left: 3px; }
+.vx-clock-pair { display: flex; align-items: baseline; gap: .6rem; }
+.vx-clock-utc { font-family: var(--vx-font-mono); font-size: .85rem; color: var(--vx-text-dim); }
+.vx-qtier { font-size: .78rem; font-weight: 700; padding: .3rem .8rem; border-radius: 999px;
+  background: var(--vx-bg-elev); color: var(--vx-text-dim); border: 1px solid var(--vx-border); }
+.vx-qtier--prime { color: #0a0e1a; background: var(--vx-accent); border-color: var(--vx-accent); }
+.vx-qtier--high { color: var(--vx-success); background: rgba(69,224,160,.12); border-color: rgba(69,224,160,.3); }
+.vx-qtier--medium { color: var(--vx-warn); background: rgba(232,161,58,.12); border-color: rgba(232,161,58,.3); }
+.vx-qtier--low, .vx-qtier--closed { color: var(--vx-text-dim); }
+
+/* Zambian trader guidance */
+.vx-zambia-card { display: grid; grid-template-columns: 1fr 1.4fr; gap: 1.4rem; margin-bottom: 1.25rem;
+  background: var(--vx-bg-card); border: 1px solid var(--vx-border); border-radius: 16px; padding: 1.25rem 1.4rem; }
+.vx-zambia-advice { font-size: 1.02rem; font-weight: 600; margin: .5rem 0 .6rem; line-height: 1.4; }
+.vx-zambia-windows { display: grid; grid-template-columns: 1fr 1fr; gap: .7rem; }
+.vx-zwin { border: 1px solid var(--vx-border); border-radius: 11px; padding: .7rem .8rem; background: var(--vx-bg-elev); }
+.vx-zwin.prime { border-color: var(--vx-accent); box-shadow: 0 0 0 1px var(--vx-accent) inset; }
+.vx-zwin-top { display: flex; justify-content: space-between; align-items: baseline; gap: .5rem; margin-bottom: .2rem; }
+.vx-zwin-top .mono { font-family: var(--vx-font-mono); font-size: .82rem; color: var(--vx-accent); font-weight: 600; }
+.vx-zwin span.vx-muted { font-size: .8rem; line-height: 1.4; }
+@media (max-width: 720px) { .vx-zambia-card { grid-template-columns: 1fr; } .vx-zambia-windows { grid-template-columns: 1fr; } }
+
+/* World clocks strip */
+.vx-worldclocks { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: .6rem; margin-bottom: 1.5rem; }
+.vx-wclock { background: var(--vx-bg-elev); border: 1px solid var(--vx-border); border-radius: 11px; padding: .7rem .5rem; text-align: center; }
+.vx-wclock-time { display: block; font-family: var(--vx-font-mono); font-size: 1.15rem; font-weight: 700; }
+.vx-wclock-label { display: block; font-size: .72rem; color: var(--vx-text-dim); margin-top: .15rem; }
 .vx-overlap-badge { background: var(--vx-accent-soft); color: var(--vx-accent); padding: .35rem .8rem;
   border-radius: 999px; font-size: .8rem; font-weight: 600; }
 .vx-session-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2.5rem; }

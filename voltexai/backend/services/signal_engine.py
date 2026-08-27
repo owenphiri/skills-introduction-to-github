@@ -186,6 +186,7 @@ def generate(symbol: str, timeframe: str = "M15") -> dict:
             "confidence": confidence,
             "price": round(price, _dp(pip)),
             "reason": "Confluence below threshold - no clean edge right now.",
+            "session_context": _session_ctx(),
             "indicators": _indicator_block(r, macd_line, signal_line, hist,
                                            ema20, ema50, ema200, a),
             "generated_at": _now_iso(),
@@ -221,6 +222,7 @@ def generate(symbol: str, timeframe: str = "M15") -> dict:
         "risk_reward_tp3": round(abs(tp3 - entry) / risk, 2) if risk else 0,
         "confluence_factors": factors,
         "session": _session_name(),
+        "session_context": _session_ctx(),
         "valid_until": _valid_until(timeframe),
         "indicators": _indicator_block(r, macd_line, signal_line, hist,
                                        ema20, ema50, ema200, a),
@@ -259,6 +261,16 @@ def _indicator_block(r, macd_line, signal_line, hist, e20, e50, e200, a) -> dict
         "ema200": round(e200, 5),
         "atr14": round(a, 5),
     }
+
+
+def _session_ctx() -> dict:
+    """Session liquidity tier + Zambian (CAT) clock, attached to every signal so a
+    trader can weigh whether now is a quality moment to act."""
+    from ..data import sessions as _sessions
+    now = datetime.now(timezone.utc)
+    q = _sessions.session_quality(now)
+    return {"tier": q["tier"], "quality_score": q["score"], "label": q["label"],
+            "advice": q["advice"], "cat_time": now.astimezone(_sessions.CAT).strftime("%H:%M")}
 
 
 def _session_name() -> str:
