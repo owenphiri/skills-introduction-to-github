@@ -1929,3 +1929,28 @@ body {
 
 /* white-label logo image (non-flagship tenants) */
 .vx-logo-img { height: 1.4em; width: auto; vertical-align: middle; border-radius: 4px; }
+
+/* --- signal grade badge + AI rationale + verified performance strip --- */
+.vx-signal-badges { display: inline-flex; align-items: center; gap: .4rem; }
+.vx-grade { font-family: var(--vx-font-mono); font-weight: 700; font-size: .72rem;
+  padding: .12rem .4rem; border-radius: 6px; letter-spacing: .02em; }
+.vx-grade--aplus { color: #0a0e1a; background: var(--vx-accent); }
+.vx-grade--a { color: var(--vx-success); background: rgba(69,224,160,.14); border: 1px solid rgba(69,224,160,.35); }
+.vx-grade--b { color: var(--vx-warn); background: rgba(232,161,58,.14); border: 1px solid rgba(232,161,58,.3); }
+.vx-grade--c { color: var(--vx-text-dim); background: var(--vx-bg-elev); }
+.vx-why-btn { background: none; border: none; padding: 0; cursor: pointer; font: inherit; }
+.vx-why { margin-top: .6rem; padding: .7rem .8rem; border-radius: 10px;
+  background: var(--vx-bg-elev); border: 1px solid var(--vx-border); }
+.vx-why p { margin: 0 0 .4rem; font-size: .86rem; line-height: 1.5; color: var(--vx-text); }
+.vx-why-tag { font-family: var(--vx-font-mono); font-size: .68rem; color: var(--vx-accent);
+  text-transform: uppercase; letter-spacing: .08em; }
+
+.vx-perf-strip { display: flex; align-items: center; gap: 1.6rem; flex-wrap: wrap;
+  margin: 0 0 1.25rem; padding: .9rem 1.2rem; border-radius: 14px;
+  background: linear-gradient(120deg, rgba(69,224,160,.08), rgba(77,124,255,.06));
+  border: 1px solid var(--vx-border); }
+.vx-perf-stat { display: flex; flex-direction: column; line-height: 1.1; }
+.vx-perf-stat b { font-family: var(--vx-font-display, inherit); font-size: 1.5rem; font-weight: 700; }
+.vx-perf-stat span { font-size: .72rem; color: var(--vx-text-dim); text-transform: uppercase; letter-spacing: .05em; }
+.vx-perf-note { margin-left: auto; font-size: .74rem; color: var(--vx-success); font-weight: 600; }
+@media (max-width: 560px) { .vx-perf-note { margin-left: 0; } }

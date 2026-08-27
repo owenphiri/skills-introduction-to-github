@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { NavBar } from "../components/NavBar";
 import { useI18n } from "../i18n";
 import { signalsService } from "../services/signals";
+import { proSignalsService } from "../services/hub";
 
 const CLASSES = ["all", "forex", "metals", "energy", "indices", "crypto", "stocks"];
 const TFS = ["M5", "M15", "M30", "H1", "H4"];
@@ -17,8 +18,23 @@ function ConfidenceBar({ value }) {
   );
 }
 
+function gradeClass(g) {
+  return g === "A+" ? "aplus" : g === "A" ? "a" : g === "B" ? "b" : "c";
+}
+
 function SignalCard({ s }) {
   const long = s.direction === "LONG";
+  const [why, setWhy] = useState(null);   // null | "loading" | {text, ai}
+  async function explain() {
+    if (why && why !== "err") return;      // already loaded / loading
+    setWhy("loading");
+    try {
+      const r = await signalsService.rationale(s.symbol, s.timeframe);
+      setWhy({ text: r.rationale, ai: r.ai });
+    } catch (e) {
+      setWhy("err");
+    }
+  }
   return (
     <div className={`vx-signal-card vx-signal-card--${long ? "long" : "short"}`}>
       <div className="vx-signal-top">
@@ -26,7 +42,10 @@ function SignalCard({ s }) {
           <b className="vx-signal-symbol">{s.symbol}</b>
           <span className="vx-muted vx-signal-display">{s.display}</span>
         </div>
-        <span className={`vx-pill vx-pill--${long ? "long" : "short"}`}>{s.direction}</span>
+        <div className="vx-signal-badges">
+          {s.grade && <span className={`vx-grade vx-grade--${gradeClass(s.grade)}`}>{s.grade}</span>}
+          <span className={`vx-pill vx-pill--${long ? "long" : "short"}`}>{s.direction}</span>
+        </div>
       </div>
       <ConfidenceBar value={s.confidence} />
       <div className="vx-signal-levels">
@@ -44,11 +63,24 @@ function SignalCard({ s }) {
       </div>
       <div className="vx-signal-foot">
         <span className="vx-muted">{s.session} · {s.timeframe}</span>
+        <button className="vx-inline-link vx-why-btn" onClick={explain}>
+          {why === "loading" ? "Thinking…" : "Why this trade?"}
+        </button>
         <Link className="vx-inline-link"
           to={`/trade?symbol=${s.symbol}&side=${long ? "buy" : "sell"}`}>
           Trade {s.direction} →
         </Link>
       </div>
+      {why && why !== "loading" && (
+        <div className="vx-why">
+          {why === "err"
+            ? <span className="vx-muted">Sign in to see the AI rationale.</span>
+            : <>
+                <p>{why.text}</p>
+                <span className="vx-why-tag">{why.ai ? "✦ AI rationale" : "Desk rationale"}</span>
+              </>}
+        </div>
+      )}
     </div>
   );
 }
@@ -60,6 +92,11 @@ export default function Signals() {
   const [minConfidence, setMinConfidence] = useState(4);
   const [signals, setSignals] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [perf, setPerf] = useState(null);
+
+  useEffect(() => {
+    proSignalsService.performance().then(setPerf).catch(() => {});
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -82,6 +119,20 @@ export default function Signals() {
           <h1>Signal Scanner <span className="vx-live-dot">LIVE</span></h1>
           <p className="vx-muted">{t("pg.signals.sub")}</p>
         </div>
+
+        {perf && perf.graded > 0 && (
+          <div className="vx-perf-strip" title="Verified from closed VIP signals">
+            <div className="vx-perf-stat"><b>{perf.win_rate}%</b><span>win rate</span></div>
+            <div className="vx-perf-stat"><b>{perf.graded}</b><span>closed signals</span></div>
+            {perf.profit_factor != null && (
+              <div className="vx-perf-stat"><b>{perf.profit_factor}</b><span>profit factor</span></div>
+            )}
+            {perf.avg_win_r != null && (
+              <div className="vx-perf-stat"><b>+{perf.avg_win_r}R</b><span>avg win</span></div>
+            )}
+            <span className="vx-perf-note">Verified · real closed trades, not a marketing claim</span>
+          </div>
+        )}
 
         <div className="vx-filters">
           <div className="vx-class-tabs">

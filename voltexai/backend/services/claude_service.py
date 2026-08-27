@@ -135,5 +135,31 @@ class ClaudeService:
                 "tokens_in": resp["tokens_in"], "tokens_out": resp["tokens_out"]}
 
 
+    # ---------- specialised: plain-language rationale for a deterministic signal ----------
+    async def signal_rationale(self, sig: dict) -> Optional[str]:
+        """Write a concise, plain-language rationale for an already-computed signal.
+        Returns None when no key is configured so the caller can use the
+        deterministic fallback. The numbers come from the engine — Claude only
+        explains them, it never invents levels."""
+        if not settings.ANTHROPIC_API_KEY:
+            return None
+        facts = {k: sig.get(k) for k in (
+            "symbol", "display", "timeframe", "direction", "grade", "quality",
+            "entry", "stop_loss", "tp1", "tp2", "tp3", "risk_reward_tp1",
+            "confluence_factors", "session_context", "indicators")}
+        prompt = (
+            "You are the VoltexAI desk analyst. Explain this ALREADY-COMPUTED signal "
+            "to a trader in 2-3 short sentences: why the setup is valid, what confirms "
+            "it, and the key risk. Do NOT invent or change any price/level — use only "
+            "what is given. Plain language, no markdown, end with a one-line risk note.\n\n"
+            f"SIGNAL JSON:\n{json.dumps(facts, default=str)}"
+        )
+        try:
+            resp = await self.complete("analysis", history=[], user_message=prompt)
+            return (resp.get("content") or "").strip() or None
+        except (APIError, AuthenticationError, RateLimitError):
+            return None
+
+
 # Singleton
 claude_service = ClaudeService()

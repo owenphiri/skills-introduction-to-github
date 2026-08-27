@@ -106,6 +106,17 @@ def _score_to_confidence(score: float) -> int:
     return max(0, min(10, round(score)))
 
 
+def _grade(confidence: int) -> str:
+    """Voltex quality grade from a 0-10 confidence."""
+    if confidence >= 9:
+        return "A+"
+    if confidence >= 7:
+        return "A"
+    if confidence >= 5:
+        return "B"
+    return "C"
+
+
 def generate(symbol: str, timeframe: str = "M15") -> dict:
     symbol = symbol.upper()
     inst = market_service.get_instrument(symbol)
@@ -184,6 +195,8 @@ def generate(symbol: str, timeframe: str = "M15") -> dict:
             "asset_class": inst["asset_class"], "timeframe": timeframe,
             "direction": "NO_TRADE",
             "confidence": confidence,
+            "grade": _grade(confidence),
+            "quality": confidence * 10,
             "price": round(price, _dp(pip)),
             "reason": "Confluence below threshold - no clean edge right now.",
             "session_context": _session_ctx(),
@@ -212,6 +225,8 @@ def generate(symbol: str, timeframe: str = "M15") -> dict:
         "asset_class": inst["asset_class"], "timeframe": timeframe,
         "direction": direction,
         "confidence": confidence,
+        "grade": _grade(confidence),
+        "quality": confidence * 10,
         "price": round(price, _dp(pip)),
         "entry": round(entry, _dp(pip)),
         "stop_loss": round(stop, _dp(pip)),
@@ -261,6 +276,27 @@ def _indicator_block(r, macd_line, signal_line, hist, e20, e50, e200, a) -> dict
         "ema200": round(e200, 5),
         "atr14": round(a, 5),
     }
+
+
+def fallback_rationale(sig: dict) -> str:
+    """Deterministic plain-language rationale from the signal itself — used when
+    no Claude key is set, and as the grounding context when one is."""
+    d = sig.get("direction", "NO_TRADE")
+    if d == "NO_TRADE":
+        return ("No clean edge right now — confluence is below threshold. "
+                "Patience protects capital; wait for a higher-grade setup.")
+    factors = sig.get("confluence_factors") or []
+    fac = "; ".join(factors[:4]) if factors else "multiple indicators aligned"
+    sess = (sig.get("session_context") or {}).get("advice", "")
+    rr = sig.get("risk_reward_tp1")
+    grade = sig.get("grade", "")
+    bits = [f"{grade} {d} on {sig.get('display', sig.get('symbol'))} "
+            f"({sig.get('timeframe')}): {fac}."]
+    if rr:
+        bits.append(f"Reward:risk to TP1 is 1:{rr}; stop at {sig.get('stop_loss')}.")
+    if sess:
+        bits.append(sess)
+    return " ".join(bits)
 
 
 def _session_ctx() -> dict:
