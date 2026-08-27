@@ -304,6 +304,55 @@ async def alphavantage_candles(symbol: str, timeframe: str, count: int) -> list[
     return None
 
 
+def _news_label(score: float) -> str:
+    """Alpha Vantage's standard sentiment bands."""
+    if score <= -0.35:
+        return "Bearish"
+    if score <= -0.15:
+        return "Somewhat-Bearish"
+    if score < 0.15:
+        return "Neutral"
+    if score < 0.35:
+        return "Somewhat-Bullish"
+    return "Bullish"
+
+
+async def alphavantage_news_sentiment(
+    tickers: str = "FOREX:USD,FOREX:EUR,FOREX:GBP,FOREX:JPY,CRYPTO:BTC",
+    limit: int = 50,
+) -> dict | None:
+    """Alpha Vantage's news & sentiment feed — the 'intelligence layer'.
+
+    Returns an aggregated view (average score, label, recent headlines) or None
+    when no key is set / the vendor is unreachable, so the caller degrades cleanly.
+    """
+    if not settings.ALPHAVANTAGE_API_KEY:
+        return None
+    d = await _av_get({"function": "NEWS_SENTIMENT", "tickers": tickers,
+                       "limit": str(min(limit, 1000)), "sort": "LATEST"})
+    feed = (d or {}).get("feed")
+    if not feed:
+        return None
+    scores: list[float] = []
+    articles: list[dict] = []
+    for a in feed:
+        try:
+            s = float(a.get("overall_sentiment_score"))
+        except (TypeError, ValueError):
+            continue
+        scores.append(s)
+        articles.append({
+            "title": a.get("title"), "source": a.get("source"), "url": a.get("url"),
+            "score": round(s, 3), "label": a.get("overall_sentiment_label"),
+            "time": a.get("time_published"),
+        })
+    if not scores:
+        return None
+    avg = sum(scores) / len(scores)
+    return {"avg_score": round(avg, 4), "label": _news_label(avg),
+            "count": len(scores), "articles": articles[:12], "source": "alphavantage"}
+
+
 def _av_series(series: dict | None, count: int) -> list[dict] | None:
     if not series:
         return None

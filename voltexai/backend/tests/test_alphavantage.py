@@ -29,3 +29,22 @@ def test_av_series_parses_and_orders():
 def test_av_quote_returns_none_without_key():
     # no ALPHAVANTAGE_API_KEY in the test env -> graceful None, no network call
     assert asyncio.get_event_loop().run_until_complete(dp.alphavantage_quote("EURUSD")) is None
+
+
+def test_news_label_bands():
+    assert dp._news_label(-0.5) == "Bearish"
+    assert dp._news_label(-0.2) == "Somewhat-Bearish"
+    assert dp._news_label(0.0) == "Neutral"
+    assert dp._news_label(0.2) == "Somewhat-Bullish"
+    assert dp._news_label(0.5) == "Bullish"
+
+
+def test_news_sentiment_none_without_key():
+    assert asyncio.get_event_loop().run_until_complete(dp.alphavantage_news_sentiment()) is None
+
+
+def test_sentiment_endpoint_includes_news_layer(client):
+    d = client.get("/api/sentiment").json()
+    # the Alpha Vantage news layer is always present; unavailable (no key) offline
+    assert "news" in d and d["news"]["available"] is False
+    assert d["news"]["articles"] == []

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from . import signal_engine, market_service as mkt
+from . import signal_engine, market_service as mkt, data_providers
 from ..data.instruments import ALL_SYMBOLS, list_by_class, ASSET_CLASSES
 
 
@@ -78,3 +78,21 @@ def overview() -> dict:
         "top_bearish": list(reversed(per_symbol[-5:])),
         "generated_at": datetime.now(timezone.utc).isoformat(),
     }
+
+
+async def news_layer() -> dict:
+    """Alpha Vantage news-sentiment intelligence layer. Degrades to an
+    'unavailable' block (never an error) when no key is configured."""
+    data = await data_providers.alphavantage_news_sentiment()
+    if not data:
+        return {"available": False, "articles": [],
+                "note": "Live headlines activate once ALPHAVANTAGE_API_KEY is set."}
+    return {"available": True, **data}
+
+
+async def overview_with_news() -> dict:
+    """Technical Fear & Greed (Twelve Data / live feed) + the Alpha Vantage
+    news-sentiment layer — the two providers combined."""
+    ov = overview()
+    ov["news"] = await news_layer()
+    return ov

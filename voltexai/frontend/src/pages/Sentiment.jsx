@@ -97,9 +97,40 @@ export default function Sentiment() {
                 ))}
               </div>
             </div>
+
+            {d.news && (
+              <div className="vx-news">
+                <div className="vx-news-head">
+                  <h3>📰 Market News &amp; Sentiment</h3>
+                  {d.news.available ? (
+                    <span className={`vx-news-badge ${d.news.avg_score >= 0.05 ? "up" : d.news.avg_score <= -0.05 ? "down" : "flat"}`}>
+                      {d.news.label} · {d.news.count} stories
+                    </span>
+                  ) : (
+                    <span className="vx-news-badge flat">Powered by Alpha Vantage</span>
+                  )}
+                </div>
+                {d.news.available ? (
+                  <div className="vx-news-list">
+                    {d.news.articles.map((a, i) => (
+                      <a key={i} href={a.url} target="_blank" rel="noopener noreferrer" className="vx-news-item">
+                        <span className={`vx-news-dot ${a.score >= 0.05 ? "up" : a.score <= -0.05 ? "down" : "flat"}`} />
+                        <span className="vx-news-title">{a.title}</span>
+                        <span className="vx-news-src">{a.source}</span>
+                      </a>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="vx-muted">{d.news.note}</p>
+                )}
+              </div>
+            )}
           </>
         )}
-        <p className="vx-fineprint">Sentiment is computed from algorithmic bias & momentum — educational, not advice.</p>
+        <p className="vx-fineprint">
+          Technical sentiment is computed from algorithmic bias &amp; momentum (Twelve Data / live feed);
+          headlines &amp; news sentiment are from Alpha Vantage. Educational, not advice.
+        </p>
       </main>
       <Footer />
     </div>

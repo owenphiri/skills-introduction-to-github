@@ -1113,6 +1113,27 @@ body {
 .vx-sent-row { display: flex; justify-content: space-between; padding: .5rem 0; border-bottom: 1px solid var(--vx-border); }
 .vx-sent-row:last-child { border-bottom: none; }
 
+/* --- Market news & sentiment (Alpha Vantage layer) --- */
+.vx-news { margin-top: 1.5rem; background: var(--vx-bg-card); border: 1px solid var(--vx-border);
+  border-radius: 16px; padding: 1.25rem 1.4rem; }
+.vx-news-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: .5rem; }
+.vx-news-head h3 { margin: 0; }
+.vx-news-badge { font-size: .78rem; font-weight: 600; padding: .25rem .7rem; border-radius: 999px;
+  background: var(--vx-bg-elev); color: var(--vx-text-dim); }
+.vx-news-badge.up { color: var(--vx-success); background: rgba(69,224,160,.12); }
+.vx-news-badge.down { color: var(--vx-danger); background: rgba(255,93,100,.12); }
+.vx-news-list { display: flex; flex-direction: column; }
+.vx-news-item { display: grid; grid-template-columns: 10px 1fr auto; align-items: center; gap: .7rem;
+  padding: .6rem 0; border-bottom: 1px solid var(--vx-border); text-decoration: none; color: var(--vx-text); }
+.vx-news-item:last-child { border-bottom: none; }
+.vx-news-item:hover .vx-news-title { color: var(--vx-accent); }
+.vx-news-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--vx-text-dim); }
+.vx-news-dot.up { background: var(--vx-success); }
+.vx-news-dot.down { background: var(--vx-danger); }
+.vx-news-title { font-size: .92rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vx-news-src { font-size: .74rem; color: var(--vx-text-dim); white-space: nowrap; }
+@media (max-width: 640px) { .vx-news-title { white-space: normal; } }
+
 /* --- Live sessions --- */
 .vx-sessions-head { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
 .vx-clock { font-family: var(--vx-font-mono); font-size: 1.4rem; font-weight: 700; }
