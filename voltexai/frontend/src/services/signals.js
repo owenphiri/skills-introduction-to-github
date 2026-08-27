@@ -10,4 +10,8 @@ export const signalsService = {
 
   one: (symbol, timeframe = "M15") =>
     api.get(`/api/signals/${symbol}?timeframe=${timeframe}`),
+
+  // AI-narrated "why" (Claude when the key is set, deterministic otherwise). Auth required.
+  rationale: (symbol, timeframe = "M15") =>
+    api.get(`/api/signals/${symbol}/rationale?timeframe=${timeframe}`),
 };
