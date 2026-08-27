@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { NavBar } from "../components/NavBar";
+import { useI18n } from "../i18n";
 import { Footer } from "../components/Footer";
 import { Reveal } from "../components/Reveal";
 import { proSignalsService } from "../services/hub";
@@ -70,6 +71,7 @@ function SignalCard({ s }) {
 }
 
 export default function SignalsPro() {
+  const { t } = useI18n();
   const [feed, setFeed] = useState(null);
   const [perf, setPerf] = useState(null);
 
@@ -90,10 +92,7 @@ export default function SignalsPro() {
         <div className="vx-page-head">
           <span className="vx-eyebrow">Voltex Signals Pro · TradingView → AI → VIP</span>
           <h1>🎯 A+ Signals, Nothing Less</h1>
-          <p className="vx-muted">
-            Every setup is scored 0–100 by the Voltex engine — weak signals are auto-rejected.
-            Free traders see the preview; VIP gets the full entry zone, SL, TP1–TP4 and live management.
-          </p>
+          <p className="vx-muted">{t("pg.signalsPro.sub")}</p>
         </div>
 
         {perf && (

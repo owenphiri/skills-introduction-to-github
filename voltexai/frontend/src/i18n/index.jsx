@@ -2,7 +2,13 @@
 // Auto-detects the browser language, persists the choice, sets <html lang/dir>,
 // and exposes a t() lookup with English fallback.
 import { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
-import { LOCALES, DICT } from "./locales";
+import { LOCALES, DICT as BASE_DICT } from "./locales";
+import { PAGE_DICT } from "./pages";
+
+// Merge shell + page dictionaries once per locale.
+const DICT = Object.fromEntries(
+  LOCALES.map((l) => [l.code, { ...(BASE_DICT[l.code] || {}), ...(PAGE_DICT[l.code] || {}) }])
+);
 
 const I18nContext = createContext(null);
 const STORAGE_KEY = "vx-lang";

@@ -1,6 +1,7 @@
 // src/pages/Community.jsx — Voltex Community (global trader wall)
 import { useEffect, useState } from "react";
 import { NavBar } from "../components/NavBar";
+import { useI18n } from "../i18n";
 import { Footer } from "../components/Footer";
 import { communityService } from "../services/hub";
 import { KpiStrip } from "../components/Analytics";
@@ -8,6 +9,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { Link } from "react-router-dom";
 
 export default function Community() {
+  const { t } = useI18n();
   const { user } = useAuth();
   const [posts, setPosts] = useState([]);
   const [body, setBody] = useState("");
@@ -41,10 +43,7 @@ export default function Community() {
       <main className="vx-container">
         <div className="vx-page-head">
           <h1>💬 Voltex Community</h1>
-          <p className="vx-muted">
-            The global trader wall — connect with traders across the globe.
-            Share setups, wins and lessons from Lusaka to London.
-          </p>
+          <p className="vx-muted">{t("pg.community.sub")}</p>
         </div>
 
         <KpiStrip ids={["community", "products", "academy", "bullish"]} title="Community pulse" />

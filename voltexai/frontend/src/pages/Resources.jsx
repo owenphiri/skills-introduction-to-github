@@ -1,12 +1,14 @@
 // src/pages/Resources.jsx — Voltex Resources (toolkit + economic calendar)
 import { useEffect, useState } from "react";
 import { NavBar } from "../components/NavBar";
+import { useI18n } from "../i18n";
 import { Footer } from "../components/Footer";
 import { resourcesService } from "../services/hub";
 import { KpiStrip } from "../components/Analytics";
 import { Link } from "react-router-dom";
 
 export default function Resources() {
+  const { t } = useI18n();
   const [cat, setCat] = useState("all");
   const [data, setData] = useState(null);
   const [cal, setCal] = useState(null);
@@ -27,10 +29,7 @@ export default function Resources() {
       <main className="vx-container">
         <div className="vx-page-head">
           <h1>📚 Voltex Resources</h1>
-          <p className="vx-muted">
-            The trader's toolkit — guides, cheat sheets, calculators and a
-            high-impact economic calendar. Everything you need in one place.
-          </p>
+          <p className="vx-muted">{t("pg.resources.sub")}</p>
         </div>
 
         <KpiStrip ids={["academy", "products", "community", "sessions"]} title="Toolkit pulse" />
