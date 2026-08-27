@@ -1906,3 +1906,23 @@ body {
 .vx-mtf-chip.down { color: var(--vx-danger); border-color: color-mix(in srgb, var(--vx-danger) 40%, var(--vx-border)); }
 .vx-mtf-chip span { color: var(--vx-text-dim); }
 @media (max-width: 560px) { .vx-mtf { grid-template-columns: 1fr; } }
+
+/* --- Language selector + i18n --- */
+.vx-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.vx-lang { display: inline-flex; align-items: center; gap: .3rem; cursor: pointer; }
+.vx-lang-globe { font-size: 1rem; line-height: 1; }
+.vx-lang select {
+  background: var(--vx-bg-elev); color: var(--vx-text); border: 1px solid var(--vx-border);
+  border-radius: 8px; padding: .32rem .5rem; font-size: .82rem; font-family: inherit;
+  cursor: pointer; max-width: 9rem;
+}
+.vx-lang select:hover { border-color: var(--vx-text-dim); }
+.vx-lang select:focus-visible { outline: 2px solid var(--vx-accent); outline-offset: 1px; }
+.vx-lang.compact select { padding: .28rem .4rem; font-size: .78rem; max-width: 7.5rem; }
+.vx-footer-lang { margin-top: 1rem; }
+@media (max-width: 900px) { .vx-lang.compact { display: none; } } /* footer selector still available on mobile */
+
+/* RTL: mirror the fixed social rail to the left edge */
+[dir="rtl"] .vx-social-rail { right: auto; left: 0; border-radius: 0 12px 12px 0; }
+[dir="rtl"] .vx-nav-user .vx-plan-chip { margin-left: 0; margin-right: .4rem; }

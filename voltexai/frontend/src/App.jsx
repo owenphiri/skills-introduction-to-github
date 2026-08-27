@@ -2,6 +2,7 @@
 // VoltexAI - Top-level router + AuthProvider wrap.
 
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { LanguageProvider } from "./i18n";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -69,6 +70,7 @@ import "./voltexai.css";
 export default function App() {
   return (
     <ErrorBoundary>
+    <LanguageProvider>
     <AuthProvider>
       <BrowserRouter>
         <SocialProof />
@@ -203,6 +205,7 @@ export default function App() {
         </Routes>
       </BrowserRouter>
     </AuthProvider>
+    </LanguageProvider>
     </ErrorBoundary>
   );
 }
