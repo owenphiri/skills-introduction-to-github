@@ -4,8 +4,10 @@ import { NavBar } from "../components/NavBar";
 import { Footer } from "../components/Footer";
 import { sessionsService } from "../services/hub";
 import { KpiStrip } from "../components/Analytics";
+import { useI18n } from "../i18n";
 
 export default function Live() {
+  const { t } = useI18n();
   const [d, setD] = useState(null);
 
   useEffect(() => {
@@ -21,10 +23,7 @@ export default function Live() {
       <main className="vx-container">
         <div className="vx-page-head">
           <h1>🔴 Voltex Live</h1>
-          <p className="vx-muted">
-            Market session clocks and the live trading-session schedule —
-            London opens, NY killzones and weekly outlooks with the desk.
-          </p>
+          <p className="vx-muted">{t("live.subtitle")}</p>
         </div>
 
         <KpiStrip ids={["sessions", "fear_greed", "bullish", "products"]} title="Session pulse" />
@@ -50,9 +49,9 @@ export default function Live() {
             {d.zambia && (
               <div className="vx-zambia-card">
                 <div className="vx-zambia-now">
-                  <span className="vx-eyebrow">🇿🇲 Zambian trader · {d.zambia.timezone}</span>
+                  <span className="vx-eyebrow">🇿🇲 {t("live.zambiaTrader")} · {d.zambia.timezone}</span>
                   <p className="vx-zambia-advice">{d.zambia.current.advice}</p>
-                  <p className="vx-muted">Best window to trade from Zambia: <b>{d.zambia.best_window_cat} CAT</b></p>
+                  <p className="vx-muted">{t("live.bestWindow")}: <b>{d.zambia.best_window_cat} CAT</b></p>
                 </div>
                 <div className="vx-zambia-windows">
                   {d.zambia.windows.map((w) => (
