@@ -22,8 +22,8 @@ router = APIRouter(tags=["hub"])
 
 
 @router.get("/api/sentiment")
-def sentiment():
-    return sentiment_service.overview()
+async def sentiment():
+    return await sentiment_service.overview_with_news()
 
 
 @router.get("/api/sessions")
