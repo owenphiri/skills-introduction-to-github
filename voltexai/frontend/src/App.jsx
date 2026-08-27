@@ -3,6 +3,7 @@
 
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { LanguageProvider } from "./i18n";
+import { BrandProvider } from "./contexts/BrandContext";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -70,6 +71,7 @@ import "./voltexai.css";
 export default function App() {
   return (
     <ErrorBoundary>
+    <BrandProvider>
     <LanguageProvider>
     <AuthProvider>
       <BrowserRouter>
@@ -206,6 +208,7 @@ export default function App() {
       </BrowserRouter>
     </AuthProvider>
     </LanguageProvider>
+    </BrandProvider>
     </ErrorBoundary>
   );
 }

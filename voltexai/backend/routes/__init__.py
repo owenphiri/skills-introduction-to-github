@@ -20,6 +20,7 @@ from .telegram_routes import router as telegram_router
 from .referral_routes import router as referral_router
 from .admin_routes import router as admin_router
 from .pattern_routes import router as pattern_router
+from .tenant_routes import router as tenant_router
 
 __all__ = [
     "auth_router", "ai_router", "payment_router",
@@ -27,5 +28,5 @@ __all__ = [
     "trade_router", "kyc_router", "ecosystem_router", "competition_router",
     "social_router", "hub_router", "community_router", "dashboard_router",
     "company_router", "journal_router", "pro_signals_router", "telegram_router",
-    "referral_router", "admin_router", "pattern_router",
+    "referral_router", "admin_router", "pattern_router", "tenant_router",
 ]

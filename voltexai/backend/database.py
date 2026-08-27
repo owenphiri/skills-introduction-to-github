@@ -66,5 +66,8 @@ def init_db():
     voltexai/supabase/schema.sql (or Alembic) over auto-create."""
     from .models import (user, subscription, conversation, payment,  # noqa: F401
                          trading, kyc, competition, community, journal, signals,
-                         telegram, rl, referral)
+                         telegram, rl, referral, tenant)
     Base.metadata.create_all(bind=engine)
+    # Seed the flagship tenant so default branding always resolves.
+    from .services import tenant_service
+    tenant_service.ensure_default()
