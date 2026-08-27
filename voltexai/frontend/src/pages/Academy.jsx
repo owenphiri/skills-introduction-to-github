@@ -2,10 +2,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { NavBar } from "../components/NavBar";
+import { useI18n } from "../i18n";
 import { Footer } from "../components/Footer";
 import { academyService } from "../services/ecosystem";
 
 export default function Academy() {
+  const { t } = useI18n();
   const [overview, setOverview] = useState(null);
   const [track, setTrack] = useState("all");
   const [courses, setCourses] = useState([]);
@@ -22,10 +24,7 @@ export default function Academy() {
       <main className="vx-container">
         <div className="vx-page-head">
           <h1>🎓 Voltex Academy</h1>
-          <p className="vx-muted">
-            Go from complete beginner to funded trader. Candlesticks, chart patterns,
-            market structure, risk, psychology — for forex, indices & crypto futures.
-          </p>
+          <p className="vx-muted">{t("pg.academy.sub")}</p>
           {overview && (
             <div className="vx-stat-row" style={{ marginTop: 16 }}>
               <div className="vx-stat"><b className="vx-count">{overview.tracks.length}</b><span>Tracks</span></div>

@@ -1,6 +1,7 @@
 // src/pages/Patterns.jsx — VoltexAI Chart Patterns (visual chart + TP/SL/BE plan)
 import { useEffect, useMemo, useState } from "react";
 import { NavBar } from "../components/NavBar";
+import { useI18n } from "../i18n";
 import { Footer } from "../components/Footer";
 import { patternsService } from "../services/hub";
 
@@ -92,6 +93,7 @@ function ConfluenceBadge({ mtf }) {
 }
 
 export default function Patterns() {
+  const { t } = useI18n();
   const [symbol, setSymbol] = useState("EURUSD");
   const [tf, setTf] = useState("M15");
   const [d, setD] = useState(null);
@@ -122,10 +124,7 @@ export default function Patterns() {
         <div className="vx-page-head">
           <span className="vx-eyebrow">Voltex Vision</span>
           <h1>📐 Chart Patterns</h1>
-          <p className="vx-muted">
-            Automatic pattern detection on the live chart — with the entry, stop, take-profits
-            and break-even drawn for you. Trade the plan, not the emotion.
-          </p>
+          <p className="vx-muted">{t("pg.patterns.sub")}</p>
         </div>
 
         <div className="vx-pat-controls">

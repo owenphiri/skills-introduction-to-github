@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { NavBar } from "../components/NavBar";
+import { useI18n } from "../i18n";
 import { signalsService } from "../services/signals";
 
 const CLASSES = ["all", "forex", "metals", "energy", "indices", "crypto", "stocks"];
@@ -53,6 +54,7 @@ function SignalCard({ s }) {
 }
 
 export default function Signals() {
+  const { t } = useI18n();
   const [assetClass, setAssetClass] = useState("all");
   const [timeframe, setTimeframe] = useState("M15");
   const [minConfidence, setMinConfidence] = useState(4);
@@ -78,11 +80,7 @@ export default function Signals() {
       <main className="vx-container">
         <div className="vx-page-head">
           <h1>Signal Scanner <span className="vx-live-dot">LIVE</span></h1>
-          <p className="vx-muted">
-            Algorithmic confluence across EMA, RSI, MACD, Bollinger and market structure —
-            ranked by conviction, bracketed with stop and three take-profits. Want the full
-            AI write-up? <Link to="/terminal" className="vx-inline-link">Open the AI Terminal →</Link>
-          </p>
+          <p className="vx-muted">{t("pg.signals.sub")}</p>
         </div>
 
         <div className="vx-filters">

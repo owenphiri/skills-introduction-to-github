@@ -2,12 +2,14 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { NavBar } from "../components/NavBar";
+import { useI18n } from "../i18n";
 import { Footer } from "../components/Footer";
 import { signalsService } from "../services/signals";
 
 const TFS = ["M5", "M15", "M30", "H1", "H4"];
 
 export default function Scanner() {
+  const { t } = useI18n();
   const [timeframe, setTimeframe] = useState("M15");
   const [minConf, setMinConf] = useState(5);
   const [signals, setSignals] = useState([]);
@@ -33,10 +35,7 @@ export default function Scanner() {
       <main className="vx-container">
         <div className="vx-page-head">
           <h1>🛰️ Voltex Scanner</h1>
-          <p className="vx-muted">
-            The whole market, scanned continuously. Voltex Scanner ranks every
-            instrument by confluence and surfaces the strongest setups right now.
-          </p>
+          <p className="vx-muted">{t("pg.scanner.sub")}</p>
         </div>
 
         <div className="vx-scanner-bar">

@@ -1,6 +1,7 @@
 // src/pages/Journal.jsx — Voltex Trade Journal (advanced dashboard)
 import { useEffect, useMemo, useState } from "react";
 import { NavBar } from "../components/NavBar";
+import { useI18n } from "../i18n";
 import { Footer } from "../components/Footer";
 import { journalService } from "../services/journal";
 
@@ -57,6 +58,7 @@ function Heatmap({ heatmap }) {
 const EMPTY = { symbol: "", side: "buy", entry: "", exit: "", size: "1", pnl: "", rr: "", setup: "", trade_date: "", notes: "" };
 
 export default function Journal() {
+  const { t } = useI18n();
   const [data, setData] = useState(null);
   const [form, setForm] = useState(EMPTY);
   const [busy, setBusy] = useState(false);
@@ -99,7 +101,7 @@ export default function Journal() {
         <div className="vx-page-head">
           <span className="vx-eyebrow">Track · Review · Improve</span>
           <h1>📓 Voltex Trade Journal</h1>
-          <p className="vx-muted">Your edge, measured — KPIs, equity curve and a P&amp;L heat-map calendar.</p>
+          <p className="vx-muted">{t("pg.journal.sub")}</p>
         </div>
         {err && <p className="vx-down">{err}</p>}
         {!data && !err && <p className="vx-muted">Loading your journal…</p>}

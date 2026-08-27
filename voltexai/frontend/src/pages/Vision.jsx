@@ -2,11 +2,13 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { NavBar } from "../components/NavBar";
+import { useI18n } from "../i18n";
 import { Footer } from "../components/Footer";
 import { aiService } from "../services/ai";
 import { useAuth } from "../contexts/AuthContext";
 
 export default function Vision() {
+  const { t } = useI18n();
   const { user } = useAuth();
   const [preview, setPreview] = useState(null);
   const [b64, setB64] = useState(null);
@@ -54,10 +56,7 @@ export default function Vision() {
       <main className="vx-container vx-narrow">
         <div className="vx-page-head">
           <h1>👁️ Voltex Vision</h1>
-          <p className="vx-muted">
-            Upload any chart screenshot. Vision reads structure, liquidity, order blocks
-            and key levels — then writes the full trade plan.
-          </p>
+          <p className="vx-muted">{t("pg.vision.sub")}</p>
         </div>
 
         <div className="vx-vision-card">

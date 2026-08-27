@@ -1,6 +1,7 @@
 // src/pages/Markets.jsx — live markets board with candlestick chart
 import { useEffect, useRef, useState } from "react";
 import { NavBar } from "../components/NavBar";
+import { useI18n } from "../i18n";
 import { CandleChart } from "../components/Chart";
 import { marketsService } from "../services/markets";
 
@@ -29,6 +30,7 @@ function SourceBadge({ source }) {
 }
 
 export default function Markets() {
+  const { t } = useI18n();
   const [assetClass, setAssetClass] = useState("all");
   const [quotes, setQuotes] = useState([]);
   const [selected, setSelected] = useState("XAUUSD");
@@ -71,7 +73,7 @@ export default function Markets() {
       <main className="vx-container">
         <div className="vx-page-head">
           <h1>Live Markets</h1>
-          <p className="vx-muted">Real-time prices across every asset class. Click a row to chart it.</p>
+          <p className="vx-muted">{t("pg.markets.sub")}</p>
         </div>
 
         <div className="vx-chart-card">

@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { NavBar } from "../components/NavBar";
+import { useI18n } from "../i18n";
 import { Footer } from "../components/Footer";
 import { easService } from "../services/hub";
 import { Reveal } from "../components/Reveal";
@@ -11,6 +12,7 @@ function statusClass(s) {
 }
 
 export default function EAs() {
+  const { t } = useI18n();
   const [d, setD] = useState(null);
   useEffect(() => { easService.fleet().then(setD).catch(() => {}); }, []);
 
@@ -21,11 +23,7 @@ export default function EAs() {
         <div className="vx-page-head">
           <span className="vx-eyebrow">Voltex EA Fleet · Trading Robots</span>
           <h1>🤖 The EA Fleet</h1>
-          <p className="vx-muted">
-            Automated Expert Advisors with the full advanced-indicator stack inside —
-            led by self-optimizing reinforcement-learning models that surface only the
-            best-quality setups in the industry.
-          </p>
+          <p className="vx-muted">{t("pg.eas.sub")}</p>
         </div>
 
         {d && (
