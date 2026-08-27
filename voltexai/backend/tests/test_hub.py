@@ -20,6 +20,41 @@ def test_sessions_status(client):
     assert all("starts_utc" in s for s in d["streams"])
 
 
+def test_sessions_zambia_and_global_times(client):
+    d = client.get("/api/sessions").json()
+    # CAT (Zambia) clock + per-session CAT open/close
+    assert "cat_time" in d
+    assert all("open_cat" in s and "close_cat" in s for s in d["sessions"])
+    # London 07-16 UTC -> 09:00-18:00 CAT
+    london = next(s for s in d["sessions"] if s["name"] == "London")
+    assert london["open_cat"] == "09:00" and london["close_cat"] == "18:00"
+    # world clocks include Lusaka
+    assert any("Lusaka" in w["label"] for w in d["world_clocks"])
+    # Zambian guidance block + prime overlap window
+    z = d["zambia"]
+    assert z["best_window_cat"] == "14:00–18:00"
+    assert z["current"]["tier"] in {"prime", "high", "medium", "low", "closed"}
+    # streams carry a CAT start time too
+    assert all("starts_cat" in s for s in d["streams"])
+
+
+def test_session_quality_tiers():
+    from datetime import datetime, timezone
+    from backend.data.sessions import session_quality
+    # 14:00 UTC Wed = London/NY overlap -> prime
+    assert session_quality(datetime(2026, 8, 26, 14, tzinfo=timezone.utc))["tier"] == "prime"
+    # 03:00 UTC Wed = Asia only -> medium
+    assert session_quality(datetime(2026, 8, 26, 3, tzinfo=timezone.utc))["tier"] == "medium"
+    # Saturday -> closed
+    assert session_quality(datetime(2026, 8, 29, 14, tzinfo=timezone.utc))["tier"] == "closed"
+
+
+def test_signal_carries_session_context(client):
+    sig = client.get("/api/signals/EURUSD?timeframe=H1").json()
+    assert "session_context" in sig
+    assert "cat_time" in sig["session_context"] and "tier" in sig["session_context"]
+
+
 def test_resources_and_calendar(client):
     r = client.get("/api/resources").json()
     assert r["resources"] and set(r["categories"]) >= {"guides", "tools"}

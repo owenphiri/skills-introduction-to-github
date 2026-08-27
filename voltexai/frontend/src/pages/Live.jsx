@@ -33,11 +33,48 @@ export default function Live() {
         {d && (
           <>
             <div className="vx-sessions-head">
-              <span className="vx-clock">{d.utc_time}</span>
+              <div className="vx-clock-pair">
+                <span className="vx-clock">{d.cat_time}<small> CAT</small></span>
+                <span className="vx-clock-utc">{d.utc_time}</span>
+              </div>
+              {d.quality && (
+                <span className={`vx-qtier vx-qtier--${d.quality.tier}`}>
+                  {d.quality.tier === "prime" ? "⚡ " : ""}{d.quality.label}
+                </span>
+              )}
               {d.london_ny_overlap && (
-                <span className="vx-overlap-badge">⚡ London × New York overlap — peak liquidity</span>
+                <span className="vx-overlap-badge">London × New York — peak liquidity</span>
               )}
             </div>
+
+            {d.zambia && (
+              <div className="vx-zambia-card">
+                <div className="vx-zambia-now">
+                  <span className="vx-eyebrow">🇿🇲 Zambian trader · {d.zambia.timezone}</span>
+                  <p className="vx-zambia-advice">{d.zambia.current.advice}</p>
+                  <p className="vx-muted">Best window to trade from Zambia: <b>{d.zambia.best_window_cat} CAT</b></p>
+                </div>
+                <div className="vx-zambia-windows">
+                  {d.zambia.windows.map((w) => (
+                    <div key={w.name} className={`vx-zwin ${w.cat === d.zambia.best_window_cat ? "prime" : ""}`}>
+                      <div className="vx-zwin-top"><b>{w.name}</b><span className="mono">{w.cat}</span></div>
+                      <span className="vx-muted">{w.note}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {d.world_clocks && (
+              <div className="vx-worldclocks">
+                {d.world_clocks.map((w) => (
+                  <div key={w.label} className="vx-wclock">
+                    <span className="vx-wclock-time">{w.time}</span>
+                    <span className="vx-wclock-label">{w.label}</span>
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div className="vx-session-grid">
               {d.sessions.map((s) => (
@@ -49,7 +86,8 @@ export default function Live() {
                   <h3>{s.name}</h3>
                   <p className={s.open ? "vx-up" : "vx-muted"}>{s.open ? "OPEN" : "CLOSED"}</p>
                   <p className="vx-session-meta">{s.state} <b>{s.hours_to_change}h</b></p>
-                  <p className="vx-session-hours">{s.open_utc}–{s.close_utc} UTC</p>
+                  <p className="vx-session-hours"><b>{s.open_cat}–{s.close_cat}</b> CAT</p>
+                  <p className="vx-session-hours vx-muted">{s.open_utc}–{s.close_utc} UTC</p>
                 </div>
               ))}
             </div>
@@ -60,7 +98,7 @@ export default function Live() {
                 <div key={i} className={`vx-stream-row ${s.is_live ? "live" : ""}`}>
                   <div className="vx-stream-when">
                     {s.is_live ? <span className="vx-live-badge">● LIVE</span>
-                               : <span className="vx-stream-time">{s.starts_utc}</span>}
+                               : <span className="vx-stream-time">{s.starts_cat || s.starts_utc}<small> CAT</small></span>}
                   </div>
                   <div className="vx-stream-main">
                     <b>{s.title}</b>
@@ -76,7 +114,7 @@ export default function Live() {
             </div>
           </>
         )}
-        <p className="vx-fineprint">Session times are indicative (UTC). Streams are hosted inside the Terminal for members.</p>
+        <p className="vx-fineprint">Session times shown in CAT (Zambia, UTC+2) and UTC. Indicative — DST not modelled. Streams are hosted inside the Terminal for members.</p>
       </main>
       <Footer />
     </div>
