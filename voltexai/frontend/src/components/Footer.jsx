@@ -2,6 +2,8 @@
 import { Link } from "react-router-dom";
 import { SocialBar } from "./Social";
 import { LanguageSelector } from "./LanguageSelector";
+import { BrandLogo } from "./BrandLogo";
+import { useBrand } from "../contexts/BrandContext";
 import { useI18n } from "../i18n";
 
 const COLS = [
@@ -43,15 +45,15 @@ const COLS = [
 
 export function Footer() {
   const { t } = useI18n();
+  const brand = useBrand();
+  const isFlagship = brand.slug === "voltexai";
   return (
     <footer className="vx-site-footer">
       <div className="vx-footer-grid">
         <div className="vx-footer-brand">
-          <Link to="/" className="vx-logo">
-            <span className="vx-logo-mark">⚡</span> Voltex<span className="vx-logo-ai">AI</span>
-          </Link>
-          <p className="vx-footer-tag">{t("footer.tag")}</p>
-          <p className="vx-footer-motto">{t("footer.motto")}</p>
+          <Link to="/" className="vx-logo"><BrandLogo /></Link>
+          <p className="vx-footer-tag">{isFlagship ? t("footer.tag") : brand.tagline}</p>
+          <p className="vx-footer-motto">{isFlagship ? t("footer.motto") : brand.motto}</p>
           <SocialBar />
           <div className="vx-footer-lang"><LanguageSelector /></div>
         </div>
@@ -65,9 +67,13 @@ export function Footer() {
         ))}
       </div>
       <div className="vx-footer-legal">
-        <span>© 2026 VoltexAI Technologies · EST. 2017 · {t("footer.rights")}</span>
-        <span>{t("footer.poweredBy")} <b>Axion Labs Technologies</b> · Kasama, Zambia</span>
-        <span><b>OP OWENS PHIRI</b> — {t("footer.founderCeo")} · Methodology by Owens Forex Academy</span>
+        <span>© 2026 {brand.name}{brand.established ? ` · ${brand.established}` : ""} · {t("footer.rights")}</span>
+        {(brand.legal || brand.hq) && (
+          <span>{t("footer.poweredBy")} <b>{brand.legal || brand.name}</b>{brand.hq ? ` · ${brand.hq}` : ""}</span>
+        )}
+        {brand.ceo && (
+          <span><b>{brand.ceo}</b> — {t("footer.founderCeo")}{isFlagship ? " · Methodology by Owens Forex Academy" : ""}</span>
+        )}
         <span className="vx-footer-risk">{t("footer.risk")}</span>
       </div>
     </footer>

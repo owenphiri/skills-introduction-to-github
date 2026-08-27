@@ -12,8 +12,10 @@ from .signals import ProSignal, ProSignalEvent
 from .telegram import TelegramSubscriber
 from .rl import RLModelState, RLObservation
 from .referral import ReferralAccount, Referral
+from .tenant import Tenant
 
 __all__ = [
+    "Tenant",
     "ContestEntry", "Post", "JournalTrade", "ProSignal", "ProSignalEvent",
     "TelegramSubscriber", "RLModelState", "RLObservation",
     "ReferralAccount", "Referral",

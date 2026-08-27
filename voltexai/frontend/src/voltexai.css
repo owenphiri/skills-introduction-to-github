@@ -1926,3 +1926,6 @@ body {
 /* RTL: mirror the fixed social rail to the left edge */
 [dir="rtl"] .vx-social-rail { right: auto; left: 0; border-radius: 0 12px 12px 0; }
 [dir="rtl"] .vx-nav-user .vx-plan-chip { margin-left: 0; margin-right: .4rem; }
+
+/* white-label logo image (non-flagship tenants) */
+.vx-logo-img { height: 1.4em; width: auto; vertical-align: middle; border-radius: 4px; }

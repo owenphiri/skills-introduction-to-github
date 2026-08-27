@@ -1,6 +1,7 @@
 // src/components/NavBar.jsx — shared top navigation + live ticker
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { BrandLogo } from "./BrandLogo";
 import { useI18n } from "../i18n";
 import { LanguageSelector } from "./LanguageSelector";
 import { LiveTicker } from "./LiveTicker";
@@ -30,9 +31,7 @@ export function NavBar() {
   return (
     <header className="vx-nav">
       <div className="vx-nav-inner">
-        <Link to="/" className="vx-logo">
-          <span className="vx-logo-mark">⚡</span> Voltex<span className="vx-logo-ai">AI</span>
-        </Link>
+        <Link to="/" className="vx-logo"><BrandLogo /></Link>
         <nav className="vx-nav-links">
           {LINKS.map((l) => (
             <NavLink key={l.to} to={l.to}
