@@ -9,6 +9,24 @@ from __future__ import annotations
 
 BROKERS = [
     {
+        "id": "weltrade",
+        "name": "Weltrade",
+        "partner": True,
+        "regulators": ["VFSC", "IFSC"],
+        "min_deposit_usd": 25,
+        "max_leverage": "1:1000",
+        "spread_eurusd_pips": 0.3,
+        "commission": "Zero (Standard) / from $3/lot (Pro)",
+        "platforms": ["MT4", "MT5", "WebTrader", "Weltrade App"],
+        "funding": ["Card", "Crypto", "Skrill", "Neteller", "Local bank"],
+        "africa_friendly": True,
+        "instant_withdrawals": True,
+        "instruments": ["forex", "metals", "energy", "indices", "crypto", "stocks"],
+        "best_for": "Official VoltexAI partner broker — fast onboarding, low minimums, crypto & card funding.",
+        "rating": 4.5,
+        "url": "https://track.gowt.me/visit/?bta=82927&brand=weltrade",
+    },
+    {
         "id": "vantage",
         "name": "Vantage Markets",
         "regulators": ["ASIC", "FCA", "FSCA", "VFSC"],
