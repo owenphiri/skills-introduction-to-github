@@ -14,6 +14,9 @@ export const academyService = {
 
 export const storeService = {
   list: (category = "all") => api.get(`/api/store?category=${category}`),
+  // Voltex Pay one-time checkout for a store product
+  checkout: ({ productId, provider, currency = "ZMW", phone }) =>
+    api.post("/api/payments/store/checkout", { product_id: productId, provider, currency, phone }),
 };
 
 export const payService = {

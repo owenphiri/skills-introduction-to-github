@@ -42,6 +42,13 @@ class FlutterwaveCheckoutIn(BaseModel):
     phone: str | None = None
 
 
+class StoreCheckoutIn(BaseModel):
+    product_id: str = Field(min_length=2, max_length=60)
+    provider: str = Field(pattern="^(stripe|flutterwave)$")
+    currency: str = "ZMW"
+    phone: str | None = None
+
+
 # ---------- public ----------
 _TIERS = [
     ("free", "Free", "Get a feel for the edge.", "RATE_FREE",
@@ -127,6 +134,40 @@ async def flutterwave_checkout(data: FlutterwaveCheckoutIn,
     return result
 
 
+# ---------- Voltex Pay: one-time Store checkout ----------
+@router.post("/store/checkout")
+async def store_checkout(data: StoreCheckoutIn,
+                         user: User = Depends(get_current_user),
+                         db: Session = Depends(get_db)):
+    """Buy a one-time Store product (course, EA, merch) via card or mobile money."""
+    from ..data.store import get_product
+    product = get_product(data.product_id)
+    if not product:
+        raise HTTPException(404, "Unknown product")
+    if product["category"] == "plans":
+        raise HTTPException(400, "Plans are billed as subscriptions — use /pricing.")
+    try:
+        if data.provider == "stripe":
+            result = stripe_service.create_product_checkout(
+                user_email=user.email, user_id=user.id, product=product)
+            ref, amount, ccy, method = result["session_id"], product["price_usd"], "USD", "card"
+        else:
+            result = await flutterwave_service.create_product_link(
+                user_id=user.id, email=user.email, full_name=user.full_name,
+                product=product, currency=data.currency, phone=data.phone or user.phone)
+            ref, amount, ccy, method = result["tx_ref"], result["amount"], result["currency"], "mobile_money_or_card"
+    except Exception as e:
+        logger.exception("Store checkout failed")
+        raise HTTPException(502, f"Checkout error: {e}")
+
+    db.add(Payment(user_id=user.id, provider=data.provider, provider_ref=ref,
+                   amount=amount, currency=ccy, plan=product["id"],
+                   status=PaymentStatus.PENDING, method=f"store:{method}"))
+    db.commit()
+    return {**result, "product": {"id": product["id"], "name": product["name"],
+                                  "price_usd": product["price_usd"]}}
+
+
 # ---------- webhooks ----------
 @router.post("/stripe/webhook")
 async def stripe_webhook(request: Request,
@@ -143,10 +184,27 @@ async def stripe_webhook(request: Request,
     logger.info("Stripe webhook: %s", etype)
 
     if etype == "checkout.session.completed":
-        user_id = int(obj.get("client_reference_id") or
-                      obj.get("metadata", {}).get("user_id", 0))
-        plan = obj.get("metadata", {}).get("plan", "trader")
-        interval = obj.get("metadata", {}).get("interval", "month")
+        meta = obj.get("metadata", {})
+        user_id = int(obj.get("client_reference_id") or meta.get("user_id", 0))
+        # One-time Store purchase: mark the pending Payment paid, no plan change.
+        if meta.get("kind") == "store" and user_id:
+            p = (db.query(Payment)
+                   .filter(Payment.provider_ref == obj.get("id")).first())
+            if p:
+                p.status = PaymentStatus.SUCCESS
+                p.raw_payload = json.dumps(obj)[:3500]
+            else:
+                db.add(Payment(user_id=user_id, provider="stripe",
+                               provider_ref=obj.get("id"),
+                               amount=(obj.get("amount_total") or 0) / 100.0,
+                               currency=(obj.get("currency") or "usd").upper(),
+                               plan=meta.get("product_id", "store"),
+                               status=PaymentStatus.SUCCESS, method="store:card",
+                               raw_payload=json.dumps(obj)[:3500]))
+            db.commit()
+            return {"received": True}
+        plan = meta.get("plan", "trader")
+        interval = meta.get("interval", "month")
         sub_id = obj.get("subscription")
         if user_id:
             subscription_service.activate_plan(
@@ -200,6 +258,17 @@ async def flutterwave_webhook(request: Request,
 
         if not user_id:
             return {"received": True, "warning": "no user_id in meta"}
+
+        # One-time Store purchase: mark the pending Payment paid, no plan change.
+        if meta.get("kind") == "store":
+            if event.get("event") == "charge.completed" and status_ == "successful":
+                p = db.query(Payment).filter(Payment.provider_ref == tx_ref).first()
+                if p:
+                    p.status = PaymentStatus.SUCCESS
+                    p.method = "store:" + (data_obj.get("payment_type", "unknown"))
+                    p.raw_payload = json.dumps(data_obj)[:3500]
+                    db.commit()
+            return {"received": True}
 
         if event.get("event") == "charge.completed" and status_ == "successful":
             # Server-side verify before activating

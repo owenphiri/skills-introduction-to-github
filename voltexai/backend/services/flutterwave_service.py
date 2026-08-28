@@ -91,6 +91,39 @@ async def create_payment_link(user_id: int, email: str, full_name: str | None,
             "amount": amount, "currency": currency}
 
 
+async def create_product_link(user_id: int, email: str, full_name: str | None,
+                              product: dict, currency: str = "ZMW",
+                              phone: str | None = None) -> dict:
+    """One-time Flutterwave payment page for a Store product."""
+    if not settings.FLW_SECRET_KEY:
+        raise RuntimeError("FLW_SECRET_KEY not configured")
+    tx_ref = _generate_tx_ref(user_id)
+    usd_amount = float(product["price_usd"])
+    amount = _convert_to_local(usd_amount, currency)
+    payload = {
+        "tx_ref": tx_ref, "amount": amount, "currency": currency,
+        "redirect_url": f"{settings.FRONTEND_URL}/account?checkout=success&tx_ref={tx_ref}",
+        "payment_options": "card,mobilemoneyzambia,mobilemoneyuganda,mpesa,banktransfer",
+        "customer": {"email": email, "name": full_name or email.split("@")[0],
+                     **({"phonenumber": phone} if phone else {})},
+        "customizations": {"title": "VoltexAI Store",
+                           "description": f"VoltexAI · {product['name']}",
+                           "logo": f"{settings.BASE_URL}/static/voltexai-logo.png"},
+        "meta": {"user_id": user_id, "kind": "store", "product_id": product["id"],
+                 "usd_amount": usd_amount},
+    }
+    headers = {"Authorization": f"Bearer {settings.FLW_SECRET_KEY}",
+               "Content-Type": "application/json"}
+    async with httpx.AsyncClient(timeout=20.0) as client:
+        r = await client.post(f"{FLW_BASE}/payments", json=payload, headers=headers)
+        r.raise_for_status()
+        data = r.json()
+    if data.get("status") != "success":
+        raise RuntimeError(f"Flutterwave error: {data}")
+    return {"checkout_url": data["data"]["link"], "tx_ref": tx_ref,
+            "amount": amount, "currency": currency}
+
+
 async def verify_transaction(transaction_id: str) -> dict:
     """Verify a completed payment server-side before activating a plan."""
     headers = {"Authorization": f"Bearer {settings.FLW_SECRET_KEY}"}

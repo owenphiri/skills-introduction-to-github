@@ -54,6 +54,30 @@ def create_checkout_session(user_email: str, user_id: int, plan: str,
     return {"checkout_url": session.url, "session_id": session.id}
 
 
+def create_product_checkout(user_email: str, user_id: int, product: dict) -> dict:
+    """One-time Stripe Checkout for a Store product (course, EA, merch).
+    Uses inline price_data so no per-product Stripe price is required."""
+    amount_cents = int(round(float(product["price_usd"]) * 100))
+    meta = {"user_id": str(user_id), "kind": "store", "product_id": product["id"]}
+    session = stripe.checkout.Session.create(
+        mode="payment",
+        customer_email=user_email,
+        line_items=[{
+            "quantity": 1,
+            "price_data": {
+                "currency": "usd",
+                "unit_amount": amount_cents,
+                "product_data": {"name": f"VoltexAI · {product['name']}"},
+            },
+        }],
+        success_url=f"{settings.FRONTEND_URL}/account?checkout=success&session_id={{CHECKOUT_SESSION_ID}}",
+        cancel_url=f"{settings.FRONTEND_URL}/store?checkout=cancelled",
+        client_reference_id=str(user_id),
+        metadata=meta,
+    )
+    return {"checkout_url": session.url, "session_id": session.id}
+
+
 def verify_webhook(payload: bytes, signature: str) -> stripe.Event:
     """Raises stripe.error.SignatureVerificationError if invalid."""
     return stripe.Webhook.construct_event(
