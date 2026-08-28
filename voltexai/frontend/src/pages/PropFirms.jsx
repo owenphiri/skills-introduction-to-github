@@ -54,7 +54,7 @@ export default function PropFirms() {
             <div key={f.id} className="vx-dir-card">
               <div className="vx-dir-head">
                 <div>
-                  <h3>{f.name}</h3>
+                  <h3>{f.name} {f.partner && <span className="vx-partner-badge">✦ Partner</span>}</h3>
                   <span className="vx-muted">{f.country} · est. {f.founded}</span>
                 </div>
                 <span className="vx-rating">★ {f.rating}</span>
@@ -76,7 +76,9 @@ export default function PropFirms() {
               </div>
               <p className="vx-dir-best">{f.best_for}</p>
               <a href={f.url} target="_blank" rel="noopener noreferrer"
-                className="vx-btn-secondary vx-btn-sm">Visit {f.name} ↗</a>
+                className={`vx-btn-sm ${f.partner ? "vx-btn-primary" : "vx-btn-secondary"}`}>
+                {f.partner ? `Get funded with ${f.name} ↗` : `Visit ${f.name} ↗`}
+              </a>
             </div>
           ))}
         </div>

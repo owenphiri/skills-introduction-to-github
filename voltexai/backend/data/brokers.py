@@ -59,7 +59,7 @@ BROKERS = [
         "instruments": ["forex", "metals", "energy", "indices", "crypto", "stocks"],
         "best_for": "Tightest spreads + instant local withdrawals across Africa. VoltexAI partner.",
         "rating": 4.6,
-        "url": "https://one.exness-track.com/a/a8pczoofve",
+        "url": "https://one.exnessonelink.com/a/a8pczoofve",
     },
     {
         "id": "hfm",
