@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { NavBar } from "../components/NavBar";
 import { directoryService } from "../services/directory";
 
-const CLASSES = ["all", "forex", "metals", "energy", "indices", "crypto", "stocks"];
+const CLASSES = ["all", "synthetics", "forex", "metals", "energy", "indices", "crypto", "stocks"];
 
 export default function Brokers() {
   const [assetClass, setAssetClass] = useState("all");
@@ -58,6 +58,7 @@ export default function Brokers() {
                 <div><span>Commission</span><b>{b.commission}</b></div>
               </div>
               <div className="vx-dir-tags">
+                {b.always_on && <span className="vx-chip vx-chip--ok">24/7 markets</span>}
                 {b.africa_friendly && <span className="vx-chip vx-chip--accent">Africa-friendly</span>}
                 {b.instant_withdrawals && <span className="vx-chip vx-chip--ok">Instant withdrawals</span>}
                 {b.platforms.slice(0, 3).map((p) => <span key={p} className="vx-chip">{p}</span>)}
