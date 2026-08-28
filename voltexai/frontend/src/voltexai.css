@@ -1954,3 +1954,8 @@ body {
 .vx-perf-stat span { font-size: .72rem; color: var(--vx-text-dim); text-transform: uppercase; letter-spacing: .05em; }
 .vx-perf-note { margin-left: auto; font-size: .74rem; color: var(--vx-success); font-weight: 600; }
 @media (max-width: 560px) { .vx-perf-note { margin-left: 0; } }
+
+/* partner broker badge */
+.vx-partner-badge { display: inline-block; font-size: .62rem; font-weight: 700; vertical-align: middle;
+  padding: .12rem .45rem; border-radius: 999px; margin-left: .4rem;
+  color: #0a0e1a; background: var(--vx-accent); letter-spacing: .04em; text-transform: uppercase; }

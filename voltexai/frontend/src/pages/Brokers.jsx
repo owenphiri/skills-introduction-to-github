@@ -46,7 +46,7 @@ export default function Brokers() {
             <div key={b.id} className="vx-dir-card">
               <div className="vx-dir-head">
                 <div>
-                  <h3>{b.name}</h3>
+                  <h3>{b.name} {b.partner && <span className="vx-partner-badge">✦ Partner</span>}</h3>
                   <span className="vx-muted">{b.regulators.join(" · ")}</span>
                 </div>
                 <span className="vx-rating">★ {b.rating}</span>
@@ -67,7 +67,9 @@ export default function Brokers() {
               </div>
               <p className="vx-dir-best">{b.best_for}</p>
               <a href={b.url} target="_blank" rel="noopener noreferrer"
-                className="vx-btn-secondary vx-btn-sm">Visit {b.name} ↗</a>
+                className={`vx-btn-sm ${b.partner ? "vx-btn-primary" : "vx-btn-secondary"}`}>
+                {b.partner ? `Open a ${b.name} account ↗` : `Visit ${b.name} ↗`}
+              </a>
             </div>
           ))}
         </div>
