@@ -12,7 +12,7 @@ import logging
 
 from fastapi import APIRouter, Query, HTTPException, Depends
 
-from ..services import signal_engine
+from ..services import signal_engine, topdown
 from ..services.claude_service import claude_service
 from ..data.instruments import list_by_class, ALL_SYMBOLS
 from ..models import User
@@ -44,6 +44,15 @@ def scan(asset_class: str = Query("all"),
     signals = signal_engine.scan(syms, timeframe, min_confidence)
     return {"timeframe": timeframe.upper(), "asset_class": asset_class,
             "count": len(signals), "signals": signals}
+
+
+@router.get("/topdown/{symbol}")
+def topdown_analysis(symbol: str, mode: str = Query("day", pattern="^(day|intraday)$")):
+    """Top-down multi-timeframe read: HTF bias → LTF entry, one clear verdict."""
+    res = topdown.analyze(symbol, mode)
+    if res.get("error"):
+        raise HTTPException(404, res["error"])
+    return res
 
 
 @router.get("/{symbol}/rationale")

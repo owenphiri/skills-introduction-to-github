@@ -14,4 +14,8 @@ export const signalsService = {
   // AI-narrated "why" (Claude when the key is set, deterministic otherwise). Auth required.
   rationale: (symbol, timeframe = "M15") =>
     api.get(`/api/signals/${symbol}/rationale?timeframe=${timeframe}`),
+
+  // Top-down multi-timeframe read: HTF bias -> LTF entry
+  topdown: (symbol, mode = "day") =>
+    api.get(`/api/signals/topdown/${symbol}?mode=${mode}`),
 };

@@ -12,6 +12,7 @@ const LINKS = [
   { to: "/signals", key: "nav.signals" },
   { to: "/pro-signals", key: "nav.signalsPro" },
   { to: "/patterns", key: "nav.patterns" },
+  { to: "/topdown", key: "nav.topdown" },
   { to: "/sentiment", key: "nav.sentiment" },
   { to: "/journal", key: "nav.journal" },
   { to: "/eas", key: "nav.eas" },

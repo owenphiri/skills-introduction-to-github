@@ -16,7 +16,8 @@ export const LOCALES = [
 export const DICT = {
   en: {
     "nav.dashboard": "Dashboard", "nav.markets": "Markets", "nav.signals": "Signals",
-    "nav.signalsPro": "Signals Pro", "nav.patterns": "Patterns", "nav.sentiment": "Sentiment",
+    "nav.signalsPro": "Signals Pro", "nav.patterns": "Patterns", "nav.topdown": "Top-Down",
+    "nav.sentiment": "Sentiment",
     "nav.journal": "Journal", "nav.eas": "EA Fleet", "nav.live": "Live",
     "nav.academy": "Academy", "nav.community": "Community", "nav.resources": "Resources",
     "nav.ecosystem": "Ecosystem", "nav.company": "Company",
