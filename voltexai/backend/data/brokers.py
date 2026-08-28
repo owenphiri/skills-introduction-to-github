@@ -46,6 +46,7 @@ BROKERS = [
     {
         "id": "exness",
         "name": "Exness",
+        "partner": True,
         "regulators": ["FCA", "CySEC", "FSCA", "FSA-Seychelles"],
         "min_deposit_usd": 10,
         "max_leverage": "1:Unlimited*",
@@ -56,9 +57,9 @@ BROKERS = [
         "africa_friendly": True,
         "instant_withdrawals": True,
         "instruments": ["forex", "metals", "energy", "indices", "crypto", "stocks"],
-        "best_for": "Tightest spreads + instant local withdrawals across Africa.",
+        "best_for": "Tightest spreads + instant local withdrawals across Africa. VoltexAI partner.",
         "rating": 4.6,
-        "url": "https://exness.com",
+        "url": "https://one.exness-track.com/a/a8pczoofve",
     },
     {
         "id": "hfm",
