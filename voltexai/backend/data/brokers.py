@@ -116,7 +116,8 @@ BROKERS = [
     },
     {
         "id": "xm",
-        "name": "XM",
+        "name": "XM Global",
+        "partner": True,
         "regulators": ["CySEC", "ASIC", "FSCA", "DFSA"],
         "min_deposit_usd": 5,
         "max_leverage": "1:1000",
@@ -127,9 +128,9 @@ BROKERS = [
         "africa_friendly": True,
         "instant_withdrawals": False,
         "instruments": ["forex", "metals", "energy", "indices", "crypto", "stocks"],
-        "best_for": "Beginner-friendly with strong education and no deposit fees.",
+        "best_for": "Beginner-friendly with strong education and no deposit fees. Official VoltexAI partner.",
         "rating": 4.2,
-        "url": "https://xm.com",
+        "url": "https://www.xmglobal.com/referral?token=5HBubRa80UWTyMRUG8OWNA",
     },
     {
         "id": "icmarkets",
