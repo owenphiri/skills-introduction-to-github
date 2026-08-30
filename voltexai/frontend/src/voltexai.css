@@ -1997,3 +1997,180 @@ body {
 .vx-td-session { margin: .6rem 0 1rem; font-size: .9rem; }
 .vx-td-rl { margin-top: 1rem; }
 @media (max-width: 620px) { .vx-td-arrow { transform: rotate(90deg); } .vx-td-flow { flex-direction: column; align-items: stretch; } }
+
+/* ============================================================
+   VoltexAI — Beautify pass (v2 visual polish)
+   Layered on top of the base system: richer depth, glow,
+   gradient accents, glass surfaces and tasteful motion.
+   All additive; respects prefers-reduced-motion.
+   ============================================================ */
+
+:root {
+  --vx-accent-2:     #7cffb0;                 /* teal-lime companion for gradients */
+  --vx-grad-accent:  linear-gradient(100deg, #c2f53d 0%, #7cffb0 100%);
+  --vx-grad-primary: linear-gradient(120deg, #4d7cff 0%, #8a5bff 100%);
+  --vx-glass:        rgba(23, 32, 47, 0.62);
+  --vx-glass-brd:    rgba(255, 255, 255, 0.06);
+  --vx-ring:         0 0 0 1px rgba(255,255,255,0.04);
+  --vx-shadow-lg:    0 24px 70px -30px rgba(0,0,0,0.75);
+  --vx-shadow-glow:  0 0 60px -12px rgba(194,245,61,0.25);
+}
+
+/* ---- Gradient headline treatment ---- */
+.vx-grad {
+  background: var(--vx-grad-accent);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+}
+
+/* ---- Animated aurora behind the hero ---- */
+.vx-landing .vx-hero { position: relative; padding-top: 72px; }
+.vx-landing .vx-hero::before {
+  content: ""; position: absolute; inset: -20% -10% auto -10%; height: 620px; z-index: 0;
+  background:
+    radial-gradient(48% 60% at 22% 18%, rgba(77,124,255,0.28), transparent 60%),
+    radial-gradient(42% 55% at 82% 8%, rgba(194,245,61,0.18), transparent 60%),
+    radial-gradient(50% 60% at 60% 90%, rgba(138,91,255,0.16), transparent 60%);
+  filter: blur(30px); opacity: 0.9; pointer-events: none;
+  animation: vx-aurora 16s ease-in-out infinite alternate;
+}
+.vx-landing .vx-hero::after {
+  content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+  background-size: 46px 46px;
+  -webkit-mask-image: radial-gradient(70% 70% at 50% 30%, #000 0%, transparent 78%);
+  mask-image: radial-gradient(70% 70% at 50% 30%, #000 0%, transparent 78%);
+}
+.vx-hero-copy, .vx-hero-panel { position: relative; z-index: 1; }
+@keyframes vx-aurora {
+  0%   { transform: translate3d(0,0,0) scale(1); }
+  50%  { transform: translate3d(2%, 1.5%, 0) scale(1.06); }
+  100% { transform: translate3d(-2%, -1%, 0) scale(1.03); }
+}
+
+/* ---- Bigger, tighter hero headline ---- */
+.vx-hero-copy h1 { font-size: 58px; letter-spacing: -0.025em; }
+.vx-eyebrow {
+  display: inline-block; padding: 5px 12px; border-radius: 999px;
+  background: var(--vx-accent-soft); border: 1px solid rgba(194,245,61,0.22);
+  backdrop-filter: blur(6px);
+}
+
+/* ---- Live signal panel: glass + glow ---- */
+.vx-hero-panel {
+  background: linear-gradient(160deg, rgba(23,32,47,0.9), rgba(18,24,38,0.75));
+  border: 1px solid var(--vx-glass-brd);
+  box-shadow: var(--vx-shadow-lg), var(--vx-shadow-glow);
+  backdrop-filter: blur(12px);
+  position: relative; overflow: hidden;
+}
+.vx-hero-panel::before {
+  content: ""; position: absolute; inset: 0 0 auto 0; height: 2px;
+  background: var(--vx-grad-accent); opacity: 0.8;
+}
+.vx-live-dot { position: relative; }
+.vx-live-dot::after {
+  content: ""; position: absolute; left: 8px; top: 50%; width: 6px; height: 6px;
+  border-radius: 50%; background: var(--vx-success); transform: translateY(-50%);
+  animation: vx-ping 1.6s ease-out infinite;
+}
+@keyframes vx-ping {
+  0% { box-shadow: 0 0 0 0 rgba(69,224,160,0.5); }
+  100% { box-shadow: 0 0 0 8px rgba(69,224,160,0); }
+}
+
+/* ---- Buttons: gradient primary + polished secondary ---- */
+.vx-btn-primary {
+  background: var(--vx-grad-accent); color: #06210a; font-weight: 700;
+  box-shadow: 0 8px 24px -10px rgba(194,245,61,0.5);
+}
+.vx-btn-primary:hover:not(:disabled) {
+  box-shadow: 0 12px 34px -8px rgba(194,245,61,0.6), 0 0 0 6px var(--vx-accent-soft);
+  transform: translateY(-2px);
+}
+.vx-btn-secondary { backdrop-filter: blur(6px); background: var(--vx-glass); }
+.vx-btn-secondary:hover { border-color: var(--vx-accent); box-shadow: 0 0 0 4px var(--vx-accent-soft); transform: translateY(-1px); }
+.vx-btn-lg { padding: 15px 28px; font-size: 16px; border-radius: 12px; }
+
+/* ---- Section titles with gradient flourish ---- */
+.vx-section-title { font-size: 32px; letter-spacing: -0.02em; position: relative; }
+.vx-section-title::after {
+  content: ""; display: block; width: 54px; height: 3px; margin: 14px auto 0;
+  border-radius: 3px; background: var(--vx-grad-accent);
+}
+
+/* ---- Feature cards: gradient border-glow on hover ---- */
+.vx-feature-card, .vx-step, .vx-mover, .vx-eco-card {
+  background: linear-gradient(165deg, rgba(23,32,47,0.9), rgba(18,24,38,0.7));
+  box-shadow: var(--vx-ring);
+}
+.vx-feature-card { position: relative; overflow: hidden; }
+.vx-feature-card::before {
+  content: ""; position: absolute; inset: 0; border-radius: 16px; padding: 1px;
+  background: var(--vx-grad-accent);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  opacity: 0; transition: opacity 0.25s ease;
+}
+.vx-feature-card:hover { transform: translateY(-5px); box-shadow: var(--vx-shadow-lg); }
+.vx-feature-card:hover::before { opacity: 1; }
+.vx-feature-icon {
+  display: inline-grid; place-items: center; width: 52px; height: 52px; border-radius: 14px;
+  background: var(--vx-accent-soft); box-shadow: inset 0 0 0 1px rgba(194,245,61,0.18);
+}
+
+/* ---- Steps: connective numbering ---- */
+.vx-step-num { box-shadow: 0 0 0 4px var(--vx-accent-soft); }
+.vx-step:hover { transform: translateY(-3px); border-color: var(--vx-accent); transition: transform .2s, border-color .2s; }
+
+/* ---- Movers strip polish ---- */
+.vx-mover { transition: transform .2s, border-color .2s; }
+.vx-mover:hover { transform: translateY(-2px); border-color: rgba(194,245,61,0.4); }
+
+/* ---- CTA band: gradient slab with glow ---- */
+.vx-cta-band {
+  position: relative; margin: 20px 20px 0; border-radius: 24px; overflow: hidden;
+  background:
+    radial-gradient(60% 120% at 20% 0%, rgba(77,124,255,0.22), transparent 60%),
+    radial-gradient(60% 120% at 90% 100%, rgba(194,245,61,0.16), transparent 60%),
+    linear-gradient(160deg, #121826, #0d1220);
+  border: 1px solid var(--vx-glass-brd); box-shadow: var(--vx-shadow-lg);
+}
+.vx-cta-band h2 { font-size: 38px; letter-spacing: -0.02em; }
+
+/* ---- Entrance animation ---- */
+@keyframes vx-fade-rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+.vx-landing .vx-feature-card,
+.vx-landing .vx-step,
+.vx-landing .vx-eco-card { animation: vx-fade-rise 0.5s cubic-bezier(.22,1,.36,1) both; }
+.vx-landing .vx-feature-grid .vx-feature-card:nth-child(2) { animation-delay: 60ms; }
+.vx-landing .vx-feature-grid .vx-feature-card:nth-child(3) { animation-delay: 120ms; }
+.vx-landing .vx-feature-grid .vx-feature-card:nth-child(4) { animation-delay: 180ms; }
+.vx-landing .vx-feature-grid .vx-feature-card:nth-child(5) { animation-delay: 240ms; }
+.vx-landing .vx-feature-grid .vx-feature-card:nth-child(6) { animation-delay: 300ms; }
+
+/* ---- Nav: subtle glass on scroll surface ---- */
+.vx-nav { backdrop-filter: blur(10px); background: rgba(10,14,26,0.72); border-bottom: 1px solid var(--vx-glass-brd); }
+.vx-partner-badge {
+  background: var(--vx-grad-accent); color: #06210a; font-weight: 700;
+  padding: 2px 8px; border-radius: 999px; font-size: 11px; letter-spacing: .3px;
+}
+
+/* ---- Bigger hero on desktop only ---- */
+@media (max-width: 720px) {
+  .vx-hero-copy h1 { font-size: 40px; }
+  .vx-section-title { font-size: 26px; }
+  .vx-cta-band { margin: 16px 12px 0; }
+  .vx-cta-band h2 { font-size: 28px; }
+}
+
+/* ---- Respect reduced motion ---- */
+@media (prefers-reduced-motion: reduce) {
+  .vx-landing .vx-hero::before { animation: none; }
+  .vx-live-dot::after { animation: none; }
+  .vx-landing .vx-feature-card,
+  .vx-landing .vx-step,
+  .vx-landing .vx-eco-card { animation: none; }
+}
