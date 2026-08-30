@@ -2174,3 +2174,81 @@ body {
   .vx-landing .vx-step,
   .vx-landing .vx-eco-card { animation: none; }
 }
+
+/* ============================================================
+   VoltexAI — Beautify pass II: page-level components
+   Pricing · Signals · Brokers/Prop · Dashboard · Sentiment · Terminal
+   ============================================================ */
+
+/* Shared elevated surface + hover lift for cards across pages */
+.vx-signal-card, .vx-dir-card, .vx-tier-card, .vx-kpi-card,
+.vx-sent-col, .vx-plan {
+  background: linear-gradient(165deg, rgba(23,32,47,0.92), rgba(18,24,38,0.72));
+  box-shadow: var(--vx-ring);
+  transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+}
+.vx-signal-card:hover, .vx-dir-card:hover, .vx-tier-card:hover,
+.vx-kpi-card:hover, .vx-sent-col:hover {
+  transform: translateY(-4px);
+  border-color: rgba(194,245,61,0.35);
+  box-shadow: var(--vx-shadow-lg);
+}
+
+/* ---- Pricing: premium plan cards ---- */
+.vx-plan { position: relative; overflow: hidden; border-radius: 18px; }
+.vx-plan::before {
+  content: ""; position: absolute; inset: 0 0 auto 0; height: 3px;
+  background: var(--vx-grad-accent); opacity: 0; transition: opacity .25s;
+}
+.vx-plan:hover { transform: translateY(-6px); box-shadow: var(--vx-shadow-lg); }
+.vx-plan:hover::before { opacity: 1; }
+.vx-plan--pro, .vx-plan--elite {
+  box-shadow: var(--vx-shadow-lg), 0 0 50px -20px rgba(194,245,61,0.4);
+}
+.vx-plan--pro::before, .vx-plan--elite::before { opacity: 1; }
+.vx-price-amount {
+  background: var(--vx-grad-accent); -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+}
+.vx-plan-pill {
+  background: var(--vx-grad-primary); color: #fff; font-weight: 700;
+  box-shadow: 0 8px 22px -10px rgba(77,124,255,0.6);
+}
+.vx-price-switch { box-shadow: var(--vx-ring); }
+
+/* ---- Signals: directional glow ---- */
+.vx-signal-card { position: relative; overflow: hidden; border-left-width: 3px; }
+.vx-signal-card--long  { box-shadow: inset 3px 0 0 0 var(--vx-success), var(--vx-ring); }
+.vx-signal-card--short { box-shadow: inset 3px 0 0 0 var(--vx-danger),  var(--vx-ring); }
+.vx-signal-card--long:hover  { box-shadow: inset 3px 0 0 0 var(--vx-success), 0 18px 44px -22px rgba(69,224,160,0.5); }
+.vx-signal-card--short:hover { box-shadow: inset 3px 0 0 0 var(--vx-danger),  0 18px 44px -22px rgba(255,85,96,0.5); }
+.vx-signal-symbol { letter-spacing: .01em; }
+
+/* ---- Broker / Prop partner cards get a subtle premium ring ---- */
+.vx-dir-card { border-radius: 16px; }
+.vx-partner-badge { box-shadow: 0 4px 14px -6px rgba(194,245,61,0.6); }
+
+/* ---- Dashboard KPI cards ---- */
+.vx-kpi-card { border-radius: 14px; overflow: hidden; }
+.vx-kpi-card::before { background: var(--vx-grad-accent) !important; }
+.vx-kpi-strip-title { position: relative; }
+
+/* ---- Sentiment columns ---- */
+.vx-sent-col { border-radius: 16px; }
+.vx-sentiment-top > * { border-radius: 16px; }
+
+/* ---- Terminal: refined chrome ---- */
+.vx-terminal-sidebar {
+  background: linear-gradient(180deg, rgba(18,24,38,0.95), rgba(13,18,32,0.9));
+  border-right: 1px solid var(--vx-glass-brd);
+}
+.vx-terminal-head {
+  background: rgba(10,14,26,0.72); backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--vx-glass-brd);
+}
+
+/* ---- Page heads get a bit more presence ---- */
+.vx-page-head h1 { letter-spacing: -0.02em; }
+
+/* ---- Generic panels ---- */
+.vx-panel { box-shadow: var(--vx-ring); }
