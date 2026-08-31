@@ -200,3 +200,37 @@ def test_academy_bad_lesson_404(client, free_user):
                        headers=h).status_code == 404
     assert client.post("/api/academy/courses/nope/lessons/0/complete",
                        headers=h).status_code == 404
+
+
+# ----------------------------- admin coin console -----------------------------
+def test_admin_coin_stats_and_adjust(client, admin_user, free_user):
+    ah = admin_user["headers"]
+    # stats reachable by admin
+    s = client.get("/api/admin/coins/stats", headers=ah)
+    assert s.status_code == 200 and s.json()["symbol"] == "VXC"
+
+    # look up the free user's ledger
+    femail = free_user["email"]
+    u = client.get(f"/api/admin/coins/user?q={femail}", headers=ah).json()
+    before = u["balance"]
+
+    # grant 1000
+    g = client.post("/api/admin/coins/adjust", headers=ah,
+                    json={"user_query": femail, "amount": 1000, "reason": "goodwill"})
+    assert g.status_code == 200 and g.json()["balance"] == before + 1000
+
+    # deduct 200
+    d = client.post("/api/admin/coins/adjust", headers=ah,
+                    json={"user_query": femail, "amount": -200, "reason": "correction"})
+    assert d.json()["balance"] == before + 800
+
+    # cannot deduct into the negative
+    bad = client.post("/api/admin/coins/adjust", headers=ah,
+                      json={"user_query": femail, "amount": -10_000_000, "reason": "x"})
+    assert bad.status_code in (400, 422)
+
+
+def test_admin_coin_requires_admin(client, free_user):
+    # a normal user cannot reach the admin console
+    assert client.get("/api/admin/coins/stats", headers=free_user["headers"]).status_code == 403
+    assert client.get("/api/admin/coins/stats").status_code == 401

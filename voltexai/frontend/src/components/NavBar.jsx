@@ -47,7 +47,10 @@ export function NavBar() {
           {user ? (
             <>
               {user.role === "admin" && (
-                <Link to="/admin/signals" className="vx-btn-ghost vx-btn-sm">🛠️ {t("action.admin")}</Link>
+                <>
+                  <Link to="/admin/signals" className="vx-btn-ghost vx-btn-sm">🛠️ {t("action.admin")}</Link>
+                  <Link to="/admin/coins" className="vx-btn-ghost vx-btn-sm">🪙</Link>
+                </>
               )}
               <Link to="/account" className="vx-nav-user">
                 {user.full_name?.split(" ")[0] || t("action.account")}

@@ -248,6 +248,52 @@ def wallet(db: Session, user: User) -> dict:
     }
 
 
+# ----------------------------- admin -----------------------------
+def admin_adjust(db: Session, user_id: int, amount: int, reason: str,
+                 admin_id: int | None = None) -> dict:
+    """Admin grant (+) or deduction (-) of VXC. Never pushes a balance negative."""
+    if amount == 0:
+        return {"ok": False, "error": "amount cannot be zero",
+                "balance": balance(db, user_id)}
+    if amount < 0 and abs(amount) > balance(db, user_id):
+        return {"ok": False, "error": "would go negative", "balance": balance(db, user_id)}
+    tag = f"admin:{reason}"[:60]
+    ref = f"admin:{admin_id}" if admin_id else None
+    tx = _record(db, user_id, CoinEntryKind.ADJUST, tag, amount, ref=ref)
+    return {"ok": bool(tx), "amount": amount,
+            "balance": tx.balance_after if tx else balance(db, user_id)}
+
+
+def admin_stats(db: Session) -> dict:
+    """Ecosystem-wide Voltex Coin figures for the admin console."""
+    issued = int(db.query(func.coalesce(func.sum(CoinTransaction.amount), 0))
+                   .filter(CoinTransaction.amount > 0).scalar() or 0)
+    redeemed = int(db.query(func.coalesce(func.sum(CoinTransaction.amount), 0))
+                     .filter(CoinTransaction.amount < 0).scalar() or 0)
+    circulating = issued + redeemed          # redeemed is negative
+    holders = int(db.query(func.count(func.distinct(CoinTransaction.user_id))).scalar() or 0)
+    rows = (db.query(CoinTransaction.user_id,
+                     func.sum(CoinTransaction.amount).label("bal"))
+              .group_by(CoinTransaction.user_id)
+              .order_by(func.sum(CoinTransaction.amount).desc()).limit(10).all())
+    top = []
+    for uid, bal in rows:
+        u = db.query(User).filter(User.id == uid).first()
+        top.append({"user_id": uid, "email": u.email if u else "—",
+                    "name": (u.full_name if u else None) or "—", "balance": int(bal or 0)})
+    return {"symbol": "VXC", "total_issued": issued, "total_redeemed": -redeemed,
+            "circulating": circulating, "holders": holders,
+            "usd_liability": round(circulating / VXC_PER_USD, 2),
+            "peg_vxc_per_usd": VXC_PER_USD, "earn_rules": EARN_RULES, "top_holders": top}
+
+
+def admin_user_ledger(db: Session, user: User, limit: int = 50) -> dict:
+    return {"user_id": user.id, "email": user.email,
+            "name": user.full_name or "—", "balance": balance(db, user.id),
+            "usd_value": round(balance(db, user.id) / VXC_PER_USD, 2),
+            "history": history(db, user.id, limit=limit)}
+
+
 def purchase_cashback(db: Session, user_id: int, usd_amount: float,
                       ref: str | None = None) -> CoinTransaction | None:
     """Award % cashback in VXC after a confirmed purchase, with a plan boost."""

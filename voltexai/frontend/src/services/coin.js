@@ -7,4 +7,10 @@ export const coinService = {
   checkin: () => api.post("/api/coin/checkin", {}),
   redeem: (amount, purpose = "wallet_credit") =>
     api.post("/api/coin/redeem", { amount, purpose }),
+
+  // admin
+  adminStats: () => api.get("/api/admin/coins/stats"),
+  adminUser: (q) => api.get(`/api/admin/coins/user?q=${encodeURIComponent(q)}`),
+  adminAdjust: (userQuery, amount, reason) =>
+    api.post("/api/admin/coins/adjust", { user_query: userQuery, amount, reason }),
 };

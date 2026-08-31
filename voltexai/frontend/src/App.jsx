@@ -53,6 +53,7 @@ import Calculators from "./pages/Calculators";
 import EAs from "./pages/EAs";
 import SignalsPro from "./pages/SignalsPro";
 import AdminSignals from "./pages/AdminSignals";
+import AdminCoins from "./pages/AdminCoins";
 import Referrals from "./pages/Referrals";
 import AdminAnalytics from "./pages/AdminAnalytics";
 
@@ -179,6 +180,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <AdminAnalytics />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/coins"
+            element={
+              <ProtectedRoute>
+                <AdminCoins />
               </ProtectedRoute>
             }
           />

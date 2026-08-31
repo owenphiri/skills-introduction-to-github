@@ -2411,3 +2411,12 @@ body {
   color: var(--vx-text); font-weight: 700; padding: 12px 22px; border-radius: 12px;
   z-index: 9999; animation: vx-fade-rise .3s ease both;
 }
+
+/* ---- Admin coin console ---- */
+.vx-coin-admin-row { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; margin-top: .4rem; }
+.vx-coin-admin-row input {
+  background: var(--vx-bg); color: var(--vx-text); border: 1px solid var(--vx-border);
+  border-radius: 10px; padding: 10px 12px; font-size: 14px; min-width: 140px;
+}
+.vx-coin-admin-row input:focus { outline: none; border-color: var(--vx-accent); box-shadow: 0 0 0 3px var(--vx-accent-soft); }
+.vx-kpi-value { font-family: var(--vx-font-display); font-size: 1.4rem; display: block; margin-top: .3rem; }
