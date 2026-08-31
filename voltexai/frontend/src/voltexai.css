@@ -2441,3 +2441,66 @@ body {
   background: var(--vx-accent-soft); padding: 5px 12px; border-radius: 999px;
   border: 1px solid rgba(194,245,61,0.25);
 }
+
+/* ============================================================
+   Dashboard — Share bar + Discussion (voltaic dark restyle)
+   ============================================================ */
+.vx-dash-discuss { margin-top: 1.5rem; padding: 1.4rem 1.5rem; border-radius: 18px; }
+
+/* Share + save row — rounded-square brand tiles like the reference */
+.vx-share-bar { display: flex; flex-wrap: wrap; gap: .55rem; align-items: center; margin: .6rem 0 1.4rem; }
+.vx-share-icon {
+  width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center;
+  color: #fff; border: none; cursor: pointer; text-decoration: none;
+  transition: transform .12s ease, box-shadow .15s ease, filter .15s ease;
+  background: var(--vx-bg-elev);
+}
+.vx-share-icon:hover { transform: translateY(-2px); box-shadow: var(--vx-shadow-lg); filter: brightness(1.08); }
+.vx-share-icon.vx-social--x        { background: #0f0f0f; }
+.vx-share-icon.vx-social--linkedin { background: #0a66c2; }
+.vx-share-icon.vx-social--telegram { background: #2aabee; }
+.vx-share-icon.vx-social--whatsapp { background: #25d366; }
+.vx-share-icon.vx-social--facebook { background: #1877f2; }
+.vx-share-icon.vx-social--reddit   { background: #ff4500; }
+.vx-share-icon.vx-social--email    { background: #6b7689; }
+.vx-share--link { background: var(--vx-bg-elev); color: var(--vx-text); border: 1px solid var(--vx-border); }
+.vx-share--save { background: var(--vx-bg-elev); color: var(--vx-text-dim); border: 1px solid var(--vx-border); }
+.vx-share--save.on { background: var(--vx-accent-soft); color: var(--vx-accent); border-color: rgba(194,245,61,0.4); }
+.vx-share-copied { font-size: .8rem; color: var(--vx-accent); font-weight: 700; align-self: center; }
+
+/* Discussion header */
+.vx-discuss-head { display: flex; align-items: center; justify-content: space-between;
+  padding-bottom: .7rem; border-bottom: 1px solid var(--vx-border); margin-bottom: 1rem; }
+.vx-discuss-head h3 { margin: 0; font-family: var(--vx-font-display); font-size: 1.25rem; }
+.vx-discuss-sort { color: var(--vx-text-dim); font-size: .82rem; }
+
+/* Composer */
+.vx-discuss-composer textarea {
+  width: 100%; background: var(--vx-bg); color: var(--vx-text);
+  border: 1px solid var(--vx-border); border-radius: 14px; padding: 14px 16px;
+  font-family: var(--vx-font-body); font-size: 15px; resize: vertical;
+  transition: border-color .12s, box-shadow .12s;
+}
+.vx-discuss-composer textarea:focus { outline: none; border-color: var(--vx-accent); box-shadow: 0 0 0 3px var(--vx-accent-soft); }
+.vx-discuss-actions { display: flex; align-items: center; justify-content: space-between; margin: .6rem 0 1.2rem; }
+
+/* Login prompt (logged-out) */
+.vx-discuss-login { background: var(--vx-bg); border: 1px solid var(--vx-border);
+  border-radius: 14px; padding: 1.1rem 1.3rem; margin-bottom: 1.2rem; }
+.vx-discuss-login-btns { display: flex; gap: .6rem; margin-top: .7rem; }
+
+/* Comments */
+.vx-discuss-list { display: flex; flex-direction: column; gap: 1rem; }
+.vx-comment { display: flex; gap: .85rem; }
+.vx-comment-avatar {
+  width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0; display: grid; place-items: center;
+  font-weight: 800; color: #06210a; background: var(--vx-grad-accent);
+}
+.vx-comment-body { flex: 1; }
+.vx-comment-meta { font-size: .88rem; margin-bottom: .2rem; }
+.vx-comment-body p { margin: .1rem 0 .4rem; line-height: 1.55; }
+.vx-comment-like {
+  background: none; border: none; color: var(--vx-text-dim); cursor: pointer;
+  font-size: .82rem; padding: 0; transition: color .12s;
+}
+.vx-comment-like:hover { color: var(--vx-danger); }
