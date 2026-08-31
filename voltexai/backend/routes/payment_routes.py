@@ -18,11 +18,60 @@ from ..database import get_db
 from ..config import settings
 from ..models import User, Payment, PaymentStatus
 from ..services import (stripe_service, flutterwave_service, subscription_service,
-                        pricing_service)
+                        pricing_service, email_service)
 from ..middleware.auth_middleware import get_current_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/payments", tags=["payments"])
+
+_METHOD_LABELS = {"stripe": "Card · Stripe",
+                  "flutterwave": "Mobile Money / Card · Flutterwave"}
+
+
+def _receipt_no(provider: str, reference: str) -> str:
+    """Human-friendly, unique-enough receipt id: VXR-YYYYMMDD-XXXXXX."""
+    from datetime import datetime, timezone
+    tail = "".join(c for c in (reference or "") if c.isalnum())[-6:].upper() or "000000"
+    day = datetime.now(timezone.utc).strftime("%Y%m%d")
+    return f"VXR-{day}-{provider[:2].upper()}{tail}"
+
+
+def _emit_receipt(db: Session, *, user_id: int, provider: str, reference: str,
+                  item_label: str, item_detail: str, amount: float,
+                  currency: str) -> None:
+    """Best-effort: email the buyer a branded receipt. Never breaks the webhook."""
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user or not user.email:
+            return
+        email_service.send_receipt_email(
+            user.email, user.full_name,
+            receipt_no=_receipt_no(provider, reference),
+            items=[(item_label, item_detail, amount)],
+            total=amount, currency=currency,
+            method=_METHOD_LABELS.get(provider, provider.title()),
+            reference=reference or "—")
+    except Exception:
+        logger.exception("receipt email failed (user=%s, ref=%s)", user_id, reference)
+
+
+def _emit_store_receipt(db: Session, *, user_id: int, provider: str, reference: str,
+                        product_id: str | None, amount: float, currency: str) -> None:
+    from ..data.store import get_product
+    product = get_product(product_id) if product_id else None
+    label = product["name"] if product else "VoltexAI Store purchase"
+    detail = product.get("desc", "") if product else ""
+    _emit_receipt(db, user_id=user_id, provider=provider, reference=reference,
+                  item_label=label, item_detail=detail, amount=amount, currency=currency)
+
+
+def _emit_plan_receipt(db: Session, *, user_id: int, provider: str, reference: str,
+                       plan: str, interval: str, amount: float, currency: str) -> None:
+    cycle = "annual" if interval == "year" else "monthly"
+    label = f"{plan.title()} Plan — {cycle} subscription"
+    _emit_receipt(db, user_id=user_id, provider=provider, reference=reference,
+                  item_label=label, item_detail="VoltexAI membership",
+                  amount=amount, currency=currency)
 
 
 # ---------- schemas ----------
@@ -188,20 +237,26 @@ async def stripe_webhook(request: Request,
         user_id = int(obj.get("client_reference_id") or meta.get("user_id", 0))
         # One-time Store purchase: mark the pending Payment paid, no plan change.
         if meta.get("kind") == "store" and user_id:
+            amount = (obj.get("amount_total") or 0) / 100.0
+            currency = (obj.get("currency") or "usd").upper()
             p = (db.query(Payment)
                    .filter(Payment.provider_ref == obj.get("id")).first())
             if p:
                 p.status = PaymentStatus.SUCCESS
                 p.raw_payload = json.dumps(obj)[:3500]
+                amount, currency = p.amount, p.currency
             else:
                 db.add(Payment(user_id=user_id, provider="stripe",
                                provider_ref=obj.get("id"),
-                               amount=(obj.get("amount_total") or 0) / 100.0,
-                               currency=(obj.get("currency") or "usd").upper(),
+                               amount=amount, currency=currency,
                                plan=meta.get("product_id", "store"),
                                status=PaymentStatus.SUCCESS, method="store:card",
                                raw_payload=json.dumps(obj)[:3500]))
             db.commit()
+            _emit_store_receipt(db, user_id=user_id, provider="stripe",
+                                reference=obj.get("id"),
+                                product_id=meta.get("product_id"),
+                                amount=amount, currency=currency)
             return {"received": True}
         plan = meta.get("plan", "trader")
         interval = meta.get("interval", "month")
@@ -211,14 +266,18 @@ async def stripe_webhook(request: Request,
                 db, user_id=user_id, plan=plan, provider="stripe",
                 external_id=sub_id, period_days=pricing_service.period_days(interval),
             )
+            amount = (obj.get("amount_total") or 0) / 100.0
+            currency = (obj.get("currency") or "usd").upper()
             db.add(Payment(user_id=user_id, provider="stripe",
                            provider_ref=obj.get("id"),
-                           amount=(obj.get("amount_total") or 0) / 100.0,
-                           currency=(obj.get("currency") or "usd").upper(),
+                           amount=amount, currency=currency,
                            plan=plan, status=PaymentStatus.SUCCESS,
                            method="card",
                            raw_payload=json.dumps(obj)[:3500]))
             db.commit()
+            _emit_plan_receipt(db, user_id=user_id, provider="stripe",
+                               reference=obj.get("id"), plan=plan, interval=interval,
+                               amount=amount, currency=currency)
 
     elif etype in ("customer.subscription.deleted",
                    "customer.subscription.paused"):
@@ -268,6 +327,10 @@ async def flutterwave_webhook(request: Request,
                     p.method = "store:" + (data_obj.get("payment_type", "unknown"))
                     p.raw_payload = json.dumps(data_obj)[:3500]
                     db.commit()
+                    _emit_store_receipt(
+                        db, user_id=user_id, provider="flutterwave", reference=tx_ref,
+                        product_id=meta.get("product_id"),
+                        amount=p.amount, currency=p.currency)
             return {"received": True}
 
         if event.get("event") == "charge.completed" and status_ == "successful":
@@ -289,6 +352,10 @@ async def flutterwave_webhook(request: Request,
                         p.method = data_obj.get("payment_type", "unknown")
                         p.raw_payload = json.dumps(data_obj)[:3500]
                         db.commit()
+                        _emit_plan_receipt(
+                            db, user_id=user_id, provider="flutterwave",
+                            reference=tx_ref, plan=plan, interval=interval,
+                            amount=p.amount, currency=p.currency)
             except Exception as e:
                 logger.exception("FLW verify failed: %s", e)
         elif event.get("event") == "subscription.cancelled":
