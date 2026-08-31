@@ -2252,3 +2252,79 @@ body {
 
 /* ---- Generic panels ---- */
 .vx-panel { box-shadow: var(--vx-ring); }
+
+/* ============================================================
+   VoltexAI — Beautify pass III: remaining page components
+   Academy · Store · Scanner · Resources · Travel · Press ·
+   Blog · Offers · Awards · Calculators · Markets tables
+   ============================================================ */
+
+/* Unified elevated card surface + hover-lift across the rest of the app */
+.vx-course-card, .vx-store-card, .vx-scan-card, .vx-resource-card,
+.vx-travel-card, .vx-press-row, .vx-blog-card, .vx-offer-card,
+.vx-award-card, .vx-calc, .vx-card, .vx-table-wrap {
+  background: linear-gradient(165deg, rgba(23,32,47,0.92), rgba(18,24,38,0.72));
+  box-shadow: var(--vx-ring);
+  transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+}
+.vx-course-card:hover, .vx-store-card:hover, .vx-resource-card:hover,
+.vx-travel-card:hover, .vx-press-row:hover, .vx-blog-card:hover,
+.vx-offer-card:hover, .vx-award-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(194,245,61,0.35);
+  box-shadow: var(--vx-shadow-lg);
+}
+
+/* ---- Academy: gradient lesson chips + course top ---- */
+.vx-lesson-num { box-shadow: inset 0 0 0 1px rgba(194,245,61,0.18); }
+.vx-course-card { position: relative; overflow: hidden; border-radius: 16px; }
+.vx-course-card::before {
+  content: ""; position: absolute; inset: 0 0 auto 0; height: 3px;
+  background: var(--vx-grad-accent); opacity: 0; transition: opacity .25s;
+}
+.vx-course-card:hover::before { opacity: 1; }
+
+/* ---- Store: gradient price + glowing badge ---- */
+.vx-store-card { border-radius: 16px; }
+.vx-store-price {
+  background: var(--vx-grad-accent); -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+}
+.vx-store-badge, .vx-offer-badge, .vx-store-card .vx-partner-badge {
+  background: var(--vx-grad-accent); color: #06210a;
+  box-shadow: 0 4px 14px -6px rgba(194,245,61,0.6);
+}
+
+/* ---- Scanner: directional glow like signal cards ---- */
+.vx-scan-card { box-shadow: var(--vx-ring); }
+.vx-scan-card--long  { box-shadow: inset 3px 0 0 0 var(--vx-success), var(--vx-ring); }
+.vx-scan-card--short { box-shadow: inset 3px 0 0 0 var(--vx-danger),  var(--vx-ring); }
+.vx-scan-card:hover  { box-shadow: var(--vx-shadow-lg); }
+.vx-scan-conf { box-shadow: inset 0 0 0 1px var(--vx-glass-brd); }
+
+/* ---- Resources / Travel / Blog / Press / Awards / Offers ---- */
+.vx-resource-card, .vx-travel-card, .vx-blog-card,
+.vx-press-row, .vx-award-card, .vx-offer-card { border-radius: 16px; }
+.vx-award-icon { filter: drop-shadow(0 4px 12px rgba(194,245,61,0.25)); }
+.vx-travel-price { color: var(--vx-accent); }
+
+/* ---- Calculators ---- */
+.vx-calc { border-radius: 16px; }
+.vx-calc-cta { box-shadow: var(--vx-ring); transition: transform .2s, border-color .2s, box-shadow .2s; }
+.vx-calc-cta:hover { box-shadow: var(--vx-shadow-lg); }
+
+/* ---- Markets table: refined header + row hover ---- */
+.vx-table-wrap { border-radius: 16px; overflow: hidden; }
+.vx-table th {
+  background: rgba(18,24,38,0.6);
+  text-transform: uppercase; letter-spacing: .04em; font-size: 11px;
+}
+.vx-table tbody tr:hover { background: var(--vx-accent-soft); }
+.vx-table tbody tr.active { box-shadow: inset 3px 0 0 0 var(--vx-accent); }
+
+/* ---- Generic panels / cards ---- */
+.vx-card { border-radius: 16px; }
+
+/* ---- Scanner status bar + composer glass ---- */
+.vx-scanner-bar { background: linear-gradient(165deg, rgba(23,32,47,0.9), rgba(18,24,38,0.7)); box-shadow: var(--vx-ring); }
+.vx-composer textarea:focus { box-shadow: 0 0 0 3px var(--vx-accent-soft); }
