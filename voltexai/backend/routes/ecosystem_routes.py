@@ -18,6 +18,7 @@ from ..data.products import ecosystem
 from ..data import academy as academy_data
 from ..data.store import list_products, CATEGORIES
 from ..data.pay import pay_overview
+from ..data import geo
 from ..services import gamification
 
 router = APIRouter(tags=["ecosystem"])
@@ -73,6 +74,13 @@ def academy_complete_lesson(course_id: str, lesson_idx: int,
 @router.get("/api/store")
 def store(category: str = Query("all")):
     return {"categories": CATEGORIES, "products": list_products(category)}
+
+
+@router.get("/api/geo/config")
+def geo_config(country: str = Query(None)):
+    """Public: supported currencies + FX (indicative), the visitor's detected
+    local currency/rail, and VoltexAI's global reach summary."""
+    return geo.geo_config(country)
 
 
 @router.get("/api/pay")

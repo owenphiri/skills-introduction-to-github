@@ -2420,3 +2420,24 @@ body {
 }
 .vx-coin-admin-row input:focus { outline: none; border-color: var(--vx-accent); box-shadow: 0 0 0 3px var(--vx-accent-soft); }
 .vx-kpi-value { font-family: var(--vx-font-display); font-size: 1.4rem; display: block; margin-top: .3rem; }
+
+/* ---- Global currency selector (Pricing) ---- */
+.vx-currency-bar {
+  display: flex; align-items: center; justify-content: center; gap: 1rem;
+  flex-wrap: wrap; margin: 0 auto 1rem;
+}
+.vx-currency-select {
+  display: inline-flex; align-items: center; gap: .5rem; font-size: .85rem;
+  color: var(--vx-text-dim); font-weight: 600;
+}
+.vx-currency-select select {
+  background: var(--vx-bg-card); color: var(--vx-text);
+  border: 1px solid var(--vx-border); border-radius: 10px; padding: 8px 12px;
+  font-size: .9rem; font-family: var(--vx-font-body); cursor: pointer;
+}
+.vx-currency-select select:focus { outline: none; border-color: var(--vx-accent); box-shadow: 0 0 0 3px var(--vx-accent-soft); }
+.vx-currency-rail {
+  font-size: .78rem; color: var(--vx-accent); font-weight: 700;
+  background: var(--vx-accent-soft); padding: 5px 12px; border-radius: 999px;
+  border: 1px solid rgba(194,245,61,0.25);
+}

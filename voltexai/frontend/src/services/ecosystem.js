@@ -31,3 +31,7 @@ export const competitionService = {
   join: (id) => api.post(`/api/competition/${id}/join`, {}),
   leaderboard: (id) => api.get(`/api/competition/${id}/leaderboard`),
 };
+
+export const geoService = {
+  config: (country) => api.get(`/api/geo/config${country ? `?country=${encodeURIComponent(country)}` : ""}`),
+};
