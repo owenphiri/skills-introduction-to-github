@@ -29,7 +29,7 @@ function ago(iso) {
   return `${Math.floor(s / 86400)}d`;
 }
 
-export function Discussion({ title = "VoltexAI — Africa's AI trading terminal" }) {
+export function Discussion({ title = "VoltexAI — Africa's AI trading terminal", topic }) {
   const { user } = useAuth();
   const url = typeof window !== "undefined" ? window.location.origin : "https://voltexai.vercel.app";
   const enc = encodeURIComponent, U = enc(url), T = enc(title);
@@ -61,14 +61,14 @@ export function Discussion({ title = "VoltexAI — Africa's AI trading terminal"
   const [posts, setPosts] = useState([]);
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
-  const load = () => communityService.feed(20).then((d) => setPosts(d.posts || d || [])).catch(() => {});
-  useEffect(() => { load(); }, []);
+  const load = () => communityService.feed(20, topic).then((d) => setPosts(d.posts || d || [])).catch(() => {});
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [topic]);
 
   const submit = async (e) => {
     e.preventDefault();
     if (!body.trim() || busy) return;
     setBusy(true);
-    try { await communityService.post(body.trim()); setBody(""); await load(); }
+    try { await communityService.post(body.trim(), topic); setBody(""); await load(); }
     catch { /* ignore */ } finally { setBusy(false); }
   };
   const like = async (p) => {

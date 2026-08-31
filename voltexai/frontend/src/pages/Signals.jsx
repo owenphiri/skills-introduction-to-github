@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { NavBar } from "../components/NavBar";
+import { Discussion } from "../components/Discussion";
 import { useI18n } from "../i18n";
 import { signalsService } from "../services/signals";
 import { proSignalsService } from "../services/hub";
@@ -25,6 +26,7 @@ function gradeClass(g) {
 function SignalCard({ s }) {
   const long = s.direction === "LONG";
   const [why, setWhy] = useState(null);   // null | "loading" | {text, ai}
+  const [discuss, setDiscuss] = useState(false);
   async function explain() {
     if (why && why !== "err") return;      // already loaded / loading
     setWhy("loading");
@@ -66,6 +68,9 @@ function SignalCard({ s }) {
         <button className="vx-inline-link vx-why-btn" onClick={explain}>
           {why === "loading" ? "Thinking…" : "Why this trade?"}
         </button>
+        <button className="vx-inline-link" onClick={() => setDiscuss((v) => !v)}>
+          💬 Discuss
+        </button>
         <Link className="vx-inline-link"
           to={`/trade?symbol=${s.symbol}&side=${long ? "buy" : "sell"}`}>
           Trade {s.direction} →
@@ -79,6 +84,11 @@ function SignalCard({ s }) {
                 <p>{why.text}</p>
                 <span className="vx-why-tag">{why.ai ? "✦ AI rationale" : "Desk rationale"}</span>
               </>}
+        </div>
+      )}
+      {discuss && (
+        <div className="vx-signal-discuss">
+          <Discussion title={`VoltexAI Signal — ${s.symbol}`} topic={`signal:${s.symbol}`} />
         </div>
       )}
     </div>

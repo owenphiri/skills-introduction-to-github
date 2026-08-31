@@ -2,17 +2,12 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-
-const COUNTRIES = [
-  "Zambia", "Nigeria", "Kenya", "Uganda", "South Africa",
-  "Ghana", "Tanzania", "Rwanda", "Botswana", "Zimbabwe",
-  "Other",
-];
+import { COUNTRIES, COUNTRY_BY_NAME, flagEmoji } from "../data/countries";
 
 export default function Signup() {
   const [form, setForm] = useState({
     full_name: "", email: "", password: "",
-    country: "Zambia", phone: "",
+    country: "Zambia", dial: "+260", phone: "",
   });
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -20,6 +15,11 @@ export default function Signup() {
   const navigate = useNavigate();
 
   const update = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+  const onCountry = (e) => {
+    const name = e.target.value;
+    const c = COUNTRY_BY_NAME[name];
+    setForm((f) => ({ ...f, country: name, dial: c?.dial || f.dial }));
+  };
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -32,8 +32,11 @@ export default function Signup() {
     try {
       let referral_code;
       try { referral_code = localStorage.getItem("vx_ref") || undefined; } catch { /* ignore */ }
+      const { dial, phone, ...rest } = form;
+      const fullPhone = phone ? `${dial}${phone.replace(/[^0-9]/g, "").replace(/^0+/, "")}` : "";
       await register({
-        ...form,
+        ...rest,
+        phone: fullPhone,
         email: form.email.trim().toLowerCase(),
         ...(referral_code ? { referral_code } : {}),
       });
@@ -103,17 +106,27 @@ export default function Signup() {
           <div className="vx-form-row">
             <label>
               Country
-              <select value={form.country} onChange={update("country")}>
-                {COUNTRIES.map((c) => <option key={c}>{c}</option>)}
+              <select value={form.country} onChange={onCountry}>
+                {COUNTRIES.map((c) => (
+                  <option key={c.code} value={c.name}>{flagEmoji(c.code)} {c.name}</option>
+                ))}
               </select>
             </label>
             <label>
               Mobile (for MoMo payments)
-              <input
-                type="tel" autoComplete="tel"
-                value={form.phone} onChange={update("phone")}
-                placeholder="+260977123456"
-              />
+              <div className="vx-phone-group">
+                <select className="vx-dial-select" value={form.dial} onChange={update("dial")}
+                        aria-label="Country dial code">
+                  {COUNTRIES.map((c) => (
+                    <option key={c.code} value={c.dial}>{flagEmoji(c.code)} {c.dial}</option>
+                  ))}
+                </select>
+                <input
+                  type="tel" autoComplete="tel"
+                  value={form.phone} onChange={update("phone")}
+                  placeholder="977123456"
+                />
+              </div>
             </label>
           </div>
 

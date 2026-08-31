@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { NavBar } from "../components/NavBar";
 import { Footer } from "../components/Footer";
+import { Discussion } from "../components/Discussion";
 import { signalsService } from "../services/signals";
 
 const SYMBOLS = ["EURUSD", "GBPUSD", "USDJPY", "XAUUSD", "XAGUSD", "BTCUSD", "ETHUSD", "NAS100", "US30", "SPX500"];
@@ -107,6 +108,11 @@ export default function TopDown() {
               <span className="vx-eyebrow">Reinforcement learning</span>
               <p className="vx-muted">{d.rl_note}</p>
             </div>
+
+            <section className="vx-panel vx-td-discuss">
+              <span className="vx-eyebrow">💬 {symbol} discussion</span>
+              <Discussion title={`VoltexAI Top-Down — ${symbol}`} topic={`topdown:${symbol}`} />
+            </section>
           </>
         )}
         <p className="vx-fineprint">

@@ -2504,3 +2504,16 @@ body {
   font-size: .82rem; padding: 0; transition: color .12s;
 }
 .vx-comment-like:hover { color: var(--vx-danger); }
+
+/* ---- Country dial-code group (Signup) ---- */
+.vx-phone-group { display: flex; gap: .5rem; }
+.vx-dial-select {
+  flex: 0 0 auto; width: auto; min-width: 96px; max-width: 130px;
+  background: var(--vx-bg); color: var(--vx-text); border: 1px solid var(--vx-border);
+  border-radius: 10px; padding: 12px 8px; font-family: var(--vx-font-body); font-size: 15px;
+}
+.vx-phone-group input { flex: 1; min-width: 0; }
+
+/* ---- Per-signal / per-symbol discussion wrappers ---- */
+.vx-signal-discuss { margin-top: .9rem; padding-top: .9rem; border-top: 1px solid var(--vx-border); }
+.vx-td-discuss { margin-top: 1.25rem; padding: 1.3rem 1.4rem; border-radius: 16px; }

@@ -93,3 +93,30 @@ def test_paid_plan_can_trade_and_reconcile(client, paid_user):
     assert recon.status_code == 200 and recon.json()["broker"] == "paper"
     broker = client.get("/api/trade/broker", headers=paid_user["headers"]).json()
     assert broker["is_live"] is False
+
+
+# ----------------------------- topic-scoped discussion -----------------------------
+def test_community_topic_scoping(client, free_user):
+    h = free_user["headers"]
+    # post to a signal-scoped thread
+    r = client.post("/api/community/posts", headers=h,
+                    json={"body": "XAUUSD looks bullish on D1", "topic": "signal:XAUUSD"})
+    assert r.status_code == 201 and r.json()["topic"] == "signal:XAUUSD"
+    # a different topic
+    client.post("/api/community/posts", headers=h,
+                json={"body": "EURUSD ranging", "topic": "topdown:EURUSD"})
+    # a general wall post
+    client.post("/api/community/posts", headers=h, json={"body": "gm traders"})
+
+    # topic feed returns only that thread (no seed posts)
+    f = client.get("/api/community/feed?topic=signal:XAUUSD").json()
+    assert f["topic"] == "signal:XAUUSD"
+    assert all(p["topic"] == "signal:XAUUSD" for p in f["posts"])
+    assert any("XAUUSD looks bullish" in p["body"] for p in f["posts"])
+    assert not any("EURUSD" in p["body"] for p in f["posts"])
+
+    # the global wall shows general posts + seeds but NOT the topic-scoped ones
+    g = client.get("/api/community/feed").json()
+    bodies = [p["body"] for p in g["posts"]]
+    assert "gm traders" in bodies
+    assert "XAUUSD looks bullish on D1" not in bodies

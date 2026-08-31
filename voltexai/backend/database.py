@@ -68,6 +68,24 @@ def init_db():
                          trading, kyc, competition, community, journal, signals,
                          telegram, rl, referral, tenant)
     Base.metadata.create_all(bind=engine)
+    _ensure_columns()
     # Seed the flagship tenant so default branding always resolves.
     from .services import tenant_service
     tenant_service.ensure_default()
+
+
+def _ensure_columns():
+    """Lightweight, idempotent column adds for existing tables (no Alembic).
+    Safe on SQLite and Postgres; skips silently if already present."""
+    from sqlalchemy import inspect, text
+    adds = [("community_posts", "topic", "VARCHAR(60)")]
+    try:
+        insp = inspect(engine)
+        for table, col, ddl in adds:
+            if table in insp.get_table_names():
+                cols = [c["name"] for c in insp.get_columns(table)]
+                if col not in cols:
+                    with engine.begin() as conn:
+                        conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}"))
+    except Exception:
+        pass

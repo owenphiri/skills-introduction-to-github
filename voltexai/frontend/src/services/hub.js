@@ -57,7 +57,8 @@ export const travelService = {
 };
 
 export const communityService = {
-  feed: (limit = 30) => api.get(`/api/community/feed?limit=${limit}`),
-  post: (body) => api.post("/api/community/posts", { body }),
+  feed: (limit = 30, topic) =>
+    api.get(`/api/community/feed?limit=${limit}${topic ? `&topic=${encodeURIComponent(topic)}` : ""}`),
+  post: (body, topic) => api.post("/api/community/posts", { body, topic }),
   like: (id) => api.post(`/api/community/posts/${id}/like`, {}),
 };
