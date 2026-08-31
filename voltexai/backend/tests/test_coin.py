@@ -94,3 +94,14 @@ def test_coin_quote_endpoint(client, free_user):
     assert q["usd_off"] == 5.0 and q["pay_usd"] == 95.0
     # rejects non-positive
     assert client.get("/api/coin/quote?usd=0", headers=free_user["headers"]).status_code == 400
+
+
+def test_plan_checkout_runs_coin_quote_without_error(client, free_user):
+    # No Stripe/FLW keys in tests -> reaches the provider and 502s. A 500 would
+    # mean the new coin-quote code path broke; 502 proves it ran cleanly.
+    r = client.post("/api/payments/stripe/checkout", headers=free_user["headers"],
+                    json={"plan": "trader", "interval": "month"})
+    assert r.status_code == 502
+    r2 = client.post("/api/payments/flutterwave/checkout", headers=free_user["headers"],
+                     json={"plan": "pro", "interval": "year", "currency": "ZMW"})
+    assert r2.status_code == 502

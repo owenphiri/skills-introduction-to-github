@@ -113,6 +113,7 @@ _INTERVAL_RE = "^(month|year)$"
 class CheckoutIn(BaseModel):
     plan: str = Field(pattern=_PLAN_RE)
     interval: str = Field(default="month", pattern=_INTERVAL_RE)
+    apply_coins: bool = True
 
 
 class FlutterwaveCheckoutIn(BaseModel):
@@ -120,6 +121,7 @@ class FlutterwaveCheckoutIn(BaseModel):
     interval: str = Field(default="month", pattern=_INTERVAL_RE)
     currency: str = "ZMW"
     phone: str | None = None
+    apply_coins: bool = True
 
 
 class StoreCheckoutIn(BaseModel):
@@ -179,13 +181,21 @@ def list_plans():
 
 # ---------- create checkout ----------
 @router.post("/stripe/checkout")
-def stripe_checkout(data: CheckoutIn, user: User = Depends(get_current_user)):
+def stripe_checkout(data: CheckoutIn, user: User = Depends(get_current_user),
+                    db: Session = Depends(get_db)):
+    from ..services import voltex_coin_service
+    price_usd = pricing_service.price_usd(data.plan, data.interval)
+    quote = voltex_coin_service.redeem_quote(db, user.id, float(price_usd))
+    discount_usd = quote["usd_off"] if data.apply_coins else 0.0
+    vxc_redeem = quote["vxc"] if data.apply_coins else 0
     try:
         result = stripe_service.create_checkout_session(
             user_email=user.email, user_id=user.id, plan=data.plan,
-            interval=data.interval,
+            interval=data.interval, discount_usd=discount_usd, vxc_redeem=vxc_redeem,
         )
-        return result
+        return {**result, "coins": {"applied": bool(data.apply_coins and vxc_redeem > 0),
+                                    "vxc": vxc_redeem, "usd_off": discount_usd,
+                                    "pay_usd": round(float(price_usd) - discount_usd, 2)}}
     except Exception as e:
         logger.exception("Stripe checkout failed")
         raise HTTPException(502, f"Stripe error: {e}")
@@ -195,11 +205,17 @@ def stripe_checkout(data: CheckoutIn, user: User = Depends(get_current_user)):
 async def flutterwave_checkout(data: FlutterwaveCheckoutIn,
                                user: User = Depends(get_current_user),
                                db: Session = Depends(get_db)):
+    from ..services import voltex_coin_service
+    price_usd = pricing_service.price_usd(data.plan, data.interval)
+    quote = voltex_coin_service.redeem_quote(db, user.id, float(price_usd))
+    discount_usd = quote["usd_off"] if data.apply_coins else 0.0
+    vxc_redeem = quote["vxc"] if data.apply_coins else 0
     try:
         result = await flutterwave_service.create_payment_link(
             user_id=user.id, email=user.email, full_name=user.full_name,
             plan=data.plan, currency=data.currency,
             phone=data.phone or user.phone, interval=data.interval,
+            discount_usd=discount_usd, vxc_redeem=vxc_redeem,
         )
     except Exception as e:
         logger.exception("Flutterwave checkout failed")
@@ -212,7 +228,8 @@ async def flutterwave_checkout(data: FlutterwaveCheckoutIn,
                    status=PaymentStatus.PENDING,
                    method="mobile_money_or_card"))
     db.commit()
-    return result
+    return {**result, "coins": {"applied": bool(data.apply_coins and vxc_redeem > 0),
+                                "vxc": vxc_redeem, "usd_off": discount_usd}}
 
 
 # ---------- Voltex Pay: one-time Store checkout ----------
@@ -324,6 +341,7 @@ async def stripe_webhook(request: Request,
                            method="card",
                            raw_payload=json.dumps(obj)[:3500]))
             db.commit()
+            _burn_applied_coins(db, user_id, meta, obj.get("id"))
             _emit_plan_receipt(db, user_id=user_id, provider="stripe",
                                reference=obj.get("id"), plan=plan, interval=interval,
                                amount=amount, currency=currency)
@@ -402,6 +420,7 @@ async def flutterwave_webhook(request: Request,
                         p.method = data_obj.get("payment_type", "unknown")
                         p.raw_payload = json.dumps(data_obj)[:3500]
                         db.commit()
+                        _burn_applied_coins(db, user_id, meta, tx_ref)
                         _emit_plan_receipt(
                             db, user_id=user_id, provider="flutterwave",
                             reference=tx_ref, plan=plan, interval=interval,

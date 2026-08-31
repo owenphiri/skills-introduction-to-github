@@ -1,7 +1,8 @@
 // src/pages/Pricing.jsx
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, Link } from "react-router-dom";
 import { paymentsService } from "../services/payments";
+import { coinService } from "../services/coin";
 import { useAuth } from "../contexts/AuthContext";
 import { Testimonials } from "../components/Testimonials";
 import { useI18n } from "../i18n";
@@ -25,10 +26,18 @@ const PRICING_FAQ = [
     a: "Each tier has a daily AI Copilot allowance (10 on Free up to 2,500 on Elite). If you reach it, the Copilot pauses until the next day — everything else on your plan keeps working. Upgrade any time for a higher limit." },
 ];
 
+const MAX_REDEEM_PCT = 30, VXC_PER_USD = 100;
+function coinDiscount(priceUsd, balance) {
+  if (!priceUsd) return 0;
+  const maxOff = priceUsd * (MAX_REDEEM_PCT / 100);
+  return Math.round(Math.min(maxOff, (balance || 0) / VXC_PER_USD) * 100) / 100;
+}
+
 export default function Pricing() {
   const { user } = useAuth();
   const { t } = useI18n();
   const [plans, setPlans] = useState([]);
+  const [coins, setCoins] = useState(null);
   const [billing, setBilling] = useState(null);
   const [interval, setInterval] = useState("month"); // "month" | "year"
   const [busy, setBusy] = useState("");
@@ -51,6 +60,10 @@ export default function Pricing() {
       if (!Array.isArray(r)) setBilling(r.billing);
     }).catch((e) => setError(e.message));
   }, []);
+
+  useEffect(() => {
+    if (user) coinService.wallet().then((w) => setCoins(w.balance)).catch(() => {});
+  }, [user]);
 
   const annual = interval === "year";
 
@@ -80,6 +93,12 @@ export default function Pricing() {
         <h1>{t("price.title")}</h1>
         <p>{t("price.sub")}</p>
 
+        {coins > 0 && (
+          <div className="vx-coin-banner" style={{ maxWidth: 640, margin: "0 auto 1rem" }}>
+            🪙 You have <b>{coins.toLocaleString()} VXC</b> — up to <b>{MAX_REDEEM_PCT}% off</b> your
+            first payment, applied automatically. <Link to="/coin" className="vx-inline-link">Wallet →</Link>
+          </div>
+        )}
         {reason === "upgrade" && (
           <div className="vx-banner vx-banner--info">
             That feature needs a paid plan. Pick one below to unlock it.
@@ -193,6 +212,13 @@ export default function Pricing() {
                         Save {p.annual_discount_pct}% with annual
                       </button>
                     )}
+                    {isPaid && coins > 0 && (() => {
+                      const usd = annual ? p.usd_annual : p.usd;
+                      const off = coinDiscount(usd, coins);
+                      return off > 0 ? (
+                        <p className="vx-coin-save">🪙 −${off} with VXC on your first payment</p>
+                      ) : null;
+                    })()}
                   </div>
                 );
               })()}

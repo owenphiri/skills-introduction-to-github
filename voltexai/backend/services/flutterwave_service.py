@@ -42,9 +42,11 @@ def _convert_to_local(usd: float, currency: str) -> float:
 async def create_payment_link(user_id: int, email: str, full_name: str | None,
                               plan: str, currency: str = "ZMW",
                               phone: str | None = None,
-                              interval: str = "month") -> dict:
+                              interval: str = "month",
+                              discount_usd: float = 0.0, vxc_redeem: int = 0) -> dict:
     """Create a hosted Flutterwave payment page for a subscription plan.
-    interval='year' charges the discounted annual price."""
+    interval='year' charges the discounted annual price. A Voltex Coin credit
+    (`discount_usd`) reduces the charge; `vxc_redeem` coins burn on success."""
     if plan not in PLAN_USD:
         raise ValueError(f"Unknown plan: {plan}")
     if interval not in ("month", "year"):
@@ -53,7 +55,8 @@ async def create_payment_link(user_id: int, email: str, full_name: str | None,
         raise RuntimeError("FLW_SECRET_KEY not configured")
 
     tx_ref = _generate_tx_ref(user_id)
-    usd_amount = pricing_service.price_usd(plan, interval)
+    gross_usd = pricing_service.price_usd(plan, interval)
+    usd_amount = max(0.0, round(gross_usd - max(0.0, float(discount_usd)), 2))
     amount = _convert_to_local(usd_amount, currency)
 
     payload = {
@@ -73,7 +76,8 @@ async def create_payment_link(user_id: int, email: str, full_name: str | None,
             "logo": f"{settings.BASE_URL}/static/voltexai-logo.png",
         },
         "meta": {"user_id": user_id, "plan": plan, "interval": interval,
-                 "usd_amount": usd_amount},
+                 "usd_amount": usd_amount, "gross_usd": gross_usd,
+                 "vxc_redeem": int(vxc_redeem)},
     }
 
     headers = {"Authorization": f"Bearer {settings.FLW_SECRET_KEY}",
