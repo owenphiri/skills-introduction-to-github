@@ -105,3 +105,54 @@ def test_plan_checkout_runs_coin_quote_without_error(client, free_user):
     r2 = client.post("/api/payments/flutterwave/checkout", headers=free_user["headers"],
                      json={"plan": "pro", "interval": "year", "currency": "ZMW"})
     assert r2.status_code == 502
+
+
+# ----------------------------- referral earn -----------------------------
+def test_referrer_earns_vxc_when_friend_joins(client):
+    import uuid
+    # referrer registers and gets their code
+    remail = f"ref_{uuid.uuid4().hex[:8]}@t.io"
+    rr = client.post("/api/auth/register", json={
+        "email": remail, "password": "password123", "full_name": "Referrer",
+        "country": "Zambia"})
+    assert rr.status_code == 201
+    rhead = {"Authorization": f"Bearer {rr.json()['access_token']}"}
+    code = client.get("/api/referrals/me", headers=rhead).json()["code"]
+    before = client.get("/api/coin/wallet", headers=rhead).json()["balance"]
+
+    # a friend joins with that code
+    femail = f"friend_{uuid.uuid4().hex[:8]}@t.io"
+    fr = client.post("/api/auth/register", json={
+        "email": femail, "password": "password123", "full_name": "Friend",
+        "country": "Nigeria", "referral_code": code})
+    assert fr.status_code == 201
+
+    after = client.get("/api/coin/wallet", headers=rhead).json()["balance"]
+    from backend.services.voltex_coin_service import EARN_RULES
+    assert after == before + EARN_RULES["referral_signup"]   # +750
+
+    # the friend also got their own signup bonus
+    fhead = {"Authorization": f"Bearer {fr.json()['access_token']}"}
+    assert client.get("/api/coin/wallet", headers=fhead).json()["balance"] >= 500
+
+
+def test_referral_reward_is_deduped_per_friend():
+    # awarding twice for the same referral row pays the referrer only once
+    from backend.database import SessionLocal
+    from backend.models import User
+    from backend.services import voltex_coin_service as C
+    import uuid
+    db = SessionLocal()
+    try:
+        u = User(email=f"rr_{uuid.uuid4().hex[:8]}@t.io", password_hash="x", full_name="RR")
+        db.add(u); db.commit(); db.refresh(u)
+
+        class _Ref:  # stand-in for a Referral row
+            id = 12345
+            referrer_user_id = u.id
+        base = C.balance(db, u.id)
+        C.award_referral(db, _Ref())
+        C.award_referral(db, _Ref())          # same referral id -> no double pay
+        assert C.balance(db, u.id) == base + C.EARN_RULES["referral_signup"]
+    finally:
+        db.close()

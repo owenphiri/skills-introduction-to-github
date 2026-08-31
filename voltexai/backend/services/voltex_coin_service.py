@@ -95,15 +95,28 @@ def _earned_for_reason(db: Session, user_id: int, reason: str) -> bool:
         CoinTransaction.reason == reason).first() is not None
 
 
+def _earned_for_ref(db: Session, user_id: int, reason: str, ref: str) -> bool:
+    return db.query(CoinTransaction.id).filter(
+        CoinTransaction.user_id == user_id,
+        CoinTransaction.reason == reason,
+        CoinTransaction.ref == ref).first() is not None
+
+
 def award(db: Session, user_id: int, reason: str, *, amount: int | None = None,
-          ref: str | None = None, once: bool = False) -> CoinTransaction | None:
-    """Grant VXC for a rule (or an explicit amount). `once=True` makes it
-    idempotent per user+reason (e.g. signup bonus). Best-effort — swallows errors."""
+          ref: str | None = None, once: bool = False,
+          dedupe_ref: bool = False) -> CoinTransaction | None:
+    """Grant VXC for a rule (or an explicit amount).
+      * `once=True`       — idempotent per user+reason (e.g. signup bonus).
+      * `dedupe_ref=True` — idempotent per user+reason+ref, so a repeatable
+        reward (e.g. one per referred friend) can't be paid twice for the
+        same event. Best-effort — swallows errors."""
     try:
         amt = amount if amount is not None else EARN_RULES.get(reason, 0)
         if amt <= 0:
             return None
         if once and _earned_for_reason(db, user_id, reason):
+            return None
+        if dedupe_ref and ref and _earned_for_ref(db, user_id, reason, ref):
             return None
         return _record(db, user_id, CoinEntryKind.EARN, reason, amt, ref=ref)
     except Exception:
@@ -113,6 +126,15 @@ def award(db: Session, user_id: int, reason: str, *, amount: int | None = None,
         except Exception:
             pass
         return None
+
+
+def award_referral(db: Session, referral) -> CoinTransaction | None:
+    """Reward a referrer with VXC when a friend they referred joins.
+    Deduped per referral row, so it pays at most once per referred friend."""
+    if not referral or not getattr(referral, "referrer_user_id", None):
+        return None
+    return award(db, referral.referrer_user_id, "referral_signup",
+                 ref=f"referral:{referral.id}", dedupe_ref=True)
 
 
 def daily_checkin(db: Session, user_id: int) -> dict:

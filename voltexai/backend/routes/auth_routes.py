@@ -114,11 +114,14 @@ def register(data: RegisterIn, request: Request, db: Session = Depends(get_db)):
     db.refresh(user)
     get_or_create_free(db, user)
     db.refresh(user)
-    # affiliate: attribute a pending referral when a code was supplied
+    # affiliate: attribute a pending referral when a code was supplied,
+    # and reward the referrer with Voltex Coin (best-effort, deduped per friend)
     if data.referral_code:
         try:
-            from ..services import referral_service
-            referral_service.attribute(db, data.referral_code, referred_user_id=user.id)
+            from ..services import referral_service, voltex_coin_service
+            ref = referral_service.attribute(db, data.referral_code, referred_user_id=user.id)
+            if ref:
+                voltex_coin_service.award_referral(db, ref)
         except Exception:
             pass
     # Voltex Coin welcome grant (best-effort, idempotent)
