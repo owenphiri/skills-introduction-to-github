@@ -2381,3 +2381,15 @@ body {
 .vx-coin-proto-head .vx-chip { margin-left: auto; text-transform: uppercase; font-size: .62rem; letter-spacing: .5px; }
 .vx-coin-proto p { line-height: 1.55; font-size: .9rem; }
 @media (max-width: 620px) { .vx-coin-chain { grid-template-columns: 1fr; } }
+
+/* ---- Voltex Coin auto-apply at checkout ---- */
+.vx-coin-banner {
+  display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
+  padding: .85rem 1.1rem; border-radius: 12px; margin-bottom: 1.2rem; font-size: .92rem;
+  background: var(--vx-accent-soft); border: 1px solid rgba(194,245,61,0.28);
+}
+.vx-coin-banner b { color: var(--vx-text); }
+.vx-coin-save {
+  display: block; margin: 2px 0 8px; font-size: .8rem; font-weight: 600;
+  color: var(--vx-accent);
+}

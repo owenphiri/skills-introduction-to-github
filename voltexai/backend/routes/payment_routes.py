@@ -64,6 +64,23 @@ def _award_cashback(db: Session, user_id: int, usd_amount: float, ref: str) -> N
         logger.exception("VXC cashback failed (user=%s)", user_id)
 
 
+def _burn_applied_coins(db: Session, user_id: int, meta: dict, ref: str) -> None:
+    """Redeem the Voltex Coin credit that was applied at checkout, now that the
+    (discounted) payment has confirmed. Capped to current balance; best-effort."""
+    try:
+        vxc = int(meta.get("vxc_redeem", 0) or 0)
+        if vxc <= 0:
+            return
+        from ..services import voltex_coin_service
+        available = voltex_coin_service.balance(db, user_id)
+        spend = min(vxc, available)
+        if spend > 0:
+            voltex_coin_service.redeem(db, user_id, spend,
+                                       reason="checkout_redeem", ref=ref)
+    except Exception:
+        logger.exception("VXC checkout redeem failed (user=%s, ref=%s)", user_id, ref)
+
+
 def _emit_store_receipt(db: Session, *, user_id: int, provider: str, reference: str,
                         product_id: str | None, amount: float, currency: str) -> None:
     from ..data.store import get_product
@@ -110,6 +127,7 @@ class StoreCheckoutIn(BaseModel):
     provider: str = Field(pattern="^(stripe|flutterwave)$")
     currency: str = "ZMW"
     phone: str | None = None
+    apply_coins: bool = True          # auto-apply Voltex Coin credit (up to MAX_REDEEM_PCT)
 
 
 # ---------- public ----------
@@ -209,15 +227,27 @@ async def store_checkout(data: StoreCheckoutIn,
         raise HTTPException(404, "Unknown product")
     if product["category"] == "plans":
         raise HTTPException(400, "Plans are billed as subscriptions — use /pricing.")
+
+    # Voltex Coin auto-apply: compute a credit against the product price. Coins
+    # are only BURNED on webhook success — an abandoned checkout costs nothing.
+    from ..services import voltex_coin_service
+    quote = voltex_coin_service.redeem_quote(db, user.id, float(product["price_usd"]))
+    discount_usd = quote["usd_off"] if data.apply_coins else 0.0
+    vxc_redeem = quote["vxc"] if data.apply_coins else 0
+
     try:
         if data.provider == "stripe":
             result = stripe_service.create_product_checkout(
-                user_email=user.email, user_id=user.id, product=product)
-            ref, amount, ccy, method = result["session_id"], product["price_usd"], "USD", "card"
+                user_email=user.email, user_id=user.id, product=product,
+                discount_usd=discount_usd, vxc_redeem=vxc_redeem)
+            ref, amount, ccy, method = (result["session_id"],
+                                        round(float(product["price_usd"]) - discount_usd, 2),
+                                        "USD", "card")
         else:
             result = await flutterwave_service.create_product_link(
                 user_id=user.id, email=user.email, full_name=user.full_name,
-                product=product, currency=data.currency, phone=data.phone or user.phone)
+                product=product, currency=data.currency, phone=data.phone or user.phone,
+                discount_usd=discount_usd, vxc_redeem=vxc_redeem)
             ref, amount, ccy, method = result["tx_ref"], result["amount"], result["currency"], "mobile_money_or_card"
     except Exception as e:
         logger.exception("Store checkout failed")
@@ -227,8 +257,12 @@ async def store_checkout(data: StoreCheckoutIn,
                    amount=amount, currency=ccy, plan=product["id"],
                    status=PaymentStatus.PENDING, method=f"store:{method}"))
     db.commit()
-    return {**result, "product": {"id": product["id"], "name": product["name"],
-                                  "price_usd": product["price_usd"]}}
+    return {**result,
+            "product": {"id": product["id"], "name": product["name"],
+                        "price_usd": product["price_usd"]},
+            "coins": {"applied": bool(data.apply_coins and vxc_redeem > 0),
+                      "vxc": vxc_redeem, "usd_off": discount_usd,
+                      "pay_usd": round(float(product["price_usd"]) - discount_usd, 2)}}
 
 
 # ---------- webhooks ----------
@@ -267,6 +301,7 @@ async def stripe_webhook(request: Request,
                                status=PaymentStatus.SUCCESS, method="store:card",
                                raw_payload=json.dumps(obj)[:3500]))
             db.commit()
+            _burn_applied_coins(db, user_id, meta, obj.get("id"))
             _emit_store_receipt(db, user_id=user_id, provider="stripe",
                                 reference=obj.get("id"),
                                 product_id=meta.get("product_id"),
@@ -341,6 +376,7 @@ async def flutterwave_webhook(request: Request,
                     p.method = "store:" + (data_obj.get("payment_type", "unknown"))
                     p.raw_payload = json.dumps(data_obj)[:3500]
                     db.commit()
+                    _burn_applied_coins(db, user_id, meta, tx_ref)
                     _emit_store_receipt(
                         db, user_id=user_id, provider="flutterwave", reference=tx_ref,
                         product_id=meta.get("product_id"),

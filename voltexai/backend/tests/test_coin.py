@@ -63,3 +63,34 @@ def test_cashback_boost_scales_with_plan():
         assert gained_free > 0
     finally:
         db.close()
+
+
+# ----------------------------- auto-apply at checkout -----------------------------
+def test_redeem_quote_caps_at_30pct_then_balance():
+    from backend.database import SessionLocal
+    from backend.models import User
+    from backend.services import voltex_coin_service as C
+    import uuid
+    db = SessionLocal()
+    try:
+        u = User(email=f"q_{uuid.uuid4().hex[:8]}@t.io", password_hash="x", full_name="Q")
+        db.add(u); db.commit(); db.refresh(u)
+        C.award(db, u.id, "signup_bonus", amount=1500)   # $15 of coins
+        # $149 product: 30% cap = $44.70, but only $15 of coins -> $15 off
+        q = C.redeem_quote(db, u.id, 149.0)
+        assert q["usd_off"] == 15.0 and q["vxc"] == 1500 and q["pay_usd"] == 134.0
+        # $20 product: 30% cap = $6 (< $15 balance) -> capped at $6 off
+        q2 = C.redeem_quote(db, u.id, 20.0)
+        assert q2["usd_off"] == 6.0 and q2["vxc"] == 600 and q2["pay_usd"] == 14.0
+    finally:
+        db.close()
+
+
+def test_coin_quote_endpoint(client, free_user):
+    r = client.get("/api/coin/quote?usd=100", headers=free_user["headers"])
+    assert r.status_code == 200
+    q = r.json()
+    # free user has 500 VXC ($5); 30% of $100 = $30 cap -> limited by $5 balance
+    assert q["usd_off"] == 5.0 and q["pay_usd"] == 95.0
+    # rejects non-positive
+    assert client.get("/api/coin/quote?usd=0", headers=free_user["headers"]).status_code == 400

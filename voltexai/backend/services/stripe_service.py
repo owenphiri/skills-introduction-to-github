@@ -54,11 +54,17 @@ def create_checkout_session(user_email: str, user_id: int, plan: str,
     return {"checkout_url": session.url, "session_id": session.id}
 
 
-def create_product_checkout(user_email: str, user_id: int, product: dict) -> dict:
+def create_product_checkout(user_email: str, user_id: int, product: dict,
+                            discount_usd: float = 0.0, vxc_redeem: int = 0) -> dict:
     """One-time Stripe Checkout for a Store product (course, EA, merch).
-    Uses inline price_data so no per-product Stripe price is required."""
-    amount_cents = int(round(float(product["price_usd"]) * 100))
-    meta = {"user_id": str(user_id), "kind": "store", "product_id": product["id"]}
+    Uses inline price_data so no per-product Stripe price is required.
+    `discount_usd` is a Voltex Coin credit applied to the charge; `vxc_redeem`
+    is the coin count to burn on webhook success (stamped into metadata)."""
+    gross = float(product["price_usd"])
+    net = max(0.0, round(gross - max(0.0, float(discount_usd)), 2))
+    amount_cents = int(round(net * 100))
+    meta = {"user_id": str(user_id), "kind": "store", "product_id": product["id"],
+            "vxc_redeem": str(int(vxc_redeem)), "gross_usd": str(gross)}
     session = stripe.checkout.Session.create(
         mode="payment",
         customer_email=user_email,

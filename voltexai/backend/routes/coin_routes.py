@@ -50,6 +50,15 @@ def get_wallet(user: User = Depends(get_current_user), db: Session = Depends(get
     return coin.wallet(db, user)
 
 
+@router.get("/quote")
+def redeem_quote(usd: float, user: User = Depends(get_current_user),
+                 db: Session = Depends(get_db)):
+    """Preview how much VXC would auto-apply to a `usd`-priced checkout."""
+    if usd <= 0:
+        raise HTTPException(400, "usd must be positive")
+    return coin.redeem_quote(db, user.id, usd)
+
+
 @router.post("/checkin")
 def checkin(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return coin.daily_checkin(db, user.id)

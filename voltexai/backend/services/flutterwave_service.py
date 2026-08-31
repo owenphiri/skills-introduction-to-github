@@ -93,12 +93,16 @@ async def create_payment_link(user_id: int, email: str, full_name: str | None,
 
 async def create_product_link(user_id: int, email: str, full_name: str | None,
                               product: dict, currency: str = "ZMW",
-                              phone: str | None = None) -> dict:
-    """One-time Flutterwave payment page for a Store product."""
+                              phone: str | None = None,
+                              discount_usd: float = 0.0, vxc_redeem: int = 0) -> dict:
+    """One-time Flutterwave payment page for a Store product.
+    `discount_usd` is a Voltex Coin credit applied to the charge; `vxc_redeem`
+    coins are burned on webhook success (carried in meta)."""
     if not settings.FLW_SECRET_KEY:
         raise RuntimeError("FLW_SECRET_KEY not configured")
     tx_ref = _generate_tx_ref(user_id)
-    usd_amount = float(product["price_usd"])
+    gross_usd = float(product["price_usd"])
+    usd_amount = max(0.0, round(gross_usd - max(0.0, float(discount_usd)), 2))
     amount = _convert_to_local(usd_amount, currency)
     payload = {
         "tx_ref": tx_ref, "amount": amount, "currency": currency,
@@ -110,7 +114,8 @@ async def create_product_link(user_id: int, email: str, full_name: str | None,
                            "description": f"VoltexAI · {product['name']}",
                            "logo": f"{settings.BASE_URL}/static/voltexai-logo.png"},
         "meta": {"user_id": user_id, "kind": "store", "product_id": product["id"],
-                 "usd_amount": usd_amount},
+                 "usd_amount": usd_amount, "gross_usd": gross_usd,
+                 "vxc_redeem": int(vxc_redeem)},
     }
     headers = {"Authorization": f"Bearer {settings.FLW_SECRET_KEY}",
                "Content-Type": "application/json"}

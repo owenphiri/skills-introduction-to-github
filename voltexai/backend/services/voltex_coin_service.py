@@ -131,6 +131,21 @@ def daily_checkin(db: Session, user_id: int) -> dict:
             "balance": tx.balance_after if tx else balance(db, user_id)}
 
 
+def redeem_quote(db: Session, user_id: int, price_usd: float,
+                 max_pct: int = MAX_REDEEM_PCT) -> dict:
+    """How much VXC can be applied to a `price_usd` checkout, and the net to pay.
+    Coins can cover at most `max_pct`% of the price; the rest is limited by balance."""
+    bal = balance(db, user_id)
+    price_usd = max(0.0, float(price_usd or 0))
+    max_off = round(price_usd * max_pct / 100.0, 2)
+    have_off = bal / VXC_PER_USD
+    usd_off = round(min(max_off, have_off), 2)
+    vxc = int(round(usd_off * VXC_PER_USD))
+    return {"balance": bal, "vxc": vxc, "usd_off": usd_off,
+            "pay_usd": round(price_usd - usd_off, 2),
+            "price_usd": round(price_usd, 2), "max_pct": max_pct}
+
+
 def redeem(db: Session, user_id: int, amount: int, *, reason: str = "redeem",
            ref: str | None = None) -> dict:
     """Spend VXC. Returns {ok, balance, ...}. Never goes negative."""
