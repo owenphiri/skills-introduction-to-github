@@ -10,6 +10,8 @@ export const academyService = {
   overview: () => api.get("/api/academy/overview"),
   courses: (track = "all") => api.get(`/api/academy/courses?track=${track}`),
   course: (id) => api.get(`/api/academy/courses/${id}`),
+  completeLesson: (courseId, lessonIdx) =>
+    api.post(`/api/academy/courses/${courseId}/lessons/${lessonIdx}/complete`, {}),
 };
 
 export const storeService = {

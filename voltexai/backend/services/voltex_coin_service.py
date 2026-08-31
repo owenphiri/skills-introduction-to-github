@@ -128,6 +128,30 @@ def award(db: Session, user_id: int, reason: str, *, amount: int | None = None,
         return None
 
 
+def _earned_count_today(db: Session, user_id: int, reason: str) -> int:
+    start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    return int(db.query(func.count(CoinTransaction.id)).filter(
+        CoinTransaction.user_id == user_id,
+        CoinTransaction.reason == reason,
+        CoinTransaction.created_at >= start).scalar() or 0)
+
+
+def award_capped_daily(db: Session, user_id: int, reason: str, *,
+                       ref: str | None = None,
+                       max_per_day: int) -> CoinTransaction | None:
+    """Award a repeatable reward with anti-farming limits: idempotent per ref
+    AND capped to `max_per_day` awards of this reason per UTC day."""
+    try:
+        if ref and _earned_for_ref(db, user_id, reason, ref):
+            return None
+        if _earned_count_today(db, user_id, reason) >= max_per_day:
+            return None
+        return award(db, user_id, reason, ref=ref, dedupe_ref=True)
+    except Exception:
+        logger.exception("VXC capped award failed (user=%s, reason=%s)", user_id, reason)
+        return None
+
+
 def award_referral(db: Session, referral) -> CoinTransaction | None:
     """Reward a referrer with VXC when a friend they referred joins.
     Deduped per referral row, so it pays at most once per referred friend."""

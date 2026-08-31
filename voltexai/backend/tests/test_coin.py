@@ -156,3 +156,47 @@ def test_referral_reward_is_deduped_per_friend():
         assert C.balance(db, u.id) == base + C.EARN_RULES["referral_signup"]
     finally:
         db.close()
+
+
+# ----------------------------- journal + academy earn -----------------------------
+def test_logging_a_trade_earns_vxc(client, free_user):
+    h = free_user["headers"]
+    before = client.get("/api/coin/wallet", headers=h).json()["balance"]
+    r = client.post("/api/journal", headers=h, json={
+        "symbol": "XAUUSD", "side": "buy", "entry": 2300, "exit": 2320,
+        "size": 1, "pnl": 200, "rr": 2.0, "setup": "SMC"})
+    assert r.status_code == 201
+    after = client.get("/api/coin/wallet", headers=h).json()["balance"]
+    assert after == before + 15
+
+
+def test_journal_earn_daily_cap(client, free_user):
+    h = free_user["headers"]
+    start = client.get("/api/coin/wallet", headers=h).json()["balance"]
+    for i in range(12):    # cap is 10/day
+        client.post("/api/journal", headers=h, json={
+            "symbol": "EURUSD", "side": "buy", "entry": 1.1, "exit": 1.11,
+            "size": 1, "pnl": 10, "rr": 1.0, "setup": "t"})
+    gained = client.get("/api/coin/wallet", headers=h).json()["balance"] - start
+    assert gained == 10 * 15          # only 10 awards, not 12
+
+
+def test_academy_lesson_complete_earns_once(client, free_user):
+    h = free_user["headers"]
+    before = client.get("/api/coin/wallet", headers=h).json()["balance"]
+    r = client.post("/api/academy/courses/how-markets-work/lessons/0/complete", headers=h)
+    assert r.status_code == 200 and r.json()["earned"] == 40
+    after = client.get("/api/coin/wallet", headers=h).json()["balance"]
+    assert after == before + 40
+    # completing the same lesson again pays nothing
+    r2 = client.post("/api/academy/courses/how-markets-work/lessons/0/complete", headers=h)
+    assert r2.json()["already_claimed"] is True and r2.json()["earned"] == 0
+    assert client.get("/api/coin/wallet", headers=h).json()["balance"] == after
+
+
+def test_academy_bad_lesson_404(client, free_user):
+    h = free_user["headers"]
+    assert client.post("/api/academy/courses/how-markets-work/lessons/999/complete",
+                       headers=h).status_code == 404
+    assert client.post("/api/academy/courses/nope/lessons/0/complete",
+                       headers=h).status_code == 404
