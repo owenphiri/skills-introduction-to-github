@@ -55,6 +55,15 @@ def _emit_receipt(db: Session, *, user_id: int, provider: str, reference: str,
         logger.exception("receipt email failed (user=%s, ref=%s)", user_id, reference)
 
 
+def _award_cashback(db: Session, user_id: int, usd_amount: float, ref: str) -> None:
+    """Best-effort Voltex Coin cashback on a confirmed purchase (USD-denominated)."""
+    try:
+        from ..services import voltex_coin_service
+        voltex_coin_service.purchase_cashback(db, user_id, usd_amount, ref=ref)
+    except Exception:
+        logger.exception("VXC cashback failed (user=%s)", user_id)
+
+
 def _emit_store_receipt(db: Session, *, user_id: int, provider: str, reference: str,
                         product_id: str | None, amount: float, currency: str) -> None:
     from ..data.store import get_product
@@ -63,6 +72,8 @@ def _emit_store_receipt(db: Session, *, user_id: int, provider: str, reference: 
     detail = product.get("desc", "") if product else ""
     _emit_receipt(db, user_id=user_id, provider=provider, reference=reference,
                   item_label=label, item_detail=detail, amount=amount, currency=currency)
+    usd = float(product["price_usd"]) if product else (amount if currency == "USD" else 0)
+    _award_cashback(db, user_id, usd, reference or "store")
 
 
 def _emit_plan_receipt(db: Session, *, user_id: int, provider: str, reference: str,
@@ -72,6 +83,9 @@ def _emit_plan_receipt(db: Session, *, user_id: int, provider: str, reference: s
     _emit_receipt(db, user_id=user_id, provider=provider, reference=reference,
                   item_label=label, item_detail="VoltexAI membership",
                   amount=amount, currency=currency)
+    usd = (pricing_service.annual_usd(plan) if interval == "year"
+           else pricing_service.monthly_usd(plan))
+    _award_cashback(db, user_id, float(usd or 0), reference or "plan")
 
 
 # ---------- schemas ----------

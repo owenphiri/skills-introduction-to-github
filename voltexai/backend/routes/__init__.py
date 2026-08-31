@@ -21,8 +21,10 @@ from .referral_routes import router as referral_router
 from .admin_routes import router as admin_router
 from .pattern_routes import router as pattern_router
 from .tenant_routes import router as tenant_router
+from .coin_routes import router as coin_router
 
 __all__ = [
+    "coin_router",
     "auth_router", "ai_router", "payment_router",
     "market_router", "signal_router", "directory_router", "fund_router",
     "trade_router", "kyc_router", "ecosystem_router", "competition_router",

@@ -24,6 +24,7 @@ import Scanner from "./pages/Scanner";
 import Competition from "./pages/Competition";
 import Store from "./pages/Store";
 import Pay from "./pages/Pay";
+import Wallet from "./pages/Wallet";
 import Vision from "./pages/Vision";
 import Patterns from "./pages/Patterns";
 import TopDown from "./pages/TopDown";
@@ -94,6 +95,7 @@ export default function App() {
           <Route path="/competition" element={<Competition />} />
           <Route path="/store" element={<Store />} />
           <Route path="/pay" element={<Pay />} />
+          <Route path="/coin" element={<Wallet />} />
           <Route path="/vision" element={<Vision />} />
           <Route path="/patterns" element={<Patterns />} />
           <Route path="/topdown" element={<TopDown />} />

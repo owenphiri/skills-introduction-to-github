@@ -121,6 +121,12 @@ def register(data: RegisterIn, request: Request, db: Session = Depends(get_db)):
             referral_service.attribute(db, data.referral_code, referred_user_id=user.id)
         except Exception:
             pass
+    # Voltex Coin welcome grant (best-effort, idempotent)
+    try:
+        from ..services import voltex_coin_service
+        voltex_coin_service.award(db, user.id, "signup_bonus", once=True)
+    except Exception:
+        pass
     # fire-and-forget transactional emails (best-effort)
     try:
         email_service.send_verification_email(

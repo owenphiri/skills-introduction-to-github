@@ -16,6 +16,7 @@ const LINKS = [
   { to: "/sentiment", key: "nav.sentiment" },
   { to: "/journal", key: "nav.journal" },
   { to: "/eas", key: "nav.eas" },
+  { to: "/coin", key: "nav.coin" },
   { to: "/live", key: "nav.live" },
   { to: "/academy", key: "nav.academy" },
   { to: "/community", key: "nav.community" },

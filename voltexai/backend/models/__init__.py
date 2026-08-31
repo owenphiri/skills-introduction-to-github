@@ -13,8 +13,10 @@ from .telegram import TelegramSubscriber
 from .rl import RLModelState, RLObservation
 from .referral import ReferralAccount, Referral
 from .tenant import Tenant
+from .coin import CoinTransaction, CoinEntryKind
 
 __all__ = [
+    "CoinTransaction", "CoinEntryKind",
     "Tenant",
     "ContestEntry", "Post", "JournalTrade", "ProSignal", "ProSignalEvent",
     "TelegramSubscriber", "RLModelState", "RLObservation",

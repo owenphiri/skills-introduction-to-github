@@ -2328,3 +2328,56 @@ body {
 /* ---- Scanner status bar + composer glass ---- */
 .vx-scanner-bar { background: linear-gradient(165deg, rgba(23,32,47,0.9), rgba(18,24,38,0.7)); box-shadow: var(--vx-ring); }
 .vx-composer textarea:focus { box-shadow: 0 0 0 3px var(--vx-accent-soft); }
+
+/* ============================================================
+   Voltex Coin (VXC) wallet
+   ============================================================ */
+.vx-coin-balance {
+  display: flex; justify-content: space-between; align-items: center; gap: 1.5rem;
+  flex-wrap: wrap; padding: 1.6rem 1.8rem; border-radius: 20px; margin-bottom: .5rem;
+  background:
+    radial-gradient(60% 140% at 12% 0%, rgba(194,245,61,0.18), transparent 60%),
+    radial-gradient(60% 140% at 92% 100%, rgba(77,124,255,0.16), transparent 60%),
+    linear-gradient(160deg, #121826, #0d1220);
+  border: 1px solid var(--vx-glass-brd); box-shadow: var(--vx-shadow-lg);
+}
+.vx-coin-label { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--vx-text-dim); }
+.vx-coin-amount { font-family: var(--vx-font-display); font-size: 2.6rem; line-height: 1.1; margin: .2rem 0; }
+.vx-coin-amount b {
+  font-size: 1.4rem; background: var(--vx-grad-accent); -webkit-background-clip: text;
+  background-clip: text; -webkit-text-fill-color: transparent; color: transparent;
+}
+.vx-coin-actions { display: flex; flex-direction: column; align-items: flex-end; gap: .6rem; }
+.vx-coin-msg { color: var(--vx-accent); font-weight: 600; margin: .2rem 0 1rem; }
+
+.vx-coin-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+.vx-coin-earn {
+  display: flex; align-items: center; gap: .9rem; padding: 1rem 1.1rem; border-radius: 14px;
+  background: linear-gradient(165deg, rgba(23,32,47,0.92), rgba(18,24,38,0.72));
+  border: 1px solid var(--vx-border); box-shadow: var(--vx-ring);
+  transition: transform .2s, border-color .2s;
+}
+.vx-coin-earn:hover { transform: translateY(-3px); border-color: rgba(194,245,61,0.35); }
+.vx-coin-earn-icon { font-size: 1.6rem; }
+.vx-coin-earn > div { flex: 1; }
+.vx-coin-earn b { display: block; }
+.vx-coin-earn p { font-size: .82rem; margin: .15rem 0 0; }
+.vx-coin-reward {
+  font-family: var(--vx-font-mono); font-weight: 700; color: var(--vx-accent);
+  white-space: nowrap;
+}
+.vx-coin-redeem { padding: 1.3rem 1.5rem; border-radius: 16px; margin-bottom: 1rem; line-height: 1.6; }
+.vx-coin-redeem b { color: var(--vx-text); }
+
+.vx-coin-chain { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+.vx-coin-proto {
+  padding: 1.2rem 1.3rem; border-radius: 16px;
+  background: linear-gradient(165deg, rgba(23,32,47,0.92), rgba(18,24,38,0.72));
+  border: 1px solid var(--vx-border); box-shadow: var(--vx-ring);
+}
+.vx-coin-proto-head { display: flex; align-items: center; gap: .6rem; margin-bottom: .5rem; }
+.vx-coin-proto-head span { font-size: 1.5rem; color: var(--vx-accent); font-weight: 800; }
+.vx-coin-proto-head b { font-family: var(--vx-font-display); }
+.vx-coin-proto-head .vx-chip { margin-left: auto; text-transform: uppercase; font-size: .62rem; letter-spacing: .5px; }
+.vx-coin-proto p { line-height: 1.55; font-size: .9rem; }
+@media (max-width: 620px) { .vx-coin-chain { grid-template-columns: 1fr; } }
