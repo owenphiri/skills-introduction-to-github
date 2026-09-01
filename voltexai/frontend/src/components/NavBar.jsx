@@ -50,6 +50,7 @@ export function NavBar() {
                 <>
                   <Link to="/admin/signals" className="vx-btn-ghost vx-btn-sm">🛠️ {t("action.admin")}</Link>
                   <Link to="/admin/coins" className="vx-btn-ghost vx-btn-sm">🪙</Link>
+                  <Link to="/admin/real-estate" className="vx-btn-ghost vx-btn-sm">🏠</Link>
                 </>
               )}
               <Link to="/account" className="vx-nav-user">

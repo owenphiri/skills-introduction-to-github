@@ -63,3 +63,33 @@ def coin_adjust(data: CoinAdjustIn, admin: User = Depends(_require_admin),
     if not result.get("ok"):
         raise HTTPException(400, result.get("error", "adjust failed"))
     return {**result, "user": {"id": target.id, "email": target.email}}
+
+
+# ---------------- Real Estate waitlist ----------------
+@router.get("/realestate/waitlist")
+def realestate_waitlist(_: User = Depends(_require_admin), db: Session = Depends(get_db)):
+    """Aggregate demand per property + recent signups for the Coming-Soon vertical."""
+    from ..models import RealEstateInterest
+    from ..data import realestate as re_data
+    rows = (db.query(RealEstateInterest)
+              .order_by(RealEstateInterest.created_at.desc()).all())
+    by_prop: dict[str, dict] = {}
+    for p in re_data.PROPERTIES:
+        by_prop[p["id"]] = {"id": p["id"], "name": p["name"], "city": p["city"],
+                            "country": p["country"], "flag": p["flag"],
+                            "accent": p["accent"], "count": 0, "total_usd": 0.0}
+    total_usd = 0.0
+    for r in rows:
+        b = by_prop.get(r.property_id)
+        if b:
+            b["count"] += 1
+            b["total_usd"] += float(r.amount_usd or 0)
+        total_usd += float(r.amount_usd or 0)
+    demand = sorted(by_prop.values(), key=lambda d: d["total_usd"], reverse=True)
+    recent = [{"property_id": r.property_id,
+               "name": by_prop.get(r.property_id, {}).get("name", r.property_id),
+               "email": r.email or "—", "amount_usd": float(r.amount_usd or 0),
+               "provider": r.provider, "country": r.country,
+               "at": r.created_at.replace(tzinfo=None).isoformat()} for r in rows[:40]]
+    return {"total_signups": len(rows), "total_demand_usd": round(total_usd, 2),
+            "properties": demand, "recent": recent}

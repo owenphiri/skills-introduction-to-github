@@ -19,6 +19,8 @@ import PropFirms from "./pages/PropFirms";
 import Brokers from "./pages/Brokers";
 import AUM from "./pages/AUM";
 import RealEstate from "./pages/RealEstate";
+import RealEstateProperty from "./pages/RealEstateProperty";
+import AdminRealEstate from "./pages/AdminRealEstate";
 import Products from "./pages/Products";
 import Academy from "./pages/Academy";
 import Scanner from "./pages/Scanner";
@@ -92,6 +94,7 @@ export default function App() {
           <Route path="/brokers" element={<Brokers />} />
           <Route path="/aum" element={<AUM />} />
           <Route path="/real-estate" element={<RealEstate />} />
+          <Route path="/real-estate/:id" element={<RealEstateProperty />} />
           <Route path="/products" element={<Products />} />
           <Route path="/academy" element={<Academy />} />
           <Route path="/scanner" element={<Scanner />} />
@@ -190,6 +193,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <AdminCoins />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/real-estate"
+            element={
+              <ProtectedRoute>
+                <AdminRealEstate />
               </ProtectedRoute>
             }
           />

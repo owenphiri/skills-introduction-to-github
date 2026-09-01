@@ -29,3 +29,30 @@ def test_realestate_waitlist_interest(client):
     # anonymous interest (no email) still records
     assert client.post("/api/realestate/interest",
                        json={"property_id": "lagos-lekki", "amount_usd": 100}).status_code == 201
+
+
+def test_property_prospectus_endpoint(client):
+    r = client.get("/api/realestate/property/kasama-heights")
+    assert r.status_code == 200
+    p = r.json()["property"]
+    assert p["id"] == "kasama-heights"
+    assert p["highlights"] and p["summary"] and p["sponsor"]
+    assert len(p["projection"]) == 5 and p["projection"][0]["year"] == 1
+    assert r.json()["launch"]["status"] == "coming_soon"
+    assert client.get("/api/realestate/property/nope").status_code == 404
+
+
+def test_admin_waitlist(client, admin_user, free_user):
+    # seed a couple of reservations
+    client.post("/api/realestate/interest", json={"property_id": "kasama-heights", "amount_usd": 500, "email": "a@x.io"})
+    client.post("/api/realestate/interest", json={"property_id": "kasama-heights", "amount_usd": 250, "email": "b@x.io"})
+    client.post("/api/realestate/interest", json={"property_id": "lagos-lekki", "amount_usd": 1000, "email": "c@x.io"})
+    w = client.get("/api/admin/realestate/waitlist", headers=admin_user["headers"])
+    assert w.status_code == 200
+    body = w.json()
+    assert body["total_signups"] >= 3
+    assert body["total_demand_usd"] >= 1750
+    top = body["properties"][0]
+    assert top["id"] in ("kasama-heights", "lagos-lekki") and top["total_usd"] > 0
+    # non-admin blocked
+    assert client.get("/api/admin/realestate/waitlist", headers=free_user["headers"]).status_code == 403

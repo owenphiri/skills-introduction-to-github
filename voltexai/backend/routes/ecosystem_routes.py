@@ -95,6 +95,15 @@ def realestate(market: str = Query("all")):
     return data
 
 
+@router.get("/api/realestate/property/{property_id}")
+def realestate_property(property_id: str):
+    """Public: a single property's full prospectus + launch status."""
+    p = realestate_data.get_property(property_id)
+    if not p:
+        raise HTTPException(404, "Property not found")
+    return {"property": p, "launch": realestate_data.LAUNCH}
+
+
 class RealEstateInterestIn(BaseModel):
     property_id: str = Field(min_length=2, max_length=60)
     amount_usd: float = Field(default=0.0, ge=0, le=100_000_000)

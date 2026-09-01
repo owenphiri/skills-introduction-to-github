@@ -88,8 +88,66 @@ def list_properties(market: str | None = None) -> list[dict]:
     return PROPERTIES
 
 
+# Prospectus detail, merged into a property on request (keeps the list light).
+DETAIL = {
+    "kasama-heights": {
+        "sponsor": "Axion Labs Property (VoltexAI)",
+        "summary": ("A 24-unit residential block in Kasama — VoltexAI's home city and a fast-growing "
+                    "provincial capital anchored by Copperbelt University's Kasama campus. Student and "
+                    "young-professional demand keeps occupancy high and voids low."),
+        "highlights": ["Walkable to the university & CBD", "Pre-let interest from 3 corporate tenants",
+                       "Solar + borehole — low running costs", "Managed by a local letting agent"],
+    },
+    "lagos-lekki": {
+        "sponsor": "Lekki Living Developments",
+        "summary": ("40 serviced apartments on the Lekki peninsula, Lagos — Nigeria's premier waterfront "
+                    "corridor. Rents are quoted in USD, insulating income from naira volatility."),
+        "highlights": ["Dollar-indexed rents", "24/7 power & security", "Short-let upside in peak season",
+                       "Title verified with the Lagos land registry"],
+    },
+    "nairobi-westlands": {
+        "sponsor": "Westlands Commercial REIT",
+        "summary": ("Grade-A office floors in Nairobi's Westlands business hub, let to anchor tenants on long "
+                    "leases with a healthy weighted-average lease expiry (WALE)."),
+        "highlights": ["Long WALE, blue-chip tenants", "LEED-oriented building", "Prime Westlands address",
+                       "Quarterly income distribution"],
+    },
+    "accra-cantonments": {
+        "sponsor": "Cantonments Estates",
+        "summary": ("12 gated townhomes in Cantonments, Accra's diplomatic enclave — a proven expat rental "
+                    "market with resilient demand and premium rents."),
+        "highlights": ["Diplomatic-enclave location", "Expat tenant demand", "Gated & serviced",
+                       "88% already reserved"],
+    },
+    "capetown-seapoint": {
+        "sponsor": "Atlantic Seaboard Hospitality",
+        "summary": ("8 short-let apartments on Cape Town's Atlantic seaboard (Sea Point) — strong nightly "
+                    "rates in a global tourism destination, with a professional short-stay operator."),
+        "highlights": ["Peak-season nightly premiums", "Pro short-stay management", "Atlantic-seaboard address",
+                       "Shortest term in the portfolio (24 mo)"],
+    },
+    "dubai-jvc": {
+        "sponsor": "JVC Smart Living",
+        "summary": ("30 smart studios in Jumeirah Village Circle, Dubai — a liquid, dollar-pegged market with "
+                    "tax-free rental income and deep international tenant demand."),
+        "highlights": ["Tax-free rental income", "USD-pegged market", "High liquidity on exit",
+                       "Smart-home fitted"],
+    },
+}
+
+
+def _project(p: dict) -> list[dict]:
+    """Illustrative 5-year income projection from the target yield (simple, not compounded)."""
+    per_year = round(p["min_invest_usd"] * p["yield_pct"] / 100.0, 2)
+    return [{"year": y, "income": round(per_year * y, 2)} for y in range(1, 6)]
+
+
 def get_property(pid: str) -> dict | None:
-    return next((p for p in PROPERTIES if p["id"] == pid), None)
+    p = next((x for x in PROPERTIES if x["id"] == pid), None)
+    if not p:
+        return None
+    return {**p, **DETAIL.get(pid, {}), "projection": _project(p),
+            "min_yield_income": round(p["min_invest_usd"] * p["yield_pct"] / 100.0, 2)}
 
 
 def realestate_overview() -> dict:
