@@ -16,6 +16,10 @@ mobile/node_modules/
 mobile/.expo/
 mobile/dist/
 
+# MCP paper-trading book (runtime state, not source)
+voltex_paper_book.json
+*.paper_book.json
+
 # OS
 .DS_Store
 

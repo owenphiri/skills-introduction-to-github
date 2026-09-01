@@ -47,6 +47,33 @@ class Account:
 
 
 @dataclass
+class OrderIntent:
+    """A request to open a position (validated by the risk layer before fill)."""
+    symbol: str
+    side: str                      # "buy" | "sell"
+    size: float                    # units (notional simulator; see paper adapter)
+    type: str = "market"           # only market orders in Phase 2
+
+    def as_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class Fill:
+    """The result of a filled paper order."""
+    position_id: str
+    symbol: str
+    side: str
+    size: float
+    price: float
+    opened_at: str = ""
+    status: str = "filled"
+
+    def as_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
 class Position:
     """Normalized open position, broker-agnostic."""
     symbol: str
@@ -67,15 +94,32 @@ class Position:
 
 
 class AccountAdapter:
-    """Read-only account interface every broker adapter implements."""
+    """Read-only account interface every broker adapter implements.
+
+    Order methods are opt-in: an adapter sets `supports_orders = True` and
+    implements place_order/close_position. Read-only adapters leave the default,
+    which refuses. Order tools always route through the risk layer first — the
+    adapter never sees an order the risk layer rejected.
+    """
 
     name = "base"
+    supports_orders = False
 
     async def get_account(self) -> Account:
         raise NotImplementedError
 
     async def list_positions(self) -> list[Position]:
         raise NotImplementedError
+
+    async def realized_pnl_today(self) -> float:
+        """Realized P/L booked so far today (for the daily-loss limit)."""
+        return 0.0
+
+    async def place_order(self, intent: "OrderIntent") -> Fill:
+        raise AdapterError("This broker adapter is read-only (no order support).")
+
+    async def close_position(self, position_id: str) -> dict[str, Any]:
+        raise AdapterError("This broker adapter is read-only (no order support).")
 
     async def close(self) -> None:
         """Release any transport (WebSocket/HTTP). Safe to call twice."""

@@ -28,7 +28,7 @@ __all__ = [
 
 
 def available_brokers() -> list[str]:
-    return ["deriv"]
+    return ["deriv", "paper"]
 
 
 def get_adapter(broker: str | None = None) -> AccountAdapter:
@@ -37,6 +37,9 @@ def get_adapter(broker: str | None = None) -> AccountAdapter:
     if name == "deriv":
         from .deriv import DerivAdapter
         return DerivAdapter()
+    if name == "paper":
+        from .paper import PaperBroker
+        return PaperBroker()
     raise AdapterConfigError(
         f"Unknown broker '{name}'. Available: {', '.join(available_brokers())}."
     )

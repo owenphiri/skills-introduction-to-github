@@ -16,6 +16,7 @@ access, no orders. Those arrive in later phases behind the risk layer.
 # etc.) work natively on Python 3.10+.
 from . import tools
 from . import account_tools
+from . import order_tools
 
 try:
     from mcp.server.fastmcp import FastMCP
@@ -28,11 +29,13 @@ except ModuleNotFoundError as exc:  # pragma: no cover - runtime guard
 mcp = FastMCP(
     "voltexai-markets",
     instructions=(
-        "VoltexAI market data + read-only broker account (Phase 1). Use "
-        "list_symbols to discover tradable symbols, get_quote/get_quotes for latest "
-        "prices, and get_candles for OHLC history. get_account, list_positions and "
-        "get_account_summary read a connected DEMO broker account (Deriv) — "
-        "read-only. This server cannot place, modify or close trades."
+        "VoltexAI trading tools (Phase 0-2). Market data: list_symbols, get_quote, "
+        "get_quotes, get_candles. Account (read-only, demo): get_account, "
+        "list_positions, get_account_summary. PAPER trading behind a risk layer: "
+        "place_order, close_position, get_risk_status — these hit a simulated paper "
+        "book (MCP_BROKER=paper), never real money, and every order is checked "
+        "against operator-set limits (size, open positions, daily loss, symbol "
+        "allowlist, kill switch). This server cannot trade a live account."
     ),
 )
 
@@ -83,6 +86,31 @@ async def get_account_summary() -> dict:
     """Account balance plus a roll-up of open positions (count, staked,
     open profit) in one call. Read-only, demo account."""
     return await account_tools.get_account_summary()
+
+
+# --- Phase 2: paper trading behind the risk layer ---------------------------
+
+@mcp.tool()
+async def place_order(symbol: str, side: str, size: float) -> dict:
+    """Open a PAPER position (no real money). side: 'buy' or 'sell'; size is
+    notional units. The order is placed only if the risk layer approves it
+    (size, open-position, daily-loss and allowlist limits, kill switch);
+    otherwise it is rejected with reasons. Requires MCP_BROKER=paper."""
+    return await order_tools.place_order(symbol, side, size)
+
+
+@mcp.tool()
+async def close_position(position_id: str) -> dict:
+    """Close an open PAPER position by its id (e.g. 'P1') and realize its P/L.
+    Requires MCP_BROKER=paper."""
+    return await order_tools.close_position(position_id)
+
+
+@mcp.tool()
+async def get_risk_status() -> dict:
+    """Show the active risk limits and how much of the daily-loss budget and
+    open-position slots are used. Read-only."""
+    return await order_tools.get_risk_status()
 
 
 def main() -> None:
