@@ -93,3 +93,28 @@ def realestate_waitlist(_: User = Depends(_require_admin), db: Session = Depends
                "at": r.created_at.replace(tzinfo=None).isoformat()} for r in rows[:40]]
     return {"total_signups": len(rows), "total_demand_usd": round(total_usd, 2),
             "properties": demand, "recent": recent}
+
+
+@router.get("/realestate/waitlist.csv")
+def realestate_waitlist_csv(_: User = Depends(_require_admin), db: Session = Depends(get_db)):
+    """Download the full waitlist as CSV — for stakeholder decks & MOU talks."""
+    import csv, io
+    from datetime import datetime, timezone
+    from fastapi import Response
+    from ..models import RealEstateInterest
+    from ..data import realestate as re_data
+    names = {p["id"]: p["name"] for p in re_data.PROPERTIES}
+    rows = (db.query(RealEstateInterest)
+              .order_by(RealEstateInterest.created_at.desc()).all())
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["created_at_utc", "property_id", "property_name", "email",
+                "amount_usd", "provider", "country"])
+    for r in rows:
+        w.writerow([r.created_at.replace(tzinfo=None).isoformat(), r.property_id,
+                    names.get(r.property_id, r.property_id), r.email or "",
+                    f"{float(r.amount_usd or 0):.2f}", r.provider or "", r.country or ""])
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
+    return Response(content=buf.getvalue(), media_type="text/csv",
+                    headers={"Content-Disposition":
+                             f'attachment; filename="voltexai-realestate-waitlist-{stamp}.csv"'})

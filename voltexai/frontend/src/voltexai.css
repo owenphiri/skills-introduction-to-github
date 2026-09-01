@@ -2652,3 +2652,6 @@ body {
 .vx-re-demand-meta b { font-family: var(--vx-font-mono); }
 .vx-re-demand-meta span { font-size: 12px; }
 @media (max-width: 680px) { .vx-re-demand-row { grid-template-columns: 1fr; gap: 8px; } .vx-re-demand-meta { text-align: left; flex-direction: row; gap: 10px; } }
+
+/* ---- Admin Real Estate header ---- */
+.vx-re-admin-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }

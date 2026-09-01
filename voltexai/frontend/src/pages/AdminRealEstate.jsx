@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { NavBar } from "../components/NavBar";
 import { realEstateService } from "../services/ecosystem";
 import { fmtMoney as money } from "../components/InvestModal";
+import { API_BASE_URL, tokenStore } from "../services/api";
 
 function ago(iso) {
   const t = new Date(iso).getTime();
@@ -15,10 +16,29 @@ function ago(iso) {
 export default function AdminRealEstate() {
   const [d, setD] = useState(null);
   const [err, setErr] = useState("");
+  const [dl, setDl] = useState(false);
 
   useEffect(() => {
     realEstateService.adminWaitlist().then(setD).catch((e) => setErr(e.message));
   }, []);
+
+  async function exportCsv() {
+    setDl(true); setErr("");
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/admin/realestate/waitlist.csv`, {
+        headers: { Authorization: `Bearer ${tokenStore.access}` },
+      });
+      if (!res.ok) throw new Error(`Export failed (${res.status})`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `voltexai-realestate-waitlist-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) { setErr(e.message || "Could not export CSV."); }
+    finally { setDl(false); }
+  }
 
   const maxDemand = Math.max(1, ...(d?.properties || []).map((p) => p.total_usd));
 
@@ -26,10 +46,16 @@ export default function AdminRealEstate() {
     <div className="vx-page">
       <NavBar />
       <main className="vx-container">
-        <div className="vx-page-head">
-          <span className="vx-eyebrow">Admin · Real Estate</span>
-          <h1>🏠 Waitlist &amp; Demand</h1>
-          <p className="vx-muted">Reserved interest across the Coming-Soon property vertical — your pre-MOU demand book.</p>
+        <div className="vx-page-head vx-re-admin-head">
+          <div>
+            <span className="vx-eyebrow">Admin · Real Estate</span>
+            <h1>🏠 Waitlist &amp; Demand</h1>
+            <p className="vx-muted">Reserved interest across the Coming-Soon property vertical — your pre-MOU demand book.</p>
+          </div>
+          <button className="vx-btn-secondary vx-btn-sm" onClick={exportCsv}
+                  disabled={dl || !d || d.total_signups === 0}>
+            {dl ? "Exporting…" : "⬇ Export CSV"}
+          </button>
         </div>
         {err && <div className="vx-error">{err}</div>}
 

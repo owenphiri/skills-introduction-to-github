@@ -56,3 +56,14 @@ def test_admin_waitlist(client, admin_user, free_user):
     assert top["id"] in ("kasama-heights", "lagos-lekki") and top["total_usd"] > 0
     # non-admin blocked
     assert client.get("/api/admin/realestate/waitlist", headers=free_user["headers"]).status_code == 403
+
+
+def test_admin_waitlist_csv(client, admin_user):
+    client.post("/api/realestate/interest", json={"property_id": "dubai-jvc", "amount_usd": 3000, "email": "z@x.io", "provider": "stripe", "country": "UAE"})
+    r = client.get("/api/admin/realestate/waitlist.csv", headers=admin_user["headers"])
+    assert r.status_code == 200
+    assert "text/csv" in r.headers["content-type"]
+    assert "attachment" in r.headers.get("content-disposition", "")
+    text = r.text
+    assert text.splitlines()[0] == "created_at_utc,property_id,property_name,email,amount_usd,provider,country"
+    assert "dubai-jvc" in text and "JVC Smart Studios" in text
