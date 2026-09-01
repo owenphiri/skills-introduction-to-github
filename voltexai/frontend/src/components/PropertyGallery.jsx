@@ -124,21 +124,43 @@ function LocationMap({ accent, city }) {
   );
 }
 
+// A real photo that quietly falls back to the SVG Exterior if the URL fails.
+function Photo({ src, alt, accent, type }) {
+  const [broken, setBroken] = useState(false);
+  if (broken) return <Exterior accent={accent} type={type} />;
+  return <img className="vx-gal-svg vx-gal-photo" src={src} alt={alt}
+              loading="lazy" onError={() => setBroken(true)} />;
+}
+
 export function PropertyGallery({ p }) {
-  const views = [
-    { key: "exterior", label: "Exterior", el: <Exterior accent={p.accent} type={p.type} /> },
-    { key: "skyline", label: "Skyline", el: <Skyline accent={p.accent} /> },
-    { key: "floor", label: "Floor plan", el: <FloorPlan accent={p.accent} /> },
-    { key: "location", label: "Location", el: <LocationMap accent={p.accent} city={p.city} /> },
+  const photos = (p.images || []).filter(Boolean);
+  const renderings = [
+    { key: "exterior", label: "Exterior", real: false, el: <Exterior accent={p.accent} type={p.type} /> },
+    { key: "skyline", label: "Skyline", real: false, el: <Skyline accent={p.accent} /> },
+    { key: "floor", label: "Floor plan", real: false, el: <FloorPlan accent={p.accent} /> },
+    { key: "location", label: "Location", real: false, el: <LocationMap accent={p.accent} city={p.city} /> },
   ];
+  // With real photos: lead with them, keep Floor plan + Location as useful extras.
+  const views = photos.length
+    ? [
+        ...photos.map((src, i) => ({
+          key: `photo${i}`, label: `Photo ${i + 1}`, real: true,
+          el: <Photo src={src} alt={`${p.name} — photo ${i + 1}`} accent={p.accent} type={p.type} />,
+        })),
+        renderings[2], renderings[3],
+      ]
+    : renderings;
   const [active, setActive] = useState(0);
+  const view = views[Math.min(active, views.length - 1)];
 
   return (
     <div className="vx-gal">
       <div className="vx-gal-main">
-        {views[active].el}
-        <span className="vx-gal-view">{views[active].label}</span>
-        <span className="vx-gal-note">Illustrative rendering · real photography at launch</span>
+        {view.el}
+        <span className="vx-gal-view">{view.label}</span>
+        {!view.real && (
+          <span className="vx-gal-note">Illustrative rendering · real photography at launch</span>
+        )}
       </div>
       <div className="vx-gal-thumbs" role="tablist" aria-label="Property views">
         {views.map((v, i) => (

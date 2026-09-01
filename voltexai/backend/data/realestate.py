@@ -136,6 +136,19 @@ DETAIL = {
 }
 
 
+# Real photography per property. Empty today → the prospectus gallery falls back
+# to brand-tinted SVG renderings. To light up real photos, add absolute image URLs:
+#   IMAGES["kasama-heights"] = ["https://cdn.voltexai.com/re/kasama-1.jpg", ...]
+IMAGES: dict[str, list[str]] = {
+    "kasama-heights": [],
+    "lagos-lekki": [],
+    "nairobi-westlands": [],
+    "accra-cantonments": [],
+    "capetown-seapoint": [],
+    "dubai-jvc": [],
+}
+
+
 def _project(p: dict) -> list[dict]:
     """Illustrative 5-year income projection from the target yield (simple, not compounded)."""
     per_year = round(p["min_invest_usd"] * p["yield_pct"] / 100.0, 2)
@@ -146,7 +159,8 @@ def get_property(pid: str) -> dict | None:
     p = next((x for x in PROPERTIES if x["id"] == pid), None)
     if not p:
         return None
-    return {**p, **DETAIL.get(pid, {}), "projection": _project(p),
+    return {**p, **DETAIL.get(pid, {}), "images": IMAGES.get(pid, []),
+            "projection": _project(p),
             "min_yield_income": round(p["min_invest_usd"] * p["yield_pct"] / 100.0, 2)}
 
 

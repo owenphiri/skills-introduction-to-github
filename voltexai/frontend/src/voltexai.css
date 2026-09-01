@@ -2676,3 +2676,4 @@ body {
 .vx-gal-thumb span { display: block; font-size: 11px; color: var(--vx-text-dim); padding: 5px 0 7px; }
 .vx-gal-thumb.active span { color: var(--vx-accent); font-weight: 600; }
 @media (max-width: 480px) { .vx-gal-thumbs { grid-template-columns: repeat(2, 1fr); } }
+.vx-gal-photo { object-fit: cover; }

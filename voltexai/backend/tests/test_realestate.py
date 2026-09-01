@@ -67,3 +67,8 @@ def test_admin_waitlist_csv(client, admin_user):
     text = r.text
     assert text.splitlines()[0] == "created_at_utc,property_id,property_name,email,amount_usd,provider,country"
     assert "dubai-jvc" in text and "JVC Smart Studios" in text
+
+
+def test_property_exposes_images_field(client):
+    p = client.get("/api/realestate/property/kasama-heights").json()["property"]
+    assert "images" in p and isinstance(p["images"], list)   # empty today, gallery falls back to SVG
