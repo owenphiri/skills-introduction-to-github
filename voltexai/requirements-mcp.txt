@@ -1,0 +1,5 @@
+# VoltexAI MCP server (Phase 0) — install alongside the backend requirements.
+#   pip install -r voltexai/backend/requirements.txt
+#   pip install -r voltexai/requirements-mcp.txt
+# Pin below 2.x: mcp 2.x renames FastMCP -> MCPServer, which this scaffold uses.
+mcp[cli]>=1.6,<2
