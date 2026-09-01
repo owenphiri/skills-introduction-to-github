@@ -6,6 +6,7 @@ import { Footer } from "../components/Footer";
 import { useAuth } from "../contexts/AuthContext";
 import { realEstateService } from "../services/ecosystem";
 import { InvestModal, fmtMoney as money } from "../components/InvestModal";
+import { PropertyGallery } from "../components/PropertyGallery";
 
 export default function RealEstateProperty() {
   const { id } = useParams();
@@ -46,6 +47,9 @@ export default function RealEstateProperty() {
       <NavBar />
       <main className="vx-container">
         <p className="vx-re-crumb"><Link to="/real-estate" className="vx-inline-link">← VoltexAI Real Estate</Link></p>
+
+        {/* Gallery */}
+        <PropertyGallery p={d} />
 
         {/* Prospectus hero */}
         <div className="vx-re-detail-hero" style={{

@@ -2655,3 +2655,24 @@ body {
 
 /* ---- Admin Real Estate header ---- */
 .vx-re-admin-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+
+/* ---- Property gallery (prospectus) ---- */
+.vx-gal { margin: 8px 0 20px; }
+.vx-gal-main { position: relative; border-radius: 18px; overflow: hidden;
+  border: 1px solid var(--vx-line2, #2a3750); box-shadow: var(--vx-shadow-lg); background: #0d1220; }
+.vx-gal-svg { display: block; width: 100%; height: auto; aspect-ratio: 400 / 260; }
+.vx-gal-view { position: absolute; top: 14px; left: 14px; font-family: var(--vx-font-mono);
+  font-size: 12px; font-weight: 700; color: var(--vx-text); background: rgba(10,14,26,.62);
+  border: 1px solid var(--vx-glass-brd); padding: 5px 11px; border-radius: 999px; backdrop-filter: blur(4px); }
+.vx-gal-note { position: absolute; bottom: 12px; right: 14px; font-size: 11px; color: var(--vx-text-dim);
+  background: rgba(10,14,26,.62); border: 1px solid var(--vx-glass-brd); padding: 4px 10px; border-radius: 999px; backdrop-filter: blur(4px); }
+.vx-gal-thumbs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 10px; }
+.vx-gal-thumb { background: none; border: 1px solid var(--vx-border); border-radius: 12px;
+  padding: 0; overflow: hidden; cursor: pointer; transition: border-color .15s, transform .12s; }
+.vx-gal-thumb:hover { transform: translateY(-2px); border-color: rgba(194,245,61,.4); }
+.vx-gal-thumb.active { border-color: var(--vx-accent); box-shadow: 0 0 0 2px var(--vx-accent-soft); }
+.vx-gal-thumb-svg { pointer-events: none; }
+.vx-gal-thumb-svg .vx-gal-svg { border-radius: 0; }
+.vx-gal-thumb span { display: block; font-size: 11px; color: var(--vx-text-dim); padding: 5px 0 7px; }
+.vx-gal-thumb.active span { color: var(--vx-accent); font-weight: 600; }
+@media (max-width: 480px) { .vx-gal-thumbs { grid-template-columns: repeat(2, 1fr); } }
