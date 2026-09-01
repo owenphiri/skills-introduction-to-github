@@ -8,9 +8,20 @@ of securities; property investment carries risk and values can fall as well as r
 """
 from __future__ import annotations
 
+LAUNCH = {
+    "status": "coming_soon",
+    "label": "Coming soon",
+    "headline": "Launching after our MOUs are signed",
+    "note": ("Fractional property investment goes live once VoltexAI finalises "
+             "Memoranda of Understanding with property partners, developers and the "
+             "relevant regulators. Join the waitlist and you'll be first to invest — "
+             "settled through VoltexAI Pay."),
+}
+
 OVERVIEW = {
     "name": "VoltexAI Real Estate",
     "tagline": "Turn trading gains into brick-and-mortar wealth.",
+    "launch": LAUNCH,
     "blurb": ("Diversify beyond the charts. Co-invest in vetted, income-producing "
               "property across Africa and beyond — from as little as $50, funded by "
               "card or mobile money, with rental yield paid to your VoltexAI wallet."),
@@ -75,6 +86,10 @@ def list_properties(market: str | None = None) -> list[dict]:
     if market and market != "all":
         return [p for p in PROPERTIES if p["country"].lower() == market.lower()]
     return PROPERTIES
+
+
+def get_property(pid: str) -> dict | None:
+    return next((p for p in PROPERTIES if p["id"] == pid), None)
 
 
 def realestate_overview() -> dict:

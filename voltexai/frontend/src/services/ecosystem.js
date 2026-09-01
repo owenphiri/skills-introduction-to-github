@@ -38,4 +38,5 @@ export const geoService = {
 
 export const realEstateService = {
   overview: (market = "all") => api.get(`/api/realestate?market=${encodeURIComponent(market)}`),
+  interest: (payload) => api.post("/api/realestate/interest", payload),
 };

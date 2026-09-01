@@ -2565,3 +2565,50 @@ body {
 .vx-re-stats div { display: flex; flex-direction: column; }
 .vx-re-stats span { font-size: 11px; color: var(--vx-text-dim); }
 .vx-re-stats b { font-size: 14px; font-family: var(--vx-font-mono); }
+
+/* ---- Real Estate: coming-soon + invest modal ---- */
+.vx-re-soon-inline { color: var(--vx-warn); font-weight: 700; }
+.vx-re-soon {
+  position: absolute; top: 14px; right: 46px; font-size: 10.5px; font-weight: 800;
+  text-transform: uppercase; letter-spacing: .04em; padding: 4px 9px; border-radius: 999px;
+  background: rgba(255,181,71,.16); color: var(--vx-warn); border: 1px solid rgba(255,181,71,.4);
+  backdrop-filter: blur(4px);
+}
+.vx-re-soon--modal { position: static; display: inline-block; margin-bottom: 10px; }
+.vx-re-soon--band { position: static; display: inline-block; margin-bottom: 12px; }
+
+.vx-modal-overlay {
+  position: fixed; inset: 0; z-index: 1000; background: rgba(5,7,13,.72); backdrop-filter: blur(6px);
+  display: grid; place-items: center; padding: 20px; animation: vx-fade-rise .2s ease both;
+}
+.vx-re-modal {
+  position: relative; width: 100%; max-width: 460px; background: linear-gradient(160deg,#17202f,#0d1220);
+  border: 1px solid var(--vx-line2, #2a3750); border-radius: 20px; padding: 28px; box-shadow: var(--vx-shadow-lg);
+}
+.vx-re-modal h3 { font-family: var(--vx-font-display); margin: 0 0 4px; font-size: 21px; }
+.vx-re-modal-loc { font-size: 13px; margin: 0 0 14px; }
+.vx-modal-x {
+  position: absolute; top: 14px; right: 16px; background: none; border: none; color: var(--vx-text-dim);
+  font-size: 26px; line-height: 1; cursor: pointer;
+}
+.vx-modal-x:hover { color: var(--vx-text); }
+.vx-re-notice {
+  background: rgba(255,181,71,.08); border: 1px solid rgba(255,181,71,.28); border-radius: 12px;
+  padding: 12px 14px; margin-bottom: 16px;
+}
+.vx-re-notice b { color: var(--vx-warn); font-size: 13.5px; }
+.vx-re-notice p { color: var(--vx-text-dim); font-size: 13px; line-height: 1.5; margin: 5px 0 0; }
+.vx-re-field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--vx-text-dim); margin-bottom: 12px; }
+.vx-re-field input {
+  background: var(--vx-bg); color: var(--vx-text); border: 1px solid var(--vx-border);
+  border-radius: 10px; padding: 11px 13px; font-size: 15px; font-family: var(--vx-font-body);
+}
+.vx-re-field input:focus { outline: none; border-color: var(--vx-accent); box-shadow: 0 0 0 3px var(--vx-accent-soft); }
+.vx-re-pay { display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  padding: 11px 13px; background: var(--vx-bg-elev); border: 1px solid var(--vx-border);
+  border-radius: 10px; margin-bottom: 16px; font-size: 13px; flex-wrap: wrap; }
+.vx-re-rail { color: var(--vx-accent); font-weight: 700; }
+.vx-re-modal-done { text-align: center; padding: 8px 0; }
+.vx-re-modal-icon { font-size: 44px; }
+.vx-re-modal-done h3 { margin: 10px 0 8px; }
+.vx-re-modal-done p { margin: 0 auto 18px; max-width: 34ch; }

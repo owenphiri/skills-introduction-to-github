@@ -14,8 +14,10 @@ from .rl import RLModelState, RLObservation
 from .referral import ReferralAccount, Referral
 from .tenant import Tenant
 from .coin import CoinTransaction, CoinEntryKind
+from .realestate import RealEstateInterest
 
 __all__ = [
+    "RealEstateInterest",
     "CoinTransaction", "CoinEntryKind",
     "Tenant",
     "ContestEntry", "Post", "JournalTrade", "ProSignal", "ProSignalEvent",

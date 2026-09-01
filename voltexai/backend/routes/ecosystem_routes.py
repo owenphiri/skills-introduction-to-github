@@ -9,8 +9,10 @@ GET /api/pay                       - Voltex Pay payment-rail catalog
 GET /api/gamification/me           - the current user's XP / level / badges (auth)
 """
 from fastapi import APIRouter, Depends, Query, HTTPException
+from pydantic import BaseModel, Field, EmailStr
 from sqlalchemy.orm import Session
 
+from ..config import settings
 from ..database import get_db
 from ..models import User
 from ..middleware.auth_middleware import get_current_user
@@ -91,6 +93,48 @@ def realestate(market: str = Query("all")):
     if market and market != "all":
         data["properties"] = realestate_data.list_properties(market)
     return data
+
+
+class RealEstateInterestIn(BaseModel):
+    property_id: str = Field(min_length=2, max_length=60)
+    amount_usd: float = Field(default=0.0, ge=0, le=100_000_000)
+    email: EmailStr | None = None
+    provider: str | None = Field(default=None, max_length=20)
+    country: str | None = Field(default=None, max_length=60)
+
+
+@router.post("/api/realestate/interest", status_code=201)
+def realestate_interest(data: RealEstateInterestIn, db: Session = Depends(get_db)):
+    """Join the invest waitlist for a property. The vertical is COMING SOON —
+    this records demand (and the VoltexAI Pay rail) rather than charging, until
+    the MOUs with property partners and regulators are signed."""
+    from ..models import RealEstateInterest
+    prop = realestate_data.get_property(data.property_id)
+    if not prop:
+        raise HTTPException(404, "Unknown property")
+    row = RealEstateInterest(email=(str(data.email).lower() if data.email else None),
+                             property_id=data.property_id, amount_usd=data.amount_usd,
+                             provider=data.provider, country=data.country)
+    db.add(row)
+    db.commit()
+    # best-effort confirmation email
+    if data.email:
+        try:
+            from ..services import email_service
+            body = (f"You're on the VoltexAI Real Estate waitlist for "
+                    f"<b>{prop['name']}</b> ({prop['city']}, {prop['country']}). "
+                    "Fractional property investment launches once our MOUs with property "
+                    "partners and regulators are signed — you'll be first to invest through "
+                    "VoltexAI Pay.")
+            email_service.send_email(
+                str(data.email), "You're on the VoltexAI Real Estate waitlist",
+                email_service._wrap("Waitlist confirmed", body,
+                                    "Explore VoltexAI", f"{settings.FRONTEND_URL}/real-estate"),
+                text="You're on the VoltexAI Real Estate waitlist. We'll be in touch at launch.")
+        except Exception:
+            pass
+    return {"ok": True, "status": "coming_soon", "property": prop["name"],
+            "message": "You're on the waitlist — we'll notify you the moment it goes live."}
 
 
 @router.get("/api/pay")
