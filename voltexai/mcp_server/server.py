@@ -15,6 +15,7 @@ access, no orders. Those arrive in later phases behind the risk layer.
 # `TypeError: issubclass() arg 1 must be a class`. Real annotations (list[str]
 # etc.) work natively on Python 3.10+.
 from . import tools
+from . import account_tools
 
 try:
     from mcp.server.fastmcp import FastMCP
@@ -27,11 +28,11 @@ except ModuleNotFoundError as exc:  # pragma: no cover - runtime guard
 mcp = FastMCP(
     "voltexai-markets",
     instructions=(
-        "VoltexAI market data (read-only). Use list_symbols to discover tradable "
-        "symbols, get_quote/get_quotes for latest prices, and get_candles for OHLC "
-        "history. Prices are live when a provider is configured, otherwise a "
-        "high-fidelity synthetic feed. This server cannot access accounts or place "
-        "trades."
+        "VoltexAI market data + read-only broker account (Phase 1). Use "
+        "list_symbols to discover tradable symbols, get_quote/get_quotes for latest "
+        "prices, and get_candles for OHLC history. get_account, list_positions and "
+        "get_account_summary read a connected DEMO broker account (Deriv) — "
+        "read-only. This server cannot place, modify or close trades."
     ),
 )
 
@@ -60,6 +61,28 @@ async def get_candles(symbol: str, timeframe: str = "M15", count: int = 200) -> 
     """Get OHLC candles for a symbol. timeframe: M1, M5, M15, M30, H1, H4, D1.
     count: up to 500 (default 200)."""
     return await tools.get_candles(symbol, timeframe, count)
+
+
+# --- Phase 1: read-only broker account (demo) -------------------------------
+
+@mcp.tool()
+async def get_account() -> dict:
+    """Get the connected DEMO broker account: balance, currency, demo flag.
+    Read-only. Requires a Deriv demo API token in the server environment."""
+    return await account_tools.get_account()
+
+
+@mcp.tool()
+async def list_positions() -> dict:
+    """List open positions on the connected DEMO broker account. Read-only."""
+    return await account_tools.list_positions()
+
+
+@mcp.tool()
+async def get_account_summary() -> dict:
+    """Account balance plus a roll-up of open positions (count, staked,
+    open profit) in one call. Read-only, demo account."""
+    return await account_tools.get_account_summary()
 
 
 def main() -> None:

@@ -3,3 +3,5 @@
 #   pip install -r voltexai/requirements-mcp.txt
 # Pin below 2.x: mcp 2.x renames FastMCP -> MCPServer, which this scaffold uses.
 mcp[cli]>=1.6,<2
+# Phase 1 Deriv adapter transport (WebSocket).
+websockets>=12
