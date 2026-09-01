@@ -1,0 +1,221 @@
+<title>VoltexAI Real Estate Demand</title>
+<meta name="description" content="Pre-launch demand snapshot for the VoltexAI Real Estate vertical — reserved waitlist demand, the property pipeline, and the path to launch.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap">
+<style>
+:root{
+  --bg:#0a0e1a; --elev:#121826; --card:#17202f; --line:#1f2a3d; --line2:#2a3750;
+  --text:#e6ecf3; --dim:#8b97ac; --dim2:#6b7689; --lime:#c2f53d; --teal:#7cffb0;
+  --indigo:#4d7cff; --warn:#ffb547;
+  --grad:linear-gradient(100deg,#c2f53d,#7cffb0);
+  --f-disp:"Space Grotesk","Inter",system-ui,sans-serif;
+  --f-body:"Inter",system-ui,-apple-system,sans-serif;
+  --f-mono:"JetBrains Mono","Menlo",monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--f-body);line-height:1.55;
+  -webkit-font-smoothing:antialiased}
+.sheet{max-width:940px;margin:0 auto;padding:40px 28px 60px}
+h1,h2,h3{font-family:var(--f-disp);letter-spacing:-.02em;margin:0;text-wrap:balance}
+.dim{color:var(--dim);font-size:.86em}
+.num{font-family:var(--f-mono);text-align:right;white-space:nowrap}
+.acc{color:var(--lime)}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--lime);font-weight:600}
+
+/* header */
+.head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;
+  border-bottom:1px solid var(--line);padding-bottom:20px;margin-bottom:26px}
+.brand{font-family:var(--f-disp);font-weight:700;font-size:20px}
+.brand .bolt{color:var(--lime)} .brand em{background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;font-style:normal}
+.head .meta{text-align:right;font-size:12px;color:var(--dim);font-family:var(--f-mono)}
+.soon{display:inline-block;font-family:var(--f-mono);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
+  color:var(--warn);background:rgba(255,181,71,.14);border:1px solid rgba(255,181,71,.4);padding:4px 10px;border-radius:999px;margin-top:6px}
+
+.title{margin-bottom:24px}
+.title h1{font-size:clamp(28px,5vw,44px);line-height:1.05;margin:8px 0 8px}
+.title h1 em{background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;font-style:normal}
+.title p{color:var(--dim);max-width:64ch;margin:0}
+
+/* kpis */
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin:26px 0 34px}
+.kpi{background:linear-gradient(165deg,rgba(23,32,47,.9),rgba(18,24,38,.7));border:1px solid var(--line);border-radius:14px;padding:16px 14px}
+.kpi b{display:block;font-family:var(--f-disp);font-size:24px;background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.kpi .k{font-size:12.5px;color:var(--text);margin-top:3px} .kpi .s{font-size:11px;color:var(--dim)}
+@media (max-width:760px){.kpis{grid-template-columns:repeat(2,1fr)}}
+
+.sec{margin:34px 0}
+.sec h2{font-size:22px;margin-bottom:4px}
+.sec .lead{color:var(--dim);font-size:14px;margin:0 0 16px}
+
+/* table */
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px}
+table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:640px}
+th{text-align:left;font-family:var(--f-mono);font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--dim);
+  padding:12px 14px;background:rgba(18,24,38,.6);border-bottom:1px solid var(--line)}
+th.num{text-align:right}
+td{padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:none}
+
+/* demand bars */
+.bars{display:flex;flex-direction:column;gap:10px}
+.bar-row{display:grid;grid-template-columns:1.3fr 2fr auto;gap:14px;align-items:center;
+  background:linear-gradient(165deg,rgba(23,32,47,.9),rgba(18,24,38,.7));border:1px solid var(--line);border-radius:12px;padding:11px 15px}
+.bar-name{font-size:13.5px}
+.bar{height:10px;border-radius:999px;background:var(--elev);overflow:hidden}
+.bar span{display:block;height:100%;border-radius:999px}
+.bar-val{font-family:var(--f-mono);text-align:right;white-space:nowrap;font-size:13px}
+@media (max-width:640px){.bar-row{grid-template-columns:1fr}.bar-val{text-align:left}}
+
+/* the ask */
+.ask{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+.ask .item{background:linear-gradient(165deg,rgba(23,32,47,.9),rgba(18,24,38,.7));border:1px solid var(--line);border-radius:14px;padding:18px}
+.ask h3{font-size:15px;margin-bottom:6px} .ask p{color:var(--dim);font-size:13px;margin:0}
+@media (max-width:640px){.ask{grid-template-columns:1fr}}
+
+.note{background:rgba(255,181,71,.08);border:1px solid rgba(255,181,71,.28);border-radius:12px;padding:14px 16px;margin:26px 0}
+.note b{color:var(--warn)} .note p{color:var(--dim);font-size:13px;margin:5px 0 0}
+footer{border-top:1px solid var(--line);margin-top:32px;padding-top:20px;color:var(--dim2);font-size:12px;line-height:1.6}
+footer .who{color:var(--text);font-weight:600}
+
+/* print: switch to ink-friendly light */
+@media print{
+  body{background:#fff;color:#111}
+  .kpi,.bar-row,.ask .item,.tbl-wrap{background:#fff!important;border-color:#ddd}
+  th{background:#f3f4f6} .dim,.kpi .s{color:#555}
+  .kpi b,.title h1 em,.brand em{-webkit-text-fill-color:#0a7d33;color:#0a7d33}
+  .acc{color:#0a7d33}
+}
+</style>
+
+<div class="sheet">
+  <div class="head">
+    <div>
+      <div class="brand"><span class="bolt">⚡</span> Voltex<em>AI</em> Real Estate</div>
+      <div class="soon">Coming soon · pre-MOU demand</div>
+    </div>
+    <div class="meta">Demand snapshot<br>01 September 2026<br>Confidential — for stakeholders</div>
+  </div>
+
+  <div class="title">
+    <span class="eyebrow">Stakeholder briefing</span>
+    <h1>Verified demand for <em>fractional property</em>, before we open the doors.</h1>
+    <p>VoltexAI is opening a fractional real-estate vertical to its trading community — invest from $50,
+      funded by card or mobile money, with rental yield paid to the VoltexAI wallet. The figures below are
+      real, reserved interest from the pre-launch waitlist across a curated pipeline.</p>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi"><b>$7k</b><div class="k">Reserved demand</div><div class="s">waitlist, to date</div></div><div class="kpi"><b>7</b><div class="k">Investor signups</div><div class="s">and growing</div></div><div class="kpi"><b>6</b><div class="k">Live deals</div><div class="s">across 6 markets</div></div><div class="kpi"><b>11.1%</b><div class="k">Avg target yield</div><div class="s">net rental, p.a.</div></div><div class="kpi"><b>$12.7M</b><div class="k">Portfolio value</div><div class="s">listed opportunities</div></div>
+  </div>
+
+  <div class="sec">
+    <h2>Reserved demand by property</h2>
+    <p class="lead">Waitlist reservations to date — an early, unweighted read on appetite per deal.</p>
+    <div class="bars"><div class="bar-row">
+      <div class="bar-name">🇦🇪 JVC Smart Studios <span class="dim">· Dubai</span></div>
+      <div class="bar"><span style="width:100.0%;background:#4dd0e1"></span></div>
+      <div class="bar-val"><b>$3k</b> <span class="dim">1</span></div>
+    </div><div class="bar-row">
+      <div class="bar-name">🇿🇲 Kasama Heights Apartments <span class="dim">· Kasama</span></div>
+      <div class="bar"><span style="width:41.7%;background:#c2f53d"></span></div>
+      <div class="bar-val"><b>$1k</b> <span class="dim">3</span></div>
+    </div><div class="bar-row">
+      <div class="bar-name">🇳🇬 Lekki Waterfront Residences <span class="dim">· Lagos</span></div>
+      <div class="bar"><span style="width:40.0%;background:#4d7cff"></span></div>
+      <div class="bar-val"><b>$1k</b> <span class="dim">1</span></div>
+    </div><div class="bar-row">
+      <div class="bar-name">🇿🇦 Sea Point Holiday Lets <span class="dim">· Cape Town</span></div>
+      <div class="bar"><span style="width:26.7%;background:#a06bff"></span></div>
+      <div class="bar-val"><b>$800</b> <span class="dim">1</span></div>
+    </div><div class="bar-row">
+      <div class="bar-name">🇰🇪 Westlands Grade-A Offices <span class="dim">· Nairobi</span></div>
+      <div class="bar"><span style="width:16.7%;background:#45e0a0"></span></div>
+      <div class="bar-val"><b>$500</b> <span class="dim">1</span></div>
+    </div><div class="bar-row">
+      <div class="bar-name">🇬🇭 Cantonments Townhomes <span class="dim">· Accra</span></div>
+      <div class="bar"><span style="width:0.0%;background:#ffb547"></span></div>
+      <div class="bar-val"><b>$0</b> <span class="dim">0</span></div>
+    </div></div>
+  </div>
+
+  <div class="sec">
+    <h2>The launch pipeline</h2>
+    <p class="lead">Six curated opportunities across 6 markets — Ghana, Kenya, Nigeria, South Africa, UAE, Zambia.</p>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Property</th><th>Type</th><th class="num">Value</th><th class="num">Min</th><th class="num">Yield</th><th class="num">Term</th><th class="num">Reserved</th></tr></thead>
+      <tbody><tr>
+      <td><b>🇦🇪 JVC Smart Studios</b><br><span class="dim">Dubai, UAE</span></td>
+      <td>Residential · 30 units</td>
+      <td class="num">$4.6M</td>
+      <td class="num">$300</td>
+      <td class="num acc">8.6%</td>
+      <td class="num">60 mo</td>
+      <td class="num"><b>$3k</b><br><span class="dim">1 signup</span></td>
+    </tr><tr>
+      <td><b>🇿🇲 Kasama Heights Apartments</b><br><span class="dim">Kasama, Zambia</span></td>
+      <td>Residential · 24 units</td>
+      <td class="num">$480k</td>
+      <td class="num">$50</td>
+      <td class="num acc">12.8%</td>
+      <td class="num">36 mo</td>
+      <td class="num"><b>$1k</b><br><span class="dim">3 signups</span></td>
+    </tr><tr>
+      <td><b>🇳🇬 Lekki Waterfront Residences</b><br><span class="dim">Lagos, Nigeria</span></td>
+      <td>Residential · 40 units</td>
+      <td class="num">$2.1M</td>
+      <td class="num">$100</td>
+      <td class="num acc">10.5%</td>
+      <td class="num">48 mo</td>
+      <td class="num"><b>$1k</b><br><span class="dim">1 signup</span></td>
+    </tr><tr>
+      <td><b>🇿🇦 Sea Point Holiday Lets</b><br><span class="dim">Cape Town, South Africa</span></td>
+      <td>Short-let · 8 units</td>
+      <td class="num">$1.2M</td>
+      <td class="num">$100</td>
+      <td class="num acc">13.9%</td>
+      <td class="num">24 mo</td>
+      <td class="num"><b>$800</b><br><span class="dim">1 signup</span></td>
+    </tr><tr>
+      <td><b>🇰🇪 Westlands Grade-A Offices</b><br><span class="dim">Nairobi, Kenya</span></td>
+      <td>Commercial · office</td>
+      <td class="num">$3.4M</td>
+      <td class="num">$250</td>
+      <td class="num acc">9.2%</td>
+      <td class="num">60 mo</td>
+      <td class="num"><b>$500</b><br><span class="dim">1 signup</span></td>
+    </tr><tr>
+      <td><b>🇬🇭 Cantonments Townhomes</b><br><span class="dim">Accra, Ghana</span></td>
+      <td>Residential · 12 units</td>
+      <td class="num">$890k</td>
+      <td class="num">$75</td>
+      <td class="num acc">11.6%</td>
+      <td class="num">36 mo</td>
+      <td class="num"><b>$0</b><br><span class="dim">0 signups</span></td>
+    </tr></tbody>
+    </table></div>
+  </div>
+
+  <div class="sec">
+    <h2>The path to launch</h2>
+    <p class="lead">What turns this demand into live deals — the MOUs we are finalising.</p>
+    <div class="ask">
+      <div class="item"><h3>Property partners &amp; developers</h3><p>Signed pipeline of vetted, income-producing assets across our launch markets.</p></div><div class="item"><h3>Regulatory clarity (MOUs)</h3><p>Fractional-ownership and securities structure agreed with regulators in each jurisdiction.</p></div><div class="item"><h3>Custody &amp; SPV structure</h3><p>Ring-fenced special-purpose vehicles per deal, with independent administration.</p></div><div class="item"><h3>VoltexAI Pay at settlement</h3><p>Card &amp; mobile-money rails already live across the ecosystem — investors fund in one tap.</p></div>
+    </div>
+  </div>
+
+  <div class="note">
+    <b>💡 Status: Coming soon.</b>
+    <p>No investor funds have been taken. Fractional property investment goes live once VoltexAI finalises
+      Memoranda of Understanding with property partners, developers and the relevant regulators. This snapshot
+      evidences demand ahead of those signings.</p>
+  </div>
+
+  <footer>
+    <div class="who">VoltexAI Technologies · OP OWENS PHIRI, Founder &amp; CEO</div>
+    Powered by Axion Labs Technologies · Kasama, Zambia · EST. 2017 · voltexai.vercel.app<br>
+    Figures are pre-launch waitlist reservations and target yields — illustrative, not guaranteed, and not a
+    solicitation or an offer of securities. Property values and rental income can fall as well as rise.
+    © 2026 VoltexAI Technologies. All rights reserved.
+  </footer>
+</div>
