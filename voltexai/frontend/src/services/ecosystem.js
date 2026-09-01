@@ -35,3 +35,7 @@ export const competitionService = {
 export const geoService = {
   config: (country) => api.get(`/api/geo/config${country ? `?country=${encodeURIComponent(country)}` : ""}`),
 };
+
+export const realEstateService = {
+  overview: (market = "all") => api.get(`/api/realestate?market=${encodeURIComponent(market)}`),
+};

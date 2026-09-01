@@ -18,6 +18,7 @@ import Signals from "./pages/Signals";
 import PropFirms from "./pages/PropFirms";
 import Brokers from "./pages/Brokers";
 import AUM from "./pages/AUM";
+import RealEstate from "./pages/RealEstate";
 import Products from "./pages/Products";
 import Academy from "./pages/Academy";
 import Scanner from "./pages/Scanner";
@@ -90,6 +91,7 @@ export default function App() {
           <Route path="/prop-firms" element={<PropFirms />} />
           <Route path="/brokers" element={<Brokers />} />
           <Route path="/aum" element={<AUM />} />
+          <Route path="/real-estate" element={<RealEstate />} />
           <Route path="/products" element={<Products />} />
           <Route path="/academy" element={<Academy />} />
           <Route path="/scanner" element={<Scanner />} />

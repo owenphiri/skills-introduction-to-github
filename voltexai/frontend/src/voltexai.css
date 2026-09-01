@@ -2517,3 +2517,51 @@ body {
 /* ---- Per-signal / per-symbol discussion wrappers ---- */
 .vx-signal-discuss { margin-top: .9rem; padding-top: .9rem; border-top: 1px solid var(--vx-border); }
 .vx-td-discuss { margin-top: 1.25rem; padding: 1.3rem 1.4rem; border-radius: 16px; }
+
+/* ============================================================
+   VoltexAI Real Estate
+   ============================================================ */
+.vx-re-hero { position: relative; overflow: hidden; padding: 64px 0 8px; }
+.vx-re-hero::before {
+  content: ""; position: absolute; inset: -30% -10% auto -10%; height: 560px; z-index: 0;
+  background:
+    radial-gradient(44% 56% at 22% 16%, rgba(124,255,176,0.22), transparent 60%),
+    radial-gradient(40% 50% at 82% 4%, rgba(77,124,255,0.18), transparent 60%);
+  filter: blur(34px); opacity: .85; pointer-events: none;
+}
+.vx-re-hero-in { position: relative; z-index: 1; max-width: 820px; }
+.vx-re-hero h1 { font-family: var(--vx-font-display); font-size: clamp(34px, 5.4vw, 56px);
+  line-height: 1.04; letter-spacing: -.02em; margin: 14px 0 16px; }
+.vx-re-sub { color: var(--vx-text-dim); font-size: 18px; line-height: 1.6; max-width: 620px; }
+.vx-re-statband { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 34px; }
+.vx-re-stat { background: linear-gradient(165deg, rgba(23,32,47,.9), rgba(18,24,38,.7));
+  border: 1px solid var(--vx-border); border-radius: 16px; padding: 16px 14px; box-shadow: var(--vx-ring); }
+.vx-re-stat b { display: block; font-family: var(--vx-font-display); font-size: 26px;
+  background: var(--vx-grad-accent); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.vx-re-stat span { display: block; font-size: 13px; color: var(--vx-text); margin-top: 2px; }
+.vx-re-stat small { font-size: 11px; }
+@media (max-width: 720px) { .vx-re-statband { grid-template-columns: repeat(2, 1fr); } }
+
+.vx-re-tabs { margin-bottom: 18px; }
+.vx-re-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 18px; }
+.vx-re-card { background: linear-gradient(165deg, rgba(23,32,47,.92), rgba(18,24,38,.72));
+  border: 1px solid var(--vx-border); border-radius: 18px; overflow: hidden;
+  box-shadow: var(--vx-ring); transition: transform .2s, border-color .2s, box-shadow .2s; }
+.vx-re-card:hover { transform: translateY(-4px); border-color: rgba(124,255,176,.4); box-shadow: var(--vx-shadow-lg); }
+.vx-re-photo { position: relative; height: 150px; display: flex; align-items: flex-end; padding: 14px; }
+.vx-re-yield { position: absolute; top: 14px; left: 14px; color: #06210a; font-weight: 800;
+  font-size: 12px; padding: 5px 11px; border-radius: 999px; box-shadow: 0 4px 14px -6px rgba(0,0,0,.5); }
+.vx-re-loc { font-family: var(--vx-font-mono); font-size: 13px; color: var(--vx-text);
+  background: rgba(10,14,26,.6); border: 1px solid var(--vx-glass-brd); padding: 5px 11px; border-radius: 999px; backdrop-filter: blur(4px); }
+.vx-re-pin { position: absolute; top: 12px; right: 14px; font-size: 22px; }
+.vx-re-body { padding: 16px 18px 18px; }
+.vx-re-top h3 { margin: 0; font-size: 18px; }
+.vx-re-top .vx-muted { font-size: 12.5px; }
+.vx-re-tagline { color: var(--vx-text-dim); font-size: 13.5px; line-height: 1.5; margin: 10px 0 14px; min-height: 40px; }
+.vx-re-bar { height: 8px; border-radius: 999px; background: var(--vx-bg-elev); overflow: hidden; }
+.vx-re-bar span { display: block; height: 100%; border-radius: 999px; }
+.vx-re-fund-meta { display: flex; justify-content: space-between; margin-top: 6px; font-size: 12.5px; }
+.vx-re-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 14px 0 16px; }
+.vx-re-stats div { display: flex; flex-direction: column; }
+.vx-re-stats span { font-size: 11px; color: var(--vx-text-dim); }
+.vx-re-stats b { font-size: 14px; font-family: var(--vx-font-mono); }

@@ -74,6 +74,10 @@ PRODUCTS = [
      "icon": "💼", "route": "/aum", "accent": "#c2f53d",
      "blurb": "Hands-off? Allocate to the VoltexAI managed programme — segregated "
               "accounts with a real-time investor dashboard."},
+    {"id": "real-estate", "name": "VoltexAI Real Estate", "tag": "Property Investment",
+     "icon": "🏠", "route": "/real-estate", "accent": "#7cffb0",
+     "blurb": "Turn trading gains into brick-and-mortar wealth — fractional property "
+              "investment from $50 with rental yield paid to your wallet."},
     {"id": "pay", "name": "Voltex Pay", "tag": "Payment Infrastructure",
      "icon": "💳", "route": "/pay", "accent": "#ff5560",
      "blurb": "Fund your journey your way — Mastercard, PayPal, crypto, and mobile "

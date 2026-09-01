@@ -19,6 +19,7 @@ from ..data import academy as academy_data
 from ..data.store import list_products, CATEGORIES
 from ..data.pay import pay_overview
 from ..data import geo
+from ..data import realestate as realestate_data
 from ..services import gamification
 
 router = APIRouter(tags=["ecosystem"])
@@ -81,6 +82,15 @@ def geo_config(country: str = Query(None)):
     """Public: supported currencies + FX (indicative), the visitor's detected
     local currency/rail, and VoltexAI's global reach summary."""
     return geo.geo_config(country)
+
+
+@router.get("/api/realestate")
+def realestate(market: str = Query("all")):
+    """Public: VoltexAI Real Estate — overview + curated property opportunities."""
+    data = realestate_data.realestate_overview()
+    if market and market != "all":
+        data["properties"] = realestate_data.list_properties(market)
+    return data
 
 
 @router.get("/api/pay")
