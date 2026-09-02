@@ -33,6 +33,7 @@ PROP_FIRMS = [
     {
         "id": "fundednext",
         "name": "FundedNext",
+        "partner": True,
         "country": "UAE",
         "founded": 2022,
         "model": "Evaluation + Express + Stellar (1-step & 2-step)",
@@ -48,9 +49,9 @@ PROP_FIRMS = [
         "news_trading": True,
         "weekend_holding": True,
         "ea_allowed": True,
-        "best_for": "Traders who want a profit share even in the challenge phase.",
+        "best_for": "Profit share even in the challenge phase and up to a 95% split. Official VoltexAI prop-firm partner.",
         "rating": 4.4,
-        "url": "https://fundednext.com",
+        "url": "https://partner.fundednext.com/join/6S2UOwRu",
     },
     {
         "id": "fundingpips",
@@ -191,8 +192,11 @@ PROP_FIRMS_BY_ID = {f["id"]: f for f in PROP_FIRMS}
 
 def list_prop_firms(asset_class: str | None = None) -> list[dict]:
     if not asset_class or asset_class == "all":
-        return PROP_FIRMS
-    return [f for f in PROP_FIRMS if asset_class in f["instruments"]]
+        firms = PROP_FIRMS
+    else:
+        firms = [f for f in PROP_FIRMS if asset_class in f["instruments"]]
+    # Official partners lead the board (stable — original order kept within groups).
+    return sorted(firms, key=lambda f: not f.get("partner", False))
 
 
 def get_prop_firm(firm_id: str) -> dict | None:
