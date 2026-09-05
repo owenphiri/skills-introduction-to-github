@@ -46,7 +46,14 @@ export default function Brokers() {
             <div key={b.id} className="vx-dir-card">
               <div className="vx-dir-head">
                 <div>
-                  <h3>{b.name} {b.partner && <span className="vx-partner-badge">✦ Partner</span>}</h3>
+                  <h3>
+                    {b.url ? (
+                      <a className="vx-dir-name-link" href={b.url} target="_blank" rel="noopener noreferrer"
+                        title={`Open ${b.name} — via VoltexAI`}>{b.name}</a>
+                    ) : b.name}
+                    {" "}
+                    {b.partner && <span className="vx-partner-badge">✦ Partner</span>}
+                  </h3>
                   <span className="vx-muted">{b.regulators.join(" · ")}</span>
                 </div>
                 <span className="vx-rating">★ {b.rating}</span>
@@ -67,6 +74,12 @@ export default function Brokers() {
                 <span className="vx-muted">Funding:</span> {b.funding.join(" · ")}
               </div>
               <p className="vx-dir-best">{b.best_for}</p>
+              {b.highlights?.length > 0 && (
+                <ul className="vx-dir-highlights">
+                  {b.highlights.map((h, i) => <li key={i}>{h}</li>)}
+                </ul>
+              )}
+              {b.promo && <p className="vx-dir-promo">🎁 {b.promo}</p>}
               <a href={b.url} target="_blank" rel="noopener noreferrer"
                 className={`vx-btn-sm ${b.partner ? "vx-btn-primary" : "vx-btn-secondary"}`}>
                 {b.partner ? `Open a ${b.name} account ↗` : `Visit ${b.name} ↗`}
