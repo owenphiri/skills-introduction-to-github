@@ -54,7 +54,14 @@ export default function PropFirms() {
             <div key={f.id} className="vx-dir-card">
               <div className="vx-dir-head">
                 <div>
-                  <h3>{f.name} {f.partner && <span className="vx-partner-badge">✦ Partner</span>}</h3>
+                  <h3>
+                    {f.url ? (
+                      <a className="vx-dir-name-link" href={f.url} target="_blank" rel="noopener noreferrer"
+                        title={`Open ${f.name} — via VoltexAI`}>{f.name}</a>
+                    ) : f.name}
+                    {" "}
+                    {f.partner && <span className="vx-partner-badge">✦ Partner</span>}
+                  </h3>
                   <span className="vx-muted">{f.country} · est. {f.founded}</span>
                 </div>
                 <span className="vx-rating">★ {f.rating}</span>
@@ -75,6 +82,12 @@ export default function PropFirms() {
                 {f.platforms.slice(0, 3).map((p) => <span key={p} className="vx-chip">{p}</span>)}
               </div>
               <p className="vx-dir-best">{f.best_for}</p>
+              {f.highlights?.length > 0 && (
+                <ul className="vx-dir-highlights">
+                  {f.highlights.map((h, i) => <li key={i}>{h}</li>)}
+                </ul>
+              )}
+              {f.promo && <p className="vx-dir-promo">🎁 {f.promo}</p>}
               <a href={f.url} target="_blank" rel="noopener noreferrer"
                 className={`vx-btn-sm ${f.partner ? "vx-btn-primary" : "vx-btn-secondary"}`}>
                 {f.partner ? `Get funded with ${f.name} ↗` : `Visit ${f.name} ↗`}
