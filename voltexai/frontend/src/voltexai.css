@@ -555,6 +555,13 @@ body {
   -webkit-background-clip: text; background-clip: text; color: transparent;
 }
 .vx-fineprint { color: var(--vx-text-dim); font-size: 12px; margin-top: 22px; line-height: 1.6; }
+.vx-partner-disclosure { display: flex; gap: 9px; align-items: flex-start;
+  font-size: 12.5px; line-height: 1.5; color: var(--vx-text-dim);
+  background: rgba(77,124,255,0.06); border: 1px solid var(--vx-border);
+  border-left: 3px solid var(--vx-primary); border-radius: 8px;
+  padding: 10px 13px; margin: 4px 0 18px; }
+.vx-partner-disclosure b { color: var(--vx-text); font-weight: 600; }
+.vx-partner-disclosure .vx-disc-mark { color: var(--vx-accent); font-weight: 700; flex: none; }
 .vx-inline-link, .vx-panel-link { color: var(--vx-accent); text-decoration: none; }
 .vx-inline-link:hover { text-decoration: underline; }
 .vx-btn-sm { padding: 8px 14px !important; font-size: 13px !important; }

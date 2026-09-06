@@ -25,6 +25,14 @@ export default function PropFirms() {
           </p>
         </div>
 
+        <p className="vx-partner-disclosure">
+          <span className="vx-disc-mark">✦</span>
+          <span><b>Partner disclosure:</b> firms marked ✦ Partner include VoltexAI affiliate
+            links. If you register or get funded through them, VoltexAI may earn a commission — at
+            no extra cost to you. It never changes your fees, and our listings and ratings stay
+            editorial and independent. Always confirm current rules and pricing on each firm's site.</span>
+        </p>
+
         <div className="vx-futures-banner">
           <div className="vx-futures-text">
             <span className="vx-soon-badge">Coming Soon</span>

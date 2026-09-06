@@ -27,6 +27,14 @@ export default function Brokers() {
           </p>
         </div>
 
+        <p className="vx-partner-disclosure">
+          <span className="vx-disc-mark">✦</span>
+          <span><b>Partner disclosure:</b> brokers marked ✦ Partner include VoltexAI affiliate
+            links. If you open an account through them, VoltexAI may earn a commission — at no
+            extra cost to you. It never changes your pricing, and our listings and ratings stay
+            editorial and independent. Always verify regulation and current terms before depositing.</span>
+        </p>
+
         <div className="vx-filters">
           <div className="vx-class-tabs">
             {CLASSES.map((c) => (
