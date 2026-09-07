@@ -284,6 +284,30 @@ def calendar(days: int = 7, now: datetime | None = None) -> list[dict]:
     return rows
 
 
+def symbol_alert(symbol: str, now: datetime | None = None,
+                 within_min: int = 60) -> dict | None:
+    """The soonest high-impact event affecting `symbol` that is LIVE or lands
+    within `within_min` minutes — for the scanner's per-signal 'news soon'
+    warning. Returns None when the coast is clear."""
+    now = now or datetime.now(timezone.utc)
+    sym = (symbol or "").upper()
+    hits = []
+    for e in EVENTS:
+        if sym not in e["instruments"]:
+            continue
+        rel, live, phase = _relevant(e, now)
+        mins = round((rel - now).total_seconds() / 60)
+        if live or (0 <= mins <= within_min):
+            hits.append({"code": e["code"], "event": e["name"], "impact": e["impact"],
+                         "currency": e["currency"], "minutes_to": mins,
+                         "countdown": _fmt_countdown(rel - now),
+                         "live": live, "phase": phase})
+    if not hits:
+        return None
+    hits.sort(key=lambda h: (not h["live"], abs(h["minutes_to"])))
+    return hits[0]
+
+
 def is_high_impact_live(now: datetime | None = None) -> bool:
     """True if any HIGH-impact event is currently in its news window (for the
     auto-trader news guard)."""

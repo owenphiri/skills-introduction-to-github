@@ -169,6 +169,13 @@ export default function Scanner() {
                     {s.htf_timeframe} bias {s.htf_bias === "NO_TRADE" ? "neutral" : s.htf_bias}
                   </div>
                 )}
+                {s.news_warning && (
+                  <div className={`vx-scan-news ${s.news_warning.live ? "live" : ""}`}>
+                    {s.news_warning.live
+                      ? `🔴 ${s.news_warning.code} live — high volatility`
+                      : `⚠️ ${s.news_warning.code} in ${s.news_warning.countdown}`}
+                  </div>
+                )}
               </Link>
             );
           })}

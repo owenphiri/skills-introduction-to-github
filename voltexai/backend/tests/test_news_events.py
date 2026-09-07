@@ -64,6 +64,27 @@ def test_calendar_endpoint_has_countdowns(client):
     assert events and all("countdown" in e for e in events)
 
 
+# ----------------------------- per-signal news warning -----------------------------
+def test_symbol_alert_fires_near_release_and_clear_otherwise():
+    from datetime import timedelta
+    e = news_events.EVENTS_BY_CODE["NFP"]          # affects XAUUSD
+    rel = news_events.next_occurrence(e, datetime(2026, 9, 1, tzinfo=timezone.utc))
+    # 30 min before NFP -> XAUUSD should warn
+    a = news_events.symbol_alert("XAUUSD", now=rel - timedelta(minutes=30), within_min=60)
+    assert a and a["code"] == "NFP" and a["minutes_to"] <= 60
+    # a symbol NFP doesn't touch, far from anything, at the same time -> no alert
+    assert news_events.symbol_alert("EURGBP", now=rel - timedelta(minutes=30), within_min=15) is None
+
+
+def test_signal_carries_news_warning_field(monkeypatch):
+    from backend.services import signal_engine
+    monkeypatch.setattr(news_events, "symbol_alert",
+                        lambda symbol, **k: {"code": "CPI", "event": "US CPI", "live": False,
+                                             "countdown": "20m", "minutes_to": 20, "impact": "high"})
+    sig = signal_engine.generate("EURUSD", "M15")
+    assert "news_warning" in sig and sig["news_warning"]["code"] == "CPI"
+
+
 # ----------------------------- auto-trader news guard -----------------------------
 def test_news_guard_pauses_entries(monkeypatch, tmp_path):
     monkeypatch.setattr(auto_trader, "BOOK_PATH", str(tmp_path / "b.json"))

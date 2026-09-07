@@ -18,6 +18,7 @@ import time
 from datetime import datetime, timedelta, timezone
 
 from . import market_service
+from ..data import news_events
 
 
 # ----------------------------- indicators -----------------------------
@@ -131,6 +132,7 @@ def generate(symbol: str, timeframe: str = "M15") -> dict:
     cl = [c["close"] for c in candles]
     price = cl[-1]
     pip = inst["pip_size"]
+    news = news_events.symbol_alert(symbol)   # high-impact event soon? (per-signal warning)
 
     ema20 = ema(cl, 20)[-1]
     ema50 = ema(cl, 50)[-1]
@@ -202,7 +204,8 @@ def generate(symbol: str, timeframe: str = "M15") -> dict:
             "session_context": _session_ctx(),
             "indicators": _indicator_block(r, macd_line, signal_line, hist,
                                            ema20, ema50, ema200, a),
-            "generated_at": _now_iso(),
+            "news_warning": news,
+        "generated_at": _now_iso(),
         }
 
     direction = "LONG" if score > 0 else "SHORT"
@@ -241,6 +244,7 @@ def generate(symbol: str, timeframe: str = "M15") -> dict:
         "valid_until": _valid_until(timeframe),
         "indicators": _indicator_block(r, macd_line, signal_line, hist,
                                        ema20, ema50, ema200, a),
+        "news_warning": news,
         "generated_at": _now_iso(),
     }
 
