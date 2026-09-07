@@ -1266,11 +1266,14 @@ body {
 .vx-resource-card b { display: block; margin-bottom: .2rem; }
 .vx-resource-card p { font-size: .85rem; margin: .2rem 0 .5rem; }
 .vx-cal-table { display: flex; flex-direction: column; border: 1px solid var(--vx-border); border-radius: 12px; overflow: hidden; }
-.vx-cal-row { display: grid; grid-template-columns: 90px 70px 50px 1fr auto; align-items: center; gap: .75rem;
+.vx-cal-row { display: grid; grid-template-columns: 92px 92px 46px 1fr 84px auto; align-items: center; gap: .75rem;
   padding: .7rem 1rem; border-bottom: 1px solid var(--vx-border); font-size: .85rem; }
 .vx-cal-row:last-child { border-bottom: none; }
+.vx-cal-row.is-live { background: rgba(255,92,138,0.06); }
 .vx-cal-date { color: var(--vx-text-dim); }
 .vx-cal-time { font-family: var(--vx-font-mono); }
+.vx-cal-time small { color: var(--vx-text-dim); font-size: .7em; }
+.vx-cal-count { font-family: var(--vx-font-mono); font-size: .8rem; color: var(--vx-accent); text-align: right; }
 .vx-cal-ccy { font-weight: 700; color: var(--vx-accent); }
 .vx-impact { padding: .15rem .6rem; border-radius: 999px; font-size: .7rem; text-transform: uppercase; font-weight: 700; }
 .vx-impact--high { background: color-mix(in srgb, var(--vx-danger) 20%, transparent); color: var(--vx-danger); }

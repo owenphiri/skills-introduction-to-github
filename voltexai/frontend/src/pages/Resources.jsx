@@ -67,11 +67,14 @@ export default function Resources() {
         <h2 className="vx-section-title">📅 High-impact economic calendar</h2>
         <div className="vx-cal-table">
           {cal?.events.map((e, i) => (
-            <div key={i} className="vx-cal-row">
+            <div key={i} className={`vx-cal-row ${e.live ? "is-live" : ""}`}>
               <span className="vx-cal-date">{e.date}</span>
-              <span className="vx-cal-time">{e.time_utc}</span>
+              <span className="vx-cal-time">{e.time_cat || e.time_utc}<small> {e.time_cat ? "CAT" : "UTC"}</small></span>
               <span className="vx-cal-ccy">{e.currency}</span>
               <span className="vx-cal-event">{e.event}</span>
+              {e.live
+                ? <span className="vx-live-badge">● LIVE</span>
+                : <span className="vx-cal-count">{e.countdown ? `in ${e.countdown}` : ""}</span>}
               <span className={`vx-impact vx-impact--${e.impact}`}>{e.impact}</span>
             </div>
           ))}

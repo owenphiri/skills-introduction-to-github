@@ -47,6 +47,23 @@ def test_news_endpoint(client):
     assert "upcoming" in d and "general_playbook" in d
 
 
+def test_economic_calendar_shares_news_source():
+    from backend.data import resources
+    cal = resources.economic_calendar(14)
+    assert cal, "calendar should not be empty over 14 days"
+    # weekly event (jobless claims) recurs more than once in the window
+    assert sum(1 for r in cal if r["code"] == "CLAIMS") >= 2
+    # rows carry live countdowns AND stay backward-compatible
+    r = cal[0]
+    assert {"date", "time_utc", "event", "currency", "impact"} <= set(r)  # old fields
+    assert {"countdown", "live", "release_iso", "time_cat"} <= set(r)      # new fields
+
+
+def test_calendar_endpoint_has_countdowns(client):
+    events = client.get("/api/resources/calendar?days=10").json()["events"]
+    assert events and all("countdown" in e for e in events)
+
+
 # ----------------------------- auto-trader news guard -----------------------------
 def test_news_guard_pauses_entries(monkeypatch, tmp_path):
     monkeypatch.setattr(auto_trader, "BOOK_PATH", str(tmp_path / "b.json"))

@@ -247,6 +247,43 @@ def news_status(now: datetime | None = None, horizon_days: int = 10) -> dict:
     }
 
 
+def _row(event: dict, occ: datetime, now: datetime) -> dict:
+    pre = timedelta(minutes=event["pre_min"])
+    post = timedelta(minutes=event["post_min"])
+    live = (occ - pre) <= now <= (occ + post)
+    return {
+        "code": event["code"], "event": event["name"], "currency": event["currency"],
+        "impact": event["impact"], "instruments": event["instruments"],
+        "date": occ.strftime("%a %d %b"),
+        "time_utc": occ.strftime("%H:%M"),
+        "time_cat": occ.astimezone(CAT).strftime("%H:%M"),
+        "release_iso": occ.isoformat(),
+        "minutes_to": round((occ - now).total_seconds() / 60),
+        "countdown": _fmt_countdown(occ - now),
+        "live": live,
+    }
+
+
+def calendar(days: int = 7, now: datetime | None = None) -> list[dict]:
+    """Every occurrence of every tracked event within the next `days` days —
+    the single source powering both the News Trading panel and the Economic
+    Calendar, so both share the same schedule and live countdowns."""
+    now = now or datetime.now(timezone.utc)
+    until = now + timedelta(days=days)
+    rows: list[dict] = []
+    for e in EVENTS:
+        occ = _relevant(e, now)[0]                     # current-or-next
+        post = timedelta(minutes=e["post_min"])
+        guard = 0
+        while occ <= until and guard < 60:
+            if occ + post >= now:                      # not fully in the past
+                rows.append(_row(e, occ, now))
+            occ = next_occurrence(e, occ)              # advance to the following one
+            guard += 1
+    rows.sort(key=lambda r: r["release_iso"])
+    return rows
+
+
 def is_high_impact_live(now: datetime | None = None) -> bool:
     """True if any HIGH-impact event is currently in its news window (for the
     auto-trader news guard)."""

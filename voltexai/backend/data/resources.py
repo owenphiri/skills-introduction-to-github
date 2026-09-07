@@ -28,18 +28,6 @@ RESOURCES = [
      "url": "https://www.tradingview.com"},
 ]
 
-# representative recurring high-impact events (weekday, UTC time, name, currency, impact)
-_RECURRING = [
-    (4, "12:30", "Non-Farm Payrolls", "USD", "high"),
-    (2, "12:30", "CPI (Inflation)", "USD", "high"),
-    (2, "18:00", "FOMC Rate Decision", "USD", "high"),
-    (3, "12:15", "ECB Rate Decision", "EUR", "high"),
-    (3, "11:00", "BoE Rate Decision", "GBP", "high"),
-    (1, "08:30", "UK GDP", "GBP", "medium"),
-    (0, "01:30", "China PMI", "CNY", "medium"),
-]
-
-
 def list_resources(category: str | None = None) -> list[dict]:
     if not category or category == "all":
         return RESOURCES
@@ -47,13 +35,11 @@ def list_resources(category: str | None = None) -> list[dict]:
 
 
 def economic_calendar(days: int = 7) -> list[dict]:
-    """Representative upcoming high-impact events for the next `days` days."""
-    now = datetime.now(timezone.utc)
-    out = []
-    for offset in range(days):
-        day = now + timedelta(days=offset)
-        for wd, t, name, ccy, impact in _RECURRING:
-            if day.weekday() == wd:
-                out.append({"date": day.strftime("%a %d %b"), "time_utc": t,
-                            "event": name, "currency": ccy, "impact": impact})
-    return out
+    """Upcoming high-impact events for the next `days` days.
+
+    Sourced from the shared news_events engine so the Economic Calendar and the
+    News Trading panel stay in lock-step — every row carries a live countdown and
+    a live-window flag, not just a static time.
+    """
+    from . import news_events
+    return news_events.calendar(days)
