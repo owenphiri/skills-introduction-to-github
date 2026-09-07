@@ -66,6 +66,8 @@ def config() -> dict:
                      "KYC / MOU — paper is used meanwhile."),
         },
         "kill_switch": _flag("AUTOTRADE_KILL_SWITCH", False),
+        # pause NEW entries while a high-impact news event is live (default on)
+        "news_guard": _flag("AUTOTRADE_NEWS_GUARD", True),
         "max_open": _i("AUTOTRADE_MAX_OPEN", 5),
         "risk_per_trade_pct": _f("AUTOTRADE_RISK_PCT", 1.0),
         "max_daily_loss": _f("AUTOTRADE_MAX_DAILY_LOSS", 500.0),
@@ -232,6 +234,13 @@ def run_cycle(asset_class: str = "all", timeframe: str | None = None,
     if cfg["kill_switch"]:
         return {"ran": False, "reason": "kill switch engaged", "mode": cfg["mode"],
                 "executed": [], "skipped": [], "config": cfg}
+    if cfg["news_guard"]:
+        from ..data import news_events
+        if news_events.is_high_impact_live():
+            live = [e["name"] for e in news_events.news_status()["live"] if e["impact"] == "high"]
+            return {"ran": False, "reason": "high-impact news window — new entries paused: "
+                    + ", ".join(live), "mode": cfg["mode"], "news_live": live,
+                    "executed": [], "skipped": [], "config": cfg}
 
     syms = [i["symbol"] for i in instruments.list_by_class(asset_class)]
     quality = signal_engine.quality_scan(syms, tf, htf, cfg["min_grade"], cfg["min_rr"])

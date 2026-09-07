@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { NavBar } from "../components/NavBar";
 import { Footer } from "../components/Footer";
 import { sessionsService } from "../services/hub";
+import { NewsTrading } from "../components/NewsTrading";
 import { KpiStrip } from "../components/Analytics";
 import { useI18n } from "../i18n";
 
@@ -27,6 +28,8 @@ export default function Live() {
         </div>
 
         <KpiStrip ids={["sessions", "fear_greed", "bullish", "products"]} title="Session pulse" />
+
+        <NewsTrading />
 
         {!d && <p className="vx-muted">Syncing the clocks…</p>}
         {d && (

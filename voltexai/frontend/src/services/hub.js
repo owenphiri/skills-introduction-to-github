@@ -51,6 +51,10 @@ export const sessionsService = {
   status: () => api.get("/api/sessions"),
 };
 
+export const newsService = {
+  status: (horizonDays = 10) => api.get(`/api/news?horizon_days=${horizonDays}`),
+};
+
 export const resourcesService = {
   list: (category = "all") => api.get(`/api/resources?category=${category}`),
   calendar: (days = 7) => api.get(`/api/resources/calendar?days=${days}`),
