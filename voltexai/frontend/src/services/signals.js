@@ -8,6 +8,10 @@ export const signalsService = {
   scan: ({ assetClass = "all", timeframe = "M15", minConfidence = 4 } = {}) =>
     api.get(`/api/signals?asset_class=${assetClass}&timeframe=${timeframe}&min_confidence=${minConfidence}`),
 
+  // Wide-scope quality scan: high-grade, HTF-confirmed, execution-ready trades
+  quality: ({ assetClass = "all", timeframe = "M15", htf = "H1", minGrade = "A", minRr = 1.8, limit = 24 } = {}) =>
+    api.get(`/api/signals/quality?asset_class=${assetClass}&timeframe=${timeframe}&htf=${htf}&min_grade=${encodeURIComponent(minGrade)}&min_rr=${minRr}&limit=${limit}`),
+
   one: (symbol, timeframe = "M15") =>
     api.get(`/api/signals/${symbol}?timeframe=${timeframe}`),
 

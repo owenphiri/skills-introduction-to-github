@@ -258,6 +258,49 @@ def scan(symbols: list[str], timeframe: str = "M15",
     return out
 
 
+_GRADE_RANK = {"C": 0, "B": 1, "A": 2, "A+": 3}
+
+
+def quality_scan(symbols: list[str], timeframe: str = "M15", htf: str = "H1",
+                 min_grade: str = "A", min_rr: float = 1.8,
+                 session_gate: bool = False, limit: int = 0) -> list[dict]:
+    """Scan a wide universe and return only *quality* trades: high-grade setups
+    that are confirmed by the higher timeframe and clear a minimum reward:risk.
+
+    This is what the auto-executor consumes — every returned signal is
+    execution-ready (entry, stop, TPs) and carries HTF-bias context. Signals
+    whose higher-timeframe bias *opposes* the entry are dropped outright.
+    """
+    want = _GRADE_RANK.get(min_grade.upper(), 2)
+    out: list[dict] = []
+    for s in symbols:
+        sig = generate(s, timeframe)
+        if sig.get("direction") not in ("LONG", "SHORT"):
+            continue
+        if _GRADE_RANK.get(sig.get("grade", "C"), 0) < want:
+            continue
+        if (sig.get("risk_reward_tp3") or 0) < min_rr:
+            continue
+        # higher-timeframe confirmation
+        htf_sig = generate(s, htf)
+        htf_dir = htf_sig.get("direction")
+        if htf_dir in ("LONG", "SHORT") and htf_dir != sig["direction"]:
+            continue                                  # HTF opposes -> reject
+        sig["htf_timeframe"] = htf.upper()
+        sig["htf_bias"] = htf_dir
+        sig["htf_aligned"] = (htf_dir == sig["direction"])
+        if session_gate and (sig.get("session_context", {}).get("quality_score", 0) < 50):
+            continue
+        # a composite quality score used for ranking + auto-exec priority
+        sig["quality_trade"] = True
+        sig["exec_priority"] = round(
+            sig["confidence"] + (1.5 if sig["htf_aligned"] else 0)
+            + min(2.0, (sig.get("risk_reward_tp3") or 0) / 2), 2)
+        out.append(sig)
+    out.sort(key=lambda x: (x["exec_priority"], x["confidence"]), reverse=True)
+    return out[:limit] if limit else out
+
+
 # ----------------------------- helpers -----------------------------
 def _dp(pip: float) -> int:
     if pip >= 1:
