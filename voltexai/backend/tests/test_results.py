@@ -50,3 +50,32 @@ def test_unknown_market_is_nulled(client, free_user):
     r = client.post("/api/results", headers=free_user["headers"],
                     json={"body": "solid week overall", "market": "tulips"})
     assert r.status_code == 201 and r.json()["market"] is None
+
+
+# ----------------------------- admin moderation -----------------------------
+def test_admin_verify_and_delete_result(client, free_user, admin_user):
+    rid = client.post("/api/results", headers=free_user["headers"],
+                      json={"body": "another clean win off the scanner"}).json()["id"]
+
+    # non-admin cannot moderate
+    assert client.get("/api/admin/results", headers=free_user["headers"]).status_code == 403
+
+    listing = client.get("/api/admin/results", headers=admin_user["headers"]).json()
+    assert any(r["id"] == rid and r["verified"] is False for r in listing["results"])
+
+    # toggle verify -> true
+    v = client.post(f"/api/admin/results/{rid}/verify", headers=admin_user["headers"], json={})
+    assert v.status_code == 200 and v.json()["verified"] is True
+    # explicit set -> false
+    v2 = client.post(f"/api/admin/results/{rid}/verify", headers=admin_user["headers"],
+                     json={"verified": False})
+    assert v2.json()["verified"] is False
+
+    # only_unverified filter includes it
+    unv = client.get("/api/admin/results?only_unverified=true", headers=admin_user["headers"]).json()
+    assert any(r["id"] == rid for r in unv["results"])
+
+    # delete
+    d = client.delete(f"/api/admin/results/{rid}", headers=admin_user["headers"])
+    assert d.status_code == 200 and d.json()["deleted"] == rid
+    assert not any(p["id"] == rid for p in client.get("/api/results/feed").json()["posts"])

@@ -118,3 +118,52 @@ def realestate_waitlist_csv(_: User = Depends(_require_admin), db: Session = Dep
     return Response(content=buf.getvalue(), media_type="text/csv",
                     headers={"Content-Disposition":
                              f'attachment; filename="voltexai-realestate-waitlist-{stamp}.csv"'})
+
+
+# ---------------- Results wall moderation ----------------
+class ResultVerifyIn(BaseModel):
+    verified: bool | None = None          # explicit set; omit to toggle
+
+
+@router.get("/results")
+def admin_results(limit: int = 100, only_unverified: bool = False,
+                  _: User = Depends(_require_admin), db: Session = Depends(get_db)):
+    """All client results (including unverified) for moderation, newest first."""
+    from ..models import ResultPost
+    from ..data.results import flag
+    q = db.query(ResultPost)
+    if only_unverified:
+        q = q.filter(ResultPost.verified.is_(False))
+    rows = q.order_by(ResultPost.created_at.desc()).limit(limit).all()
+    return {"count": len(rows), "results": [{
+        "id": r.id, "author": r.author, "country": r.country or "Global",
+        "flag": flag(r.country), "symbol": r.symbol, "market": r.market,
+        "timeframe": r.timeframe, "pnl_pct": r.pnl_pct, "pnl_amount": r.pnl_amount,
+        "currency": r.currency, "body": r.body, "image_url": r.image_url,
+        "verified": r.verified, "likes": r.likes,
+        "created_at": r.created_at.isoformat(),
+    } for r in rows]}
+
+
+@router.post("/results/{result_id}/verify")
+def admin_verify_result(result_id: int, data: ResultVerifyIn,
+                        _: User = Depends(_require_admin), db: Session = Depends(get_db)):
+    from ..models import ResultPost
+    r = db.query(ResultPost).filter(ResultPost.id == result_id).first()
+    if not r:
+        raise HTTPException(404, "Result not found")
+    r.verified = (not r.verified) if data.verified is None else bool(data.verified)
+    db.commit()
+    return {"id": r.id, "verified": r.verified}
+
+
+@router.delete("/results/{result_id}")
+def admin_delete_result(result_id: int, _: User = Depends(_require_admin),
+                        db: Session = Depends(get_db)):
+    from ..models import ResultPost
+    r = db.query(ResultPost).filter(ResultPost.id == result_id).first()
+    if not r:
+        raise HTTPException(404, "Result not found")
+    db.delete(r)
+    db.commit()
+    return {"deleted": result_id}

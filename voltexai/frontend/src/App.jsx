@@ -57,6 +57,7 @@ import EAs from "./pages/EAs";
 import SignalsPro from "./pages/SignalsPro";
 import AdminSignals from "./pages/AdminSignals";
 import AdminCoins from "./pages/AdminCoins";
+import AdminResults from "./pages/AdminResults";
 import Referrals from "./pages/Referrals";
 import AdminAnalytics from "./pages/AdminAnalytics";
 
@@ -201,6 +202,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <AdminRealEstate />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/results"
+            element={
+              <ProtectedRoute>
+                <AdminResults />
               </ProtectedRoute>
             }
           />

@@ -2532,6 +2532,20 @@ body {
 .vx-result-like:disabled { opacity: .6; cursor: default; }
 @media (max-width: 560px) { .vx-results-form-row { grid-template-columns: 1fr 1fr; } }
 
+/* ---------- Results moderation (admin) ---------- */
+.vx-admin-results { display: flex; flex-direction: column; gap: 10px; }
+.vx-admin-result { display: flex; gap: 14px; justify-content: space-between; align-items: flex-start;
+  background: var(--vx-bg-card); border: 1px solid var(--vx-border); border-left: 3px solid var(--vx-border);
+  border-radius: 12px; padding: 14px; }
+.vx-admin-result.is-verified { border-left-color: var(--vx-success); }
+.vx-admin-result-main { flex: 1; min-width: 0; }
+.vx-admin-result-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.vx-admin-result-body { font-size: 13px; line-height: 1.5; margin: 8px 0; color: var(--vx-text); }
+.vx-admin-pending { font-size: 10px; font-weight: 800; color: var(--vx-text-dim);
+  background: var(--vx-bg-elev); border: 1px solid var(--vx-border); border-radius: 6px; padding: 2px 6px; text-transform: uppercase; }
+.vx-admin-result-actions { display: flex; flex-direction: column; gap: 6px; flex: none; }
+@media (max-width: 560px) { .vx-admin-result { flex-direction: column; } .vx-admin-result-actions { flex-direction: row; } }
+
 /* Share + save row — rounded-square brand tiles like the reference */
 .vx-share-bar { display: flex; flex-wrap: wrap; gap: .55rem; align-items: center; margin: .6rem 0 1.4rem; }
 .vx-share-icon {

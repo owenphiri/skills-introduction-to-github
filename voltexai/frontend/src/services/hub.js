@@ -25,6 +25,11 @@ export const referralsService = {
 
 export const adminService = {
   analytics: () => api.get("/api/admin/analytics"),
+  // Results wall moderation
+  results: (onlyUnverified = false) =>
+    api.get(`/api/admin/results?limit=200${onlyUnverified ? "&only_unverified=true" : ""}`),
+  verifyResult: (id, verified) => api.post(`/api/admin/results/${id}/verify`, { verified }),
+  deleteResult: (id) => api.del(`/api/admin/results/${id}`),
 };
 
 export const patternsService = {
