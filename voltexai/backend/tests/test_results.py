@@ -9,6 +9,19 @@ def test_results_feed_public_has_seeds(client):
     assert "flag" in p and "market" in p and "body" in p
 
 
+def test_verified_feed_excludes_unverified(client, free_user, admin_user):
+    rid = client.post("/api/results", headers=free_user["headers"],
+                      json={"body": "fresh unverified win for the marquee test"}).json()["id"]
+    v = client.get("/api/results/feed?verified=true").json()["posts"]
+    assert all(p["verified"] for p in v)                 # only verified returned
+    assert not any(p["id"] == rid for p in v)            # our unverified one excluded
+    assert len(v) > 0                                    # verified seeds keep it alive
+
+    client.post(f"/api/admin/results/{rid}/verify", headers=admin_user["headers"], json={"verified": True})
+    v2 = client.get("/api/results/feed?verified=true").json()["posts"]
+    assert any(p["id"] == rid for p in v2)               # now it shows in the marquee feed
+
+
 def test_results_market_filter(client):
     d = client.get("/api/results/feed?market=synthetics").json()
     assert all(p.get("market") == "synthetics" for p in d["posts"] if p.get("market"))

@@ -62,17 +62,22 @@ def _dict(r: ResultPost) -> dict:
 
 
 @router.get("/feed")
-def feed(limit: int = 40, market: str = None, db: Session = Depends(get_db)):
-    """Real client wins first, then seed wins to keep the wall alive."""
+def feed(limit: int = 40, market: str = None, verified: bool = False,
+         db: Session = Depends(get_db)):
+    """Real client wins first, then seed wins to keep the wall alive.
+    `verified=true` returns only verified wins (used by the landing marquee)."""
     q = db.query(ResultPost)
     if market:
         q = q.filter(ResultPost.market == market.lower())
+    if verified:
+        q = q.filter(ResultPost.verified.is_(True))
     rows = q.order_by(ResultPost.verified.desc(), ResultPost.created_at.desc()).limit(limit).all()
     real = [_dict(r) for r in rows]
     seed = [{"id": f"seed-{i}", **s, "flag": flag(s.get("country")), "likes": 0,
              "created_at": None, "real": False}
             for i, s in enumerate(SEED_RESULTS)
-            if not market or s.get("market") == market.lower()]
+            if (not market or s.get("market") == market.lower())
+            and (not verified or s.get("verified"))]
     return {"count": len(real) + len(seed), "posts": real + seed}
 
 

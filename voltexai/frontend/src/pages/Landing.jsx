@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { NavBar } from "../components/NavBar";
 import { Footer } from "../components/Footer";
 import { Testimonials } from "../components/Testimonials";
+import { ResultsMarquee } from "../components/ResultsMarquee";
 import { useI18n } from "../i18n";
 import { Sparkline } from "../components/Chart";
 import { marketsService } from "../services/markets";
@@ -95,6 +96,8 @@ export default function Landing() {
           </div>
         ))}
       </section>
+
+      <ResultsMarquee />
 
       <section className="vx-section">
         <h2 className="vx-section-title">Everything a serious trader needs</h2>

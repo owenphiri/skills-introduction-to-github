@@ -607,6 +607,23 @@ body {
 .vx-ticker-item span { color: var(--vx-text-dim); }
 @keyframes vx-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 
+/* Verified-wins ticker (landing) */
+.vx-wins-ticker { max-width: 1180px; margin: 14px auto 0; padding: 0 20px;
+  display: flex; align-items: stretch; gap: 12px; }
+.vx-wins-ticker-label { flex: none; display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 800; color: var(--vx-success);
+  background: rgba(124,255,176,0.1); border: 1px solid rgba(124,255,176,0.3);
+  border-radius: 10px; padding: 0 12px; white-space: nowrap; }
+.vx-wins-ticker-strip { flex: 1; min-width: 0; border-top: none;
+  border: 1px solid var(--vx-border); border-radius: 10px; }
+.vx-wins-ticker-strip:hover .vx-ticker-track { animation-play-state: paused; }
+.vx-wins-item { align-items: center; text-decoration: none; }
+.vx-wins-item b { color: var(--vx-text); }
+.vx-wins-item .vx-flag { font-size: 15px; }
+.vx-wins-gain { color: var(--vx-success); font-weight: 700; }
+.vx-wins-sym { color: var(--vx-text-dim); }
+@media (max-width: 640px) { .vx-wins-ticker-label { display: none; } }
+
 /* ---------- Landing ---------- */
 .vx-hero { max-width: 1180px; margin: 0 auto; padding: 56px 20px 30px;
   display: grid; grid-template-columns: 1.4fr 1fr; gap: 40px; align-items: center; }
