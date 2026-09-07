@@ -6,6 +6,7 @@ import { BarSeries, Sparkline } from "../components/Analytics";
 import { VMarquee } from "../components/VMarquee";
 import { SocialBar } from "../components/Social";
 import { Discussion } from "../components/Discussion";
+import { ResultsWall } from "../components/ResultsWall";
 import { SubscriberTracker } from "../components/SubscriberTracker";
 import { dashboardService } from "../services/hub";
 
@@ -103,6 +104,8 @@ export default function Dashboard() {
               <span className="vx-muted">Join the movement — trade with the team:</span>
               <SocialBar />
             </div>
+
+            <ResultsWall />
 
             <section className="vx-panel vx-dash-discuss">
               <span className="vx-eyebrow">Share &amp; discuss</span>

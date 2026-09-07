@@ -15,9 +15,10 @@ from .referral import ReferralAccount, Referral
 from .tenant import Tenant
 from .coin import CoinTransaction, CoinEntryKind
 from .realestate import RealEstateInterest
+from .result import ResultPost
 
 __all__ = [
-    "RealEstateInterest",
+    "RealEstateInterest", "ResultPost",
     "CoinTransaction", "CoinEntryKind",
     "Tenant",
     "ContestEntry", "Post", "JournalTrade", "ProSignal", "ProSignalEvent",
