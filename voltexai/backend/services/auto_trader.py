@@ -71,6 +71,10 @@ def config() -> dict:
         "max_daily_loss": _f("AUTOTRADE_MAX_DAILY_LOSS", 500.0),
         "min_grade": os.getenv("AUTOTRADE_MIN_GRADE", "A").strip().upper(),
         "min_rr": _f("AUTOTRADE_MIN_RR", 1.8),
+        # live Deriv execution: even in live mode, a REAL account is refused
+        # unless allow_real is ALSO set (demo-first). Multiplier for MULT contracts.
+        "allow_real": _flag("AUTOTRADE_ALLOW_REAL", False),
+        "deriv_multiplier": _i("AUTOTRADE_DERIV_MULTIPLIER", 100),
         "timeframe": os.getenv("AUTOTRADE_TF", "M15").strip().upper(),
         "htf": os.getenv("AUTOTRADE_HTF", "H1").strip().upper(),
         "symbol_allowlist": [s.strip().upper() for s in
@@ -157,6 +161,11 @@ def _position_size(sig: dict, book: dict, cfg: dict) -> float:
     return round(risk_amount / per_unit, 4) if per_unit else 0.0
 
 
+def _stake(book: dict, cfg: dict) -> float:
+    """Money at risk per trade = risk_per_trade_pct of balance (the Deriv stake)."""
+    return round(float(book["balance"]) * cfg["risk_per_trade_pct"] / 100.0, 2)
+
+
 def _open(sig: dict, book: dict, cfg: dict) -> dict:
     book["seq"] += 1
     pid = f"AT{book['seq']}"
@@ -171,6 +180,39 @@ def _open(sig: dict, book: dict, cfg: dict) -> dict:
         "asset_class": sig.get("asset_class"),
         "venue": inst.get("venue"), "deriv_symbol": inst.get("deriv_symbol"),
         "mode": cfg["mode"], "opened_at": _now(),
+    }
+    book["positions"].append(pos)
+    return pos
+
+
+def _open_live_deriv(sig: dict, book: dict, cfg: dict) -> dict:
+    """Execute a signal LIVE on Deriv (demo-first). Returns {"error": ...} on any
+    problem so the caller records a clean skip instead of a phantom position."""
+    from . import deriv_exec
+    inst = instruments.get_instrument(sig["symbol"]) or {}
+    deriv_symbol = inst.get("deriv_symbol")
+    if inst.get("venue") != "deriv" or not deriv_symbol:
+        return {"error": "no live venue for this instrument yet (Deriv symbols only)"}
+    stake = _stake(book, cfg)
+    rr = sig.get("risk_reward_tp3") or 2.0
+    fill = deriv_exec.execute(
+        sig, deriv_symbol=deriv_symbol, stake=stake, multiplier=cfg["deriv_multiplier"],
+        stop_loss_amt=stake, take_profit_amt=round(stake * rr, 2),
+        allow_real=cfg["allow_real"])
+    if fill.get("error"):
+        return fill
+    book["seq"] += 1
+    pid = f"AT{book['seq']}"
+    pos = {
+        "id": pid, "symbol": sig["symbol"], "side": sig["direction"], "size": stake,
+        "entry": sig.get("entry") or sig.get("price"), "stop": sig.get("stop_loss"),
+        "tp1": sig.get("tp1"), "tp2": sig.get("tp2"), "tp3": sig.get("tp3"),
+        "grade": sig.get("grade"), "quality": sig.get("quality"),
+        "asset_class": sig.get("asset_class"), "venue": "deriv",
+        "deriv_symbol": deriv_symbol, "mode": "live",
+        "contract_id": fill["contract_id"], "buy_price": fill["buy_price"],
+        "multiplier": fill["multiplier"], "is_virtual": fill.get("is_virtual", True),
+        "longcode": fill.get("longcode", ""), "opened_at": _now(),
     }
     book["positions"].append(pos)
     return pos
@@ -203,7 +245,13 @@ def run_cycle(asset_class: str = "all", timeframe: str | None = None,
             if reason.startswith("max_open"):
                 break
             continue
-        pos = _open(sig, book, cfg)
+        if cfg["mode"] == "live":
+            pos = _open_live_deriv(sig, book, cfg)
+            if pos.get("error"):
+                skipped.append({"symbol": sig["symbol"], "reason": "live: " + pos["error"]})
+                continue
+        else:
+            pos = _open(sig, book, cfg)
         executed.append(pos)
     _save(book)
     return {"ran": True, "mode": cfg["mode"], "asset_class": asset_class,
@@ -216,6 +264,10 @@ def positions() -> list[dict]:
     book = _load()
     out = []
     for p in book["positions"]:
+        if p.get("mode") == "live":
+            # true value is broker-side (contract P/L); shown on close.
+            out.append({**p, "current_price": None, "unrealized": None})
+            continue
         price = _price(p["symbol"]) or p["entry"]
         out.append({**p, "current_price": round(price, 6),
                     "unrealized": round(_unrealized(p, price), 2)})
@@ -228,6 +280,20 @@ def close_position(position_id: str) -> dict:
     if idx is None:
         return {"error": f"no open position '{position_id}'"}
     pos = book["positions"].pop(idx)
+    # LIVE Deriv position: close the actual contract; realized P/L is broker-side.
+    if pos.get("mode") == "live" and pos.get("contract_id"):
+        from . import deriv_exec
+        res = deriv_exec.close_contract(pos["contract_id"])
+        if res.get("error"):
+            book["positions"].insert(idx, pos)          # keep it; closing failed
+            _save(book)
+            return {"error": "live close failed: " + res["error"]}
+        pnl = round(float(res.get("sold_for", 0)) - float(pos.get("buy_price", 0)), 2)
+        book["trades"].append({**pos, "sold_for": res.get("sold_for"), "pnl": pnl,
+                               "closed_at": _now()})
+        _save(book)
+        return {"closed": position_id, "symbol": pos["symbol"], "mode": "live",
+                "contract_id": pos["contract_id"], "pnl": pnl}
     exit_price = _price(pos["symbol"]) or pos["entry"]
     pnl = round(_unrealized(pos, exit_price), 2)
     book["balance"] = round(float(book["balance"]) + pnl, 2)
@@ -243,7 +309,7 @@ def status() -> dict:
     cfg = config()
     book = _load()
     open_pos = positions()
-    unreal = round(sum(p["unrealized"] for p in open_pos), 2)
+    unreal = round(sum(p["unrealized"] for p in open_pos if p.get("unrealized") is not None), 2)
     realized_today = book["realized_by_date"].get(_today(), 0.0)
     return {
         "config": cfg,

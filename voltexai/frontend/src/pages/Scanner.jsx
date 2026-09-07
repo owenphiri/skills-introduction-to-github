@@ -99,9 +99,11 @@ export default function Scanner() {
           </div>
           {autoMsg && <p className="vx-auto-msg">{autoMsg}</p>}
           <p className="vx-auto-note">
-            Paper mode by default — no real money. Live Deriv routing unlocks after KYC/MOU and an
-            explicit operator opt-in. Every order passes the risk layer (max-open, per-trade risk,
-            daily-loss limit, symbol allowlist, kill switch).
+            {auto?.config?.mode === "live"
+              ? `Live Deriv routing is ON — trading a ${auto?.config?.allow_real ? "REAL" : "DEMO"} account via multiplier contracts.`
+              : "Paper mode by default — no real money. Live Deriv routing unlocks with a broker token + explicit opt-in (demo account first; real trading needs a second flag)."}
+            {" "}Every order passes the risk layer (max-open, per-trade risk, daily-loss limit,
+            symbol allowlist, kill switch).
           </p>
         </div>
 

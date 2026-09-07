@@ -1,6 +1,6 @@
 """Wide-scope scanner + risk-gated auto-trader tests."""
 from backend.data import instruments
-from backend.services import signal_engine, auto_trader
+from backend.services import signal_engine, auto_trader, deriv_exec
 
 
 # ----------------------------- instrument universe -----------------------------
@@ -102,6 +102,101 @@ def test_live_is_gated_to_paper(monkeypatch, tmp_path):
     monkeypatch.setenv("AUTOTRADE_MODE", "live")   # request live...
     monkeypatch.delenv("DERIV_API_TOKEN", raising=False)  # ...but no token / opt-in
     assert auto_trader.config()["mode"] == "paper"
+
+
+# ----------------------------- API surface -----------------------------
+# ----------------------------- live Deriv execution -----------------------------
+def _live_env(monkeypatch, tmp_path):
+    monkeypatch.setattr(auto_trader, "BOOK_PATH", str(tmp_path / "book.json"))
+    monkeypatch.setattr(signal_engine, "quality_scan", _fake_quality)
+    monkeypatch.setenv("AUTOTRADE_ENABLED", "true")
+    monkeypatch.setenv("AUTOTRADE_MODE", "live")
+    monkeypatch.setenv("AUTOTRADE_ALLOW_LIVE", "true")
+    monkeypatch.setenv("DERIV_API_TOKEN", "demo-token")
+    monkeypatch.setenv("AUTOTRADE_MAX_OPEN", "5")
+
+
+def test_live_mode_routes_to_deriv(monkeypatch, tmp_path):
+    _live_env(monkeypatch, tmp_path)
+    calls = []
+
+    def fake_exec(sig, **k):
+        calls.append(k["deriv_symbol"])
+        return {"contract_id": "CID-" + sig["symbol"], "buy_price": 10.0,
+                "multiplier": k["multiplier"], "longcode": "L", "is_virtual": True}
+
+    monkeypatch.setattr(deriv_exec, "execute", fake_exec)
+    res = auto_trader.run_cycle("synthetics")
+    assert res["ran"] and res["mode"] == "live"
+    assert len(res["executed"]) == 2
+    p = res["executed"][0]
+    assert p["mode"] == "live" and p["venue"] == "deriv" and p["contract_id"].startswith("CID-")
+    assert calls and calls[0] in ("R_75", "R_100")     # routed by deriv_symbol
+
+
+def test_live_execution_error_becomes_skip(monkeypatch, tmp_path):
+    _live_env(monkeypatch, tmp_path)
+    monkeypatch.setattr(deriv_exec, "execute", lambda sig, **k: {"error": "insufficient balance"})
+    res = auto_trader.run_cycle("synthetics")
+    assert res["executed"] == []
+    assert res["skipped"] and all(s["reason"].startswith("live:") for s in res["skipped"])
+
+
+def test_live_close_sells_contract(monkeypatch, tmp_path):
+    _live_env(monkeypatch, tmp_path)
+    monkeypatch.setattr(deriv_exec, "execute",
+                        lambda sig, **k: {"contract_id": "CID1", "buy_price": 10.0,
+                                          "multiplier": 100, "is_virtual": True})
+    res = auto_trader.run_cycle("synthetics")
+    pid = res["executed"][0]["id"]
+    monkeypatch.setattr(deriv_exec, "close_contract",
+                        lambda cid, **k: {"contract_id": cid, "sold_for": 13.5})
+    closed = auto_trader.close_position(pid)
+    assert closed["mode"] == "live" and closed["pnl"] == 3.5
+
+
+def test_live_non_deriv_has_no_venue(monkeypatch, tmp_path):
+    _live_env(monkeypatch, tmp_path)
+    monkeypatch.setattr(signal_engine, "quality_scan",
+                        lambda *a, **k: [{**_BASE, "symbol": "AAPL", "direction": "LONG",
+                                          "asset_class": "stocks"}])
+    monkeypatch.setattr(deriv_exec, "execute", lambda sig, **k: {"contract_id": "x"})
+    res = auto_trader.run_cycle("stocks")
+    assert res["executed"] == []
+    assert any("no live venue" in s["reason"] for s in res["skipped"])
+
+
+class _FakeClient:
+    virtual = True
+
+    def __init__(self, *a, **k):
+        pass
+
+    async def authorize(self):
+        return {"is_virtual": 1 if _FakeClient.virtual else 0,
+                "currency": "USD", "loginid": "VRTC1" if _FakeClient.virtual else "CR1"}
+
+    async def buy_multiplier(self, deriv_symbol, direction, stake, multiplier, currency, **k):
+        return {"contract_id": "C", "buy_price": stake, "longcode": "", "multiplier": multiplier}
+
+    async def close(self):
+        pass
+
+
+def test_deriv_demo_gate_blocks_real_account(monkeypatch):
+    _FakeClient.virtual = False
+    monkeypatch.setattr(deriv_exec, "DerivExecClient", _FakeClient)
+    out = deriv_exec.execute({"direction": "LONG"}, deriv_symbol="R_75", stake=10,
+                             multiplier=100, allow_real=False, token="t")
+    assert "real Deriv account blocked" in out["error"]
+
+
+def test_deriv_allows_virtual_account(monkeypatch):
+    _FakeClient.virtual = True
+    monkeypatch.setattr(deriv_exec, "DerivExecClient", _FakeClient)
+    out = deriv_exec.execute({"direction": "LONG"}, deriv_symbol="R_75", stake=10,
+                             multiplier=100, allow_real=False, token="t")
+    assert out.get("contract_id") == "C" and out["is_virtual"] is True
 
 
 # ----------------------------- API surface -----------------------------
