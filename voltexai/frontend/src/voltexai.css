@@ -2622,6 +2622,34 @@ body {
 .vx-legal-callout b { display: block; margin-bottom: 6px; color: var(--vx-text); }
 .vx-legal-callout p { margin: 0; font-size: 13.5px; color: var(--vx-text-dim); line-height: 1.6; }
 
+/* ---------- 3D global sessions map ---------- */
+.vx-globe { margin: 1.4rem 0 1.8rem; }
+.vx-globe-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.vx-globe-stat { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+.vx-globe-wrap { display: flex; justify-content: center; }
+.vx-globe-svg { width: 100%; max-width: 440px; height: auto; overflow: visible; }
+.vx-globe-arc { stroke: rgba(120,150,200,0.25); stroke-width: 1; stroke-linecap: round; }
+.vx-globe-arc.active { stroke: var(--vx-accent); stroke-width: 1.6; stroke-dasharray: 5 9;
+  animation: vx-flow 1.1s linear infinite; filter: drop-shadow(0 0 3px rgba(194,245,61,0.5)); }
+@keyframes vx-flow { to { stroke-dashoffset: -14; } }
+.vx-globe-dot { fill: var(--vx-text-dim); }
+.vx-globe-hub.open .vx-globe-dot { fill: var(--vx-accent); }
+.vx-globe-hub.home .vx-globe-dot { fill: #f4b740; }
+.vx-globe-hub.closed .vx-globe-dot { fill: #5b6b86; }
+.vx-globe-pulse { fill: none; stroke: currentColor; stroke-width: 1.2; opacity: 0; transform-origin: center;
+  animation: vx-ping 2.4s ease-out infinite; }
+.vx-globe-hub.open { color: var(--vx-accent); }
+.vx-globe-hub.home { color: #f4b740; }
+@keyframes vx-ping { 0% { opacity: .55; transform: scale(.5); } 70%,100% { opacity: 0; transform: scale(1.7); } }
+.vx-globe-label { fill: var(--vx-text); font-size: 10px; font-family: var(--vx-font-mono, monospace); paint-order: stroke;
+  stroke: rgba(7,13,24,0.85); stroke-width: 2.4px; }
+.vx-globe-legend { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; margin-top: 10px; font-size: 12px; color: var(--vx-text-dim); }
+.vx-globe-legend i.vx-lg { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
+.vx-globe-legend i.open { background: var(--vx-accent); }
+.vx-globe-legend i.closed { background: #5b6b86; }
+.vx-globe-legend i.home { background: #f4b740; }
+@media (prefers-reduced-motion: reduce) { .vx-globe-arc.active { animation: none; } .vx-globe-pulse { animation: none; } }
+
 /* Share + save row — rounded-square brand tiles like the reference */
 .vx-share-bar { display: flex; flex-wrap: wrap; gap: .55rem; align-items: center; margin: .6rem 0 1.4rem; }
 .vx-share-icon {

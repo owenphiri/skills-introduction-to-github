@@ -30,7 +30,8 @@ async def sentiment():
 @router.get("/api/sessions")
 def sessions():
     return {**sessions_data.sessions_status(),
-            "streams": sessions_data.next_streams(8)}
+            "streams": sessions_data.next_streams(8),
+            "globe": sessions_data.global_map()}
 
 
 @router.get("/api/resources")

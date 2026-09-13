@@ -157,3 +157,69 @@ def next_streams(limit: int = 6) -> list[dict]:
                                  "is_live": live})
     upcoming.sort(key=lambda x: x["starts_at"])
     return upcoming[:limit]
+
+
+# ----------------------------- global sessions map -----------------------------
+import math as _math
+
+# id, city, flag, lat, lon, session-name (matches MARKET_SESSIONS) or None, base participants
+_HUBS = [
+    ("sydney",    "Sydney",    "🇦🇺", -33.87, 151.21, "Sydney",   900),
+    ("tokyo",     "Tokyo",     "🇯🇵",  35.68, 139.69, "Tokyo",   1500),
+    ("singapore", "Singapore", "🇸🇬",   1.35, 103.82, "Tokyo",    800),
+    ("dubai",     "Dubai",     "🇦🇪",  25.20,  55.27, "London",   600),
+    ("frankfurt", "Frankfurt", "🇩🇪",  50.11,   8.68, "London",  1100),
+    ("london",    "London",    "🇬🇧",  51.51,  -0.13, "London",  2600),
+    ("newyork",   "New York",  "🇺🇸",  40.71, -74.01, "New York",2400),
+    ("saopaulo",  "São Paulo", "🇧🇷", -23.55, -46.63, "New York", 500),
+    ("lusaka",    "Lusaka",    "🇿🇲", -15.42,  28.28, None,       350),  # home
+]
+
+# FX "sun-follows-the-money" handoff around the globe.
+_FLOWS = [
+    ("sydney", "tokyo"), ("tokyo", "london"), ("london", "newyork"),
+    ("newyork", "sydney"),
+    # everything routes home to the VoltexAI desk in Lusaka
+    ("london", "lusaka"), ("newyork", "lusaka"), ("tokyo", "lusaka"),
+]
+
+
+def _hub_open(session_name: str | None, now_h: float) -> bool:
+    if not session_name:
+        return True                       # home desk is always "on"
+    for name, o, c, _flag in MARKET_SESSIONS:
+        if name == session_name:
+            return _is_open(now_h, o, c)
+    return False
+
+
+def _participants(hub_id: str, base: int, is_open: bool, now: datetime) -> int:
+    # deterministic per-minute wobble so counts feel live but are reproducible
+    seed = (sum(ord(c) for c in hub_id) % 100) / 100.0
+    wob = 0.85 + 0.30 * abs(_math.sin(now.timestamp() / 600.0 + seed * 6.2832))
+    return int(base * (2.3 if is_open else 1.0) * wob)
+
+
+def global_map(now: datetime | None = None) -> dict:
+    """Hubs (lat/lon), live open-state, session-aware live participants and the
+    FX handoff flows — powering the 3D global sessions map."""
+    now = now or datetime.now(timezone.utc)
+    now_h = now.hour + now.minute / 60.0
+    hubs = []
+    for hub_id, city, flag, lat, lon, session, base in _HUBS:
+        is_open = _hub_open(session, now_h)
+        hubs.append({
+            "id": hub_id, "city": city, "flag": flag, "lat": lat, "lon": lon,
+            "session": session, "open": is_open, "home": hub_id == "lusaka",
+            "participants": _participants(hub_id, base, is_open, now),
+        })
+    open_ids = {h["id"] for h in hubs if h["open"]}
+    flows = [{"from": a, "to": b, "active": a in open_ids} for a, b in _FLOWS]
+    return {
+        "hubs": hubs,
+        "flows": flows,
+        "total_participants": sum(h["participants"] for h in hubs),
+        "open_sessions": sorted(open_ids - {"lusaka"}),
+        "home": "lusaka",
+        "utc_time": now.strftime("%H:%M UTC"),
+    }

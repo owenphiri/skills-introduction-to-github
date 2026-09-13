@@ -4,6 +4,7 @@ import { NavBar } from "../components/NavBar";
 import { Footer } from "../components/Footer";
 import { sessionsService } from "../services/hub";
 import { NewsTrading } from "../components/NewsTrading";
+import { GlobeMap } from "../components/GlobeMap";
 import { KpiStrip } from "../components/Analytics";
 import { useI18n } from "../i18n";
 
@@ -34,6 +35,8 @@ export default function Live() {
         {!d && <p className="vx-muted">Syncing the clocks…</p>}
         {d && (
           <>
+            {d.globe && <GlobeMap data={d.globe} />}
+
             <div className="vx-sessions-head">
               <div className="vx-clock-pair">
                 <span className="vx-clock">{d.cat_time}<small> CAT</small></span>
