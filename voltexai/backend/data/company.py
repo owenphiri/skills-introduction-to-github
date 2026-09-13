@@ -244,7 +244,8 @@ FAQ = [
 SITEMAP = [
     {"section": "Platform", "links": [
         ["/", "Home"], ["/dashboard", "Command Center"], ["/markets", "Markets"],
-        ["/signals", "Signals"], ["/scanner", "Scanner"], ["/vision", "Vision"],
+        ["/signals", "Signals"], ["/scanner", "Scanner"],
+        ["/scanner?mode=arb", "Arbitrage"], ["/vision", "Vision"],
         ["/sentiment", "Sentiment"], ["/live", "Live Sessions"], ["/terminal", "Terminal"]]},
     {"section": "Grow", "links": [
         ["/academy", "Academy"], ["/resources", "Resources"], ["/calculators", "Calculators"],
@@ -277,9 +278,12 @@ def content() -> dict:
 
 
 def all_routes() -> list[str]:
+    """Canonical route list for sitemap.xml — query strings stripped and deduped
+    so tab deep-links (e.g. /scanner?mode=arb) don't create duplicate SEO URLs."""
     seen: list[str] = []
     for grp in SITEMAP:
         for path, _ in grp["links"]:
-            if path not in seen:
-                seen.append(path)
+            canonical = path.split("?", 1)[0]
+            if canonical not in seen:
+                seen.append(canonical)
     return seen
