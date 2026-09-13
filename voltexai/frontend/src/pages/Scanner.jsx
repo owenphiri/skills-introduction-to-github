@@ -1,6 +1,6 @@
 // src/pages/Scanner.jsx — Voltex Scanner (wide-scope scan + risk-gated auto-execution)
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { NavBar } from "../components/NavBar";
 import { Footer } from "../components/Footer";
 import { signalsService } from "../services/signals";
@@ -19,7 +19,9 @@ const FEE_TIERS = [
 ];
 
 export default function Scanner() {
-  const [mode, setMode] = useState("signals");
+  const [params, setParams] = useSearchParams();
+  const mode = params.get("mode") === "arb" ? "arb" : "signals";
+  const setMode = (m) => setParams(m === "arb" ? { mode: "arb" } : {}, { replace: true });
   return (
     <div className="vx-page">
       <NavBar />

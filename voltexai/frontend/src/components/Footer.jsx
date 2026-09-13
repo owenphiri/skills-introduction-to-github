@@ -10,7 +10,8 @@ const COLS = [
   { title: "Platform", links: [
     ["Voltex Markets", "/markets"], ["Voltex Signals", "/signals"],
     ["Signals Pro (VIP)", "/pro-signals"],
-    ["Voltex Scanner", "/scanner"], ["Voltex Vision", "/vision"],
+    ["Voltex Scanner", "/scanner"], ["Voltex Arbitrage", "/scanner?mode=arb"],
+    ["Voltex Vision", "/vision"],
     ["Voltex Terminal", "/terminal"], ["Voltex Trade Desk", "/trade"],
     ["Trade Journal", "/journal"], ["Command Center", "/dashboard"],
   ]},
