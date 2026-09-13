@@ -2691,6 +2691,18 @@ body {
 @keyframes vx-slidein-r { from { opacity: 0; transform: translateX(60px); } to { opacity: 1; transform: translateX(0); } }
 @keyframes vx-slidein-l { from { opacity: 0; transform: translateX(-60px); } to { opacity: 1; transform: translateX(0); } }
 @media (prefers-reduced-motion: reduce) { .vx-slide.enter-next, .vx-slide.enter-prev { animation: none; } }
+.vx-portrait { display: flex; align-items: center; gap: 14px; }
+.vx-portrait-frame { width: 96px; height: 96px; border-radius: 50%; flex: none; overflow: hidden;
+  padding: 3px; background: linear-gradient(135deg, var(--vx-accent), var(--vx-primary));
+  box-shadow: 0 8px 26px -10px rgba(0,0,0,0.6); }
+.vx-portrait-img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; }
+.vx-portrait-mono { width: 100%; height: 100%; border-radius: 50%; display: flex; align-items: center;
+  justify-content: center; font-family: var(--vx-font-mono, monospace); font-weight: 800; font-size: 30px;
+  color: #fff; background: linear-gradient(160deg, #12203a, #0a0f1c); letter-spacing: 1px; }
+.vx-portrait-cap { display: flex; flex-direction: column; }
+.vx-portrait-cap b { color: #fff; font-size: 15px; }
+.vx-portrait-cap span { color: var(--vx-text-dim); font-size: 13px; }
+.tone-title .vx-portrait { justify-content: flex-start; }
 
 /* Share + save row — rounded-square brand tiles like the reference */
 .vx-share-bar { display: flex; flex-wrap: wrap; gap: .55rem; align-items: center; margin: .6rem 0 1.4rem; }

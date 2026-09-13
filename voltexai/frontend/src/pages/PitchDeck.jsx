@@ -4,9 +4,14 @@ import { Link } from "react-router-dom";
 import { NavBar } from "../components/NavBar";
 import { Footer } from "../components/Footer";
 
+// Drop real headshots into frontend/public/team/ using these exact filenames and
+// they appear automatically; until then a branded monogram shows in their place.
+const CEO = { src: "/team/owens-phiri.jpg", initials: "OP", name: "OP Owens Phiri", role: "Founder & CEO" };
+
 const SLIDES = [
   { tone: "title", eyebrow: "Axion Labs Technologies · Investor & CEO Deck",
     title: "VoltexAI", accent: "Africa's AI Trading Terminal",
+    portrait: { ...CEO, caption: false },
     lines: ["From Kasama, Zambia — to the world.",
             "Presented by OP Owens Phiri · Founder & CEO"],
     kicker: "Methodology powered by Owens Forex Academy" },
@@ -54,6 +59,7 @@ const SLIDES = [
     stat: { k: "5", v: "revenue engines" } },
   { tone: "team", eyebrow: "Team & vision",
     title: "Built by a trader-engineer",
+    portrait: { ...CEO, caption: true },
     lines: ["OP Owens Phiri — Founder & CEO, Axion Labs Technologies.",
             "Owens Forex Academy methodology at the core.",
             "Mission: put institutional-grade tools in every African trader's hands."],
@@ -64,6 +70,22 @@ const SLIDES = [
             "Let's scale VoltexAI across the continent and beyond."],
     cta: true },
 ];
+
+function Portrait({ src, initials, name, role, caption }) {
+  const [err, setErr] = useState(false);
+  return (
+    <div className="vx-portrait">
+      <div className="vx-portrait-frame">
+        {src && !err
+          ? <img src={src} alt={name} className="vx-portrait-img" loading="lazy" onError={() => setErr(true)} />
+          : <div className="vx-portrait-mono" role="img" aria-label={name}>{initials}</div>}
+      </div>
+      {caption && (name || role) && (
+        <div className="vx-portrait-cap">{name && <b>{name}</b>}{role && <span>{role}</span>}</div>
+      )}
+    </div>
+  );
+}
 
 export default function PitchDeck() {
   const [i, setI] = useState(0);
@@ -104,8 +126,9 @@ export default function PitchDeck() {
 
         <div className="vx-deck" onMouseEnter={() => setPlaying(false)} onMouseLeave={() => setPlaying(true)}>
           <div className={`vx-deck-stage tone-${s.tone}`}>
-            <article key={i} className={`vx-slide enter-${dir}`}>
+            <article key={i} className={`vx-slide enter-${dir} ${s.portrait ? "has-portrait" : ""}`}>
               <span className="vx-slide-eyebrow">{s.eyebrow}</span>
+              {s.portrait && <Portrait {...s.portrait} />}
               <h2 className="vx-slide-title">
                 {s.title}{s.accent && <><br /><span className="vx-grad">{s.accent}</span></>}
               </h2>
