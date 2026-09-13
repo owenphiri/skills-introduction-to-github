@@ -2955,6 +2955,21 @@ body {
 @media (max-width: 480px) { .vx-gal-thumbs { grid-template-columns: repeat(2, 1fr); } }
 .vx-gal-photo { object-fit: cover; }
 
+/* ---------- Command Center arbitrage pulse ---------- */
+.vx-arb-pulse { display: flex; flex-direction: column; gap: 12px; }
+.vx-arb-pulse-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.vx-arb-pulse-head h3 { margin: 0; }
+.vx-arb-pulse-count { font-size: 11px; font-weight: 800; letter-spacing: .3px; padding: 3px 9px;
+  border-radius: 20px; background: var(--vx-bg-elev); color: var(--vx-text-dim); }
+.vx-arb-pulse-count.hot { background: rgba(194,245,61,0.14); color: var(--vx-accent); }
+.vx-arb-pulse-rows { display: flex; flex-direction: column; gap: 6px; }
+.vx-arb-pulse-row { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px;
+  font-size: 13px; padding: 7px 10px; background: var(--vx-bg-elev); border-radius: 9px; }
+.vx-arb-pulse-row b { font-family: var(--vx-font-mono); }
+.vx-arb-pulse-row .vx-muted { font-size: 11px; }
+.vx-arb-pulse-note { font-size: 11.5px; color: var(--vx-text-dim); line-height: 1.5; margin: 0; }
+.vx-arb-pulse .vx-btn-secondary { align-self: flex-start; }
+
 /* ---------- Scanner mode toggle + Arbitrage view ---------- */
 .vx-mode-toggle { display: inline-flex; gap: 4px; background: var(--vx-bg-elev);
   padding: 4px; border-radius: 12px; margin: 4px 0 18px; }
