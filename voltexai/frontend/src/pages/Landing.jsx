@@ -10,6 +10,8 @@ import { Sparkline } from "../components/Chart";
 import { marketsService } from "../services/markets";
 import { signalsService } from "../services/signals";
 import { ecosystemService } from "../services/ecosystem";
+import { sessionsService } from "../services/hub";
+import { GlobeMap } from "../components/GlobeMap";
 
 const FEATURES = [
   { icon: "🧠", title: "AI Trading Terminal",
@@ -38,12 +40,14 @@ export default function Landing() {
   const [movers, setMovers] = useState({ gainers: [], losers: [] });
   const [signals, setSignals] = useState([]);
   const [products, setProducts] = useState([]);
+  const [globe, setGlobe] = useState(null);
 
   useEffect(() => {
     marketsService.movers(4).then(setMovers).catch(() => {});
     signalsService.board({ minConfidence: 3, limit: 4 })
       .then((d) => setSignals(d.signals)).catch(() => {});
     ecosystemService.ecosystem().then((d) => setProducts(d.products)).catch(() => {});
+    sessionsService.status().then((d) => setGlobe(d.globe)).catch(() => {});
   }, []);
 
   return (
@@ -82,6 +86,12 @@ export default function Landing() {
           <Link to="/signals" className="vx-panel-link">Open the scanner →</Link>
         </aside>
       </section>
+
+      {globe && (
+        <section className="vx-container vx-hero-globe">
+          <GlobeMap data={globe} />
+        </section>
+      )}
 
       <section className="vx-movers-strip">
         {[...movers.gainers, ...movers.losers].map((q, i) => (
