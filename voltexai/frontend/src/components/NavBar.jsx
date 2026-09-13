@@ -11,6 +11,7 @@ const LINKS = [
   { to: "/markets", key: "nav.markets" },
   { to: "/signals", key: "nav.signals" },
   { to: "/pro-signals", key: "nav.signalsPro" },
+  { to: "/scanner?mode=arb", key: "nav.arbitrage" },
   { to: "/patterns", key: "nav.patterns" },
   { to: "/topdown", key: "nav.topdown" },
   { to: "/sentiment", key: "nav.sentiment" },

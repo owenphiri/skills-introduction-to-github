@@ -16,7 +16,7 @@ export const LOCALES = [
 export const DICT = {
   en: {
     "nav.dashboard": "Dashboard", "nav.markets": "Markets", "nav.signals": "Signals",
-    "nav.signalsPro": "Signals Pro", "nav.patterns": "Patterns", "nav.topdown": "Top-Down",
+    "nav.signalsPro": "Signals Pro", "nav.arbitrage": "Arbitrage", "nav.patterns": "Patterns", "nav.topdown": "Top-Down",
     "nav.sentiment": "Sentiment",
     "nav.journal": "Journal", "nav.eas": "EA Fleet", "nav.coin": "Voltex Coin", "nav.live": "Live",
     "nav.academy": "Academy", "nav.community": "Community", "nav.resources": "Resources",
@@ -45,7 +45,7 @@ export const DICT = {
   },
   fr: {
     "nav.dashboard": "Tableau de bord", "nav.markets": "Marchés", "nav.signals": "Signaux",
-    "nav.signalsPro": "Signaux Pro", "nav.patterns": "Figures", "nav.sentiment": "Sentiment",
+    "nav.signalsPro": "Signaux Pro", "nav.arbitrage": "Arbitrage", "nav.patterns": "Figures", "nav.sentiment": "Sentiment",
     "nav.journal": "Journal", "nav.eas": "Flotte EA", "nav.coin": "Voltex Coin", "nav.live": "En direct",
     "nav.academy": "Académie", "nav.community": "Communauté", "nav.resources": "Ressources",
     "nav.ecosystem": "Écosystème", "nav.company": "Entreprise",
@@ -72,7 +72,7 @@ export const DICT = {
   },
   pt: {
     "nav.dashboard": "Painel", "nav.markets": "Mercados", "nav.signals": "Sinais",
-    "nav.signalsPro": "Sinais Pro", "nav.patterns": "Padrões", "nav.sentiment": "Sentimento",
+    "nav.signalsPro": "Sinais Pro", "nav.arbitrage": "Arbitragem", "nav.patterns": "Padrões", "nav.sentiment": "Sentimento",
     "nav.journal": "Diário", "nav.eas": "Frota EA", "nav.coin": "Voltex Coin", "nav.live": "Ao vivo",
     "nav.academy": "Academia", "nav.community": "Comunidade", "nav.resources": "Recursos",
     "nav.ecosystem": "Ecossistema", "nav.company": "Empresa",
@@ -99,7 +99,7 @@ export const DICT = {
   },
   es: {
     "nav.dashboard": "Panel", "nav.markets": "Mercados", "nav.signals": "Señales",
-    "nav.signalsPro": "Señales Pro", "nav.patterns": "Patrones", "nav.sentiment": "Sentimiento",
+    "nav.signalsPro": "Señales Pro", "nav.arbitrage": "Arbitraje", "nav.patterns": "Patrones", "nav.sentiment": "Sentimiento",
     "nav.journal": "Diario", "nav.eas": "Flota EA", "nav.coin": "Voltex Coin", "nav.live": "En vivo",
     "nav.academy": "Academia", "nav.community": "Comunidad", "nav.resources": "Recursos",
     "nav.ecosystem": "Ecosistema", "nav.company": "Empresa",
@@ -126,7 +126,7 @@ export const DICT = {
   },
   sw: {
     "nav.dashboard": "Dashibodi", "nav.markets": "Masoko", "nav.signals": "Ishara",
-    "nav.signalsPro": "Ishara Pro", "nav.patterns": "Miundo", "nav.sentiment": "Hisia za Soko",
+    "nav.signalsPro": "Ishara Pro", "nav.arbitrage": "Arbitrage", "nav.patterns": "Miundo", "nav.sentiment": "Hisia za Soko",
     "nav.journal": "Jarida", "nav.eas": "Kundi la EA", "nav.coin": "Voltex Coin", "nav.live": "Moja kwa Moja",
     "nav.academy": "Akademia", "nav.community": "Jamii", "nav.resources": "Rasilimali",
     "nav.ecosystem": "Mfumo Ikolojia", "nav.company": "Kampuni",
@@ -153,7 +153,7 @@ export const DICT = {
   },
   ar: {
     "nav.dashboard": "لوحة التحكم", "nav.markets": "الأسواق", "nav.signals": "الإشارات",
-    "nav.signalsPro": "إشارات برو", "nav.patterns": "الأنماط", "nav.sentiment": "معنويات السوق",
+    "nav.signalsPro": "إشارات برو", "nav.arbitrage": "المراجحة", "nav.patterns": "الأنماط", "nav.sentiment": "معنويات السوق",
     "nav.journal": "اليوميات", "nav.eas": "أسطول EA", "nav.coin": "عملة Voltex", "nav.live": "مباشر",
     "nav.academy": "الأكاديمية", "nav.community": "المجتمع", "nav.resources": "الموارد",
     "nav.ecosystem": "المنظومة", "nav.company": "الشركة",
@@ -180,7 +180,7 @@ export const DICT = {
   },
   zh: {
     "nav.dashboard": "仪表盘", "nav.markets": "市场", "nav.signals": "信号",
-    "nav.signalsPro": "专业信号", "nav.patterns": "形态", "nav.sentiment": "市场情绪",
+    "nav.signalsPro": "专业信号", "nav.arbitrage": "套利", "nav.patterns": "形态", "nav.sentiment": "市场情绪",
     "nav.journal": "交易日志", "nav.eas": "EA 舰队", "nav.coin": "Voltex 币", "nav.live": "直播",
     "nav.academy": "学院", "nav.community": "社区", "nav.resources": "资源",
     "nav.ecosystem": "生态系统", "nav.company": "公司",
@@ -207,7 +207,7 @@ export const DICT = {
   },
   hi: {
     "nav.dashboard": "डैशबोर्ड", "nav.markets": "बाज़ार", "nav.signals": "सिग्नल",
-    "nav.signalsPro": "सिग्नल प्रो", "nav.patterns": "पैटर्न", "nav.sentiment": "मार्केट सेंटिमेंट",
+    "nav.signalsPro": "सिग्नल प्रो", "nav.arbitrage": "आर्बिट्राज", "nav.patterns": "पैटर्न", "nav.sentiment": "मार्केट सेंटिमेंट",
     "nav.journal": "जर्नल", "nav.eas": "EA फ़्लीट", "nav.coin": "Voltex Coin", "nav.live": "लाइव",
     "nav.academy": "अकादमी", "nav.community": "समुदाय", "nav.resources": "संसाधन",
     "nav.ecosystem": "इकोसिस्टम", "nav.company": "कंपनी",
