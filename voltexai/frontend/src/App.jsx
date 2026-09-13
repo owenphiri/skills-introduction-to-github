@@ -46,6 +46,7 @@ import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import Security from "./pages/Security";
 import RiskDisclosure from "./pages/RiskDisclosure";
+import PitchDeck from "./pages/PitchDeck";
 import Careers from "./pages/Careers";
 import CSR from "./pages/CSR";
 import Foundation from "./pages/Foundation";
@@ -129,6 +130,7 @@ export default function App() {
           <Route path="/security" element={<Security />} />
           <Route path="/risk-disclosure" element={<RiskDisclosure />} />
           <Route path="/about" element={<About />} />
+          <Route path="/pitch" element={<PitchDeck />} />
           <Route path="/careers" element={<Careers />} />
           <Route path="/csr" element={<CSR />} />
           <Route path="/foundation" element={<Foundation />} />

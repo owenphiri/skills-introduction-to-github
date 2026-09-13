@@ -9,16 +9,21 @@ import { Discussion } from "../components/Discussion";
 import { ResultsWall } from "../components/ResultsWall";
 import { ResultsMarquee } from "../components/ResultsMarquee";
 import { SubscriberTracker } from "../components/SubscriberTracker";
-import { dashboardService } from "../services/hub";
+import { GlobeMap } from "../components/GlobeMap";
+import { dashboardService, sessionsService } from "../services/hub";
 
 export default function Dashboard() {
   const [d, setD] = useState(null);
+  const [globe, setGlobe] = useState(null);
 
   useEffect(() => {
     const load = () => dashboardService.snapshot().then(setD).catch(() => {});
     load();
     const t = setInterval(load, 20000);
-    return () => clearInterval(t);
+    const loadGlobe = () => sessionsService.status().then((s) => setGlobe(s.globe)).catch(() => {});
+    loadGlobe();
+    const gt = setInterval(loadGlobe, 30000);
+    return () => { clearInterval(t); clearInterval(gt); };
   }, []);
 
   return (
@@ -43,6 +48,8 @@ export default function Dashboard() {
         {d && (
           <>
             <SubscriberTracker />
+
+            {globe && <GlobeMap data={globe} />}
 
             {/* KPI grid */}
             <div className="vx-kpi-grid">

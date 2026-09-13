@@ -31,8 +31,9 @@ const COLS = [
     ["Refer & Earn", "/referrals"],
   ]},
   { title: "Company", links: [
-    ["About Us", "/about"], ["Careers", "/careers"], ["Press", "/press"],
-    ["CSR", "/csr"], ["VoltexAI Foundation", "/foundation"], ["Awards", "/awards"],
+    ["About Us", "/about"], ["Investor Pitch", "/pitch"], ["Careers", "/careers"],
+    ["Press", "/press"], ["CSR", "/csr"], ["VoltexAI Foundation", "/foundation"],
+    ["Awards", "/awards"],
   ]},
   { title: "Media", links: [
     ["VoltexAI Media", "/media"], ["VoltexAI TV", "/tv"],
