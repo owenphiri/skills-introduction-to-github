@@ -40,6 +40,12 @@ import Travel from "./pages/Travel";
 import Dashboard from "./pages/Dashboard";
 import Sitemap from "./pages/Sitemap";
 import About from "./pages/About";
+import Support from "./pages/Support";
+import Contact from "./pages/Contact";
+import Privacy from "./pages/Privacy";
+import Terms from "./pages/Terms";
+import Security from "./pages/Security";
+import RiskDisclosure from "./pages/RiskDisclosure";
 import Careers from "./pages/Careers";
 import CSR from "./pages/CSR";
 import Foundation from "./pages/Foundation";
@@ -116,6 +122,12 @@ export default function App() {
 
           {/* Company & media */}
           <Route path="/sitemap" element={<Sitemap />} />
+          <Route path="/support" element={<Support />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/security" element={<Security />} />
+          <Route path="/risk-disclosure" element={<RiskDisclosure />} />
           <Route path="/about" element={<About />} />
           <Route path="/careers" element={<Careers />} />
           <Route path="/csr" element={<CSR />} />

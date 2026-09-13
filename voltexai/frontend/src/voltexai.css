@@ -2608,6 +2608,20 @@ body {
 .vx-news-foot ul { margin: 8px 0 0; padding-left: 18px; }
 .vx-news-foot li { font-size: 12.5px; line-height: 1.5; color: var(--vx-text-dim); margin-bottom: 4px; }
 
+/* ---------- Legal / compliance pages ---------- */
+.vx-legal { max-width: 820px; }
+.vx-legal-updated { color: var(--vx-text-dim); font-size: 13px; margin: 0 0 18px; }
+.vx-legal-section { margin: 0 0 22px; }
+.vx-legal-section h2 { font-size: 18px; margin: 0 0 8px; }
+.vx-legal-section p { line-height: 1.65; color: var(--vx-text); margin: 0 0 10px; }
+.vx-legal-section ul { margin: 0 0 10px; padding-left: 20px; }
+.vx-legal-section li { line-height: 1.6; margin-bottom: 6px; }
+.vx-legal-section a { color: var(--vx-primary); }
+.vx-legal-callout { background: var(--vx-bg-elev); border: 1px solid var(--vx-border);
+  border-left: 3px solid var(--vx-accent); border-radius: 10px; padding: 14px 16px; margin: 10px 0 12px; }
+.vx-legal-callout b { display: block; margin-bottom: 6px; color: var(--vx-text); }
+.vx-legal-callout p { margin: 0; font-size: 13.5px; color: var(--vx-text-dim); line-height: 1.6; }
+
 /* Share + save row — rounded-square brand tiles like the reference */
 .vx-share-bar { display: flex; flex-wrap: wrap; gap: .55rem; align-items: center; margin: .6rem 0 1.4rem; }
 .vx-share-icon {

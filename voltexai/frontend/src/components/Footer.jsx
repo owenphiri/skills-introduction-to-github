@@ -41,6 +41,12 @@ const COLS = [
   { title: "Explore", links: [
     ["FAQ", "/faq"], ["Sitemap", "/sitemap"], ["Ecosystem", "/products"],
   ]},
+  { title: "Resources", links: [
+    ["Support", "/support"], ["Contact", "/contact"],
+    ["Privacy policy", "/privacy"], ["Terms of use", "/terms"],
+    ["Security center", "/security"], ["Risk disclosure", "/risk-disclosure"],
+    ["Sitemap", "/sitemap"],
+  ]},
 ];
 
 export function Footer() {
@@ -75,6 +81,13 @@ export function Footer() {
           <span><b>{brand.ceo}</b> — {t("footer.founderCeo")}{isFlagship ? " · Methodology by Owens Forex Academy" : ""}</span>
         )}
         <span className="vx-footer-risk">{t("footer.risk")}</span>
+        <span className="vx-footer-risk">
+          Trading FX, CFDs, futures, synthetic indices &amp; crypto is high-risk and may
+          not suit all investors; you can lose more than you invest. VoltexAI provides
+          technology &amp; education only — not financial advice. Hypothetical/simulated
+          results have inherent limitations (CFTC Rule 4.41). See the full{" "}
+          <Link to="/risk-disclosure">Risk Disclosure &amp; CFTC notices</Link>.
+        </span>
       </div>
     </footer>
   );

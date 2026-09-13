@@ -31,6 +31,7 @@ export const DICT = {
     "footer.risk": "Trading leveraged products carries a high risk of loss. Educational technology, not personalised investment advice.",
     "col.Platform": "Platform", "col.Grow": "Grow", "col.Markets": "Markets",
     "col.Money": "Money", "col.Company": "Company", "col.Media": "Media", "col.Explore": "Explore",
+    "col.Resources": "Resources",
     "land.heroPre": "Africa's", "land.heroAccent": "AI trading terminal.",
     "land.heroSub": "Live markets, powerful AI signals, chart vision, prop-firm & broker intel, and a managed-alpha program — built Africa-first with mobile-money payments.",
     "land.ctaStartFree": "Start free", "land.ctaViewMarkets": "View live markets",
