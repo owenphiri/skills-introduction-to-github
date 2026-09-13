@@ -58,6 +58,10 @@ PRODUCTS = [
      "icon": "🛰️", "route": "/scanner", "accent": "#45e0a0",
      "blurb": "Continuously scans the entire market for high-confluence setups and "
               "surfaces the best opportunities right now."},
+    {"id": "arbitrage", "name": "Voltex Arbitrage", "tag": "Spread Scanner",
+     "icon": "🔀", "route": "/scanner?mode=arb", "accent": "#4dd0e1",
+     "blurb": "Fee-aware cross-venue spread & basis scanner — subtracts real fees "
+              "and slippage so only a genuine net edge shows. Paper-first, honest."},
     {"id": "academy", "name": "Voltex Academy", "tag": "Trading Education",
      "icon": "🎓", "route": "/academy", "accent": "#ffb547",
      "blurb": "From candlesticks to market structure, psychology & risk — a full "
