@@ -2,16 +2,52 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { NavBar } from "../components/NavBar";
-import { useI18n } from "../i18n";
 import { Footer } from "../components/Footer";
 import { signalsService } from "../services/signals";
 import { autotradeService } from "../services/autotrade";
+import { arbitrageService } from "../services/arbitrage";
 
 const TFS = ["M5", "M15", "M30", "H1", "H4"];
 const CLASSES = ["all", "forex", "metals", "energy", "indices", "crypto", "stocks", "synthetics", "futures"];
 
+// Fee tiers a user can model. `undefined` = the honest default: standard retail
+// taker fees, at which cross-venue arb essentially never nets positive.
+const FEE_TIERS = [
+  { id: "retail", label: "Retail taker", bps: undefined, note: "each venue's standard fee" },
+  { id: "vip", label: "VIP / maker 2 bps", bps: 2, note: "high-volume maker tier" },
+  { id: "pro", label: "Maker rebate 0 bps", bps: 0, note: "colocated / rebate desk" },
+];
+
 export default function Scanner() {
-  const { t } = useI18n();
+  const [mode, setMode] = useState("signals");
+  return (
+    <div className="vx-page">
+      <NavBar />
+      <main className="vx-container">
+        <div className="vx-page-head">
+          <h1>🛰️ Voltex Scanner</h1>
+          <p className="vx-muted">
+            {mode === "signals"
+              ? "Wide-scope scan across CFDs, metals, futures, crypto & Deriv synthetic indices — surfacing higher-timeframe-confirmed quality trades, ready to auto-execute."
+              : "Fee-aware cross-venue spread scanner. It subtracts real fees & slippage from every gross spread, so only a genuine net edge is ever flagged — which is rare and small. Paper-first."}
+          </p>
+        </div>
+        <div className="vx-mode-toggle">
+          <button className={mode === "signals" ? "active" : ""} onClick={() => setMode("signals")}>
+            ⚡ Signals &amp; auto-trade
+          </button>
+          <button className={mode === "arb" ? "active" : ""} onClick={() => setMode("arb")}>
+            🔀 Arbitrage &amp; spreads
+          </button>
+        </div>
+        {mode === "signals" ? <SignalsView /> : <ArbitrageView />}
+      </main>
+      <Footer />
+    </div>
+  );
+}
+
+function SignalsView() {
   const [timeframe, setTimeframe] = useState("M15");
   const [assetClass, setAssetClass] = useState("all");
   const [quality, setQuality] = useState(true);
@@ -63,17 +99,7 @@ export default function Scanner() {
   };
 
   return (
-    <div className="vx-page">
-      <NavBar />
-      <main className="vx-container">
-        <div className="vx-page-head">
-          <h1>🛰️ Voltex Scanner</h1>
-          <p className="vx-muted">
-            Wide-scope scan across CFDs, metals, futures, crypto &amp; Deriv synthetic indices —
-            surfacing higher-timeframe-confirmed quality trades, ready to auto-execute.
-          </p>
-        </div>
-
+    <>
         {/* Auto-trader panel */}
         <div className="vx-auto-panel">
           <div className="vx-auto-head">
@@ -187,8 +213,197 @@ export default function Scanner() {
           )}
         </div>
         <p className="vx-fineprint">Automated educational analysis, not financial advice. Auto-execution defaults to paper.</p>
-      </main>
-      <Footer />
-    </div>
+    </>
+  );
+}
+
+// ----------------------------- Arbitrage view -----------------------------
+function ArbitrageView() {
+  const [feeTier, setFeeTier] = useState("retail");
+  const [notional, setNotional] = useState(10000);
+  const [minNet, setMinNet] = useState(0);
+  const [data, setData] = useState(null);
+  const [status, setStatus] = useState(null);
+  const [scanning, setScanning] = useState(true);
+  const [lastScan, setLastScan] = useState(null);
+  const [msg, setMsg] = useState("");
+  const [running, setRunning] = useState(false);
+
+  const tier = FEE_TIERS.find((f) => f.id === feeTier) || FEE_TIERS[0];
+
+  useEffect(() => {
+    let alive = true;
+    const run = () => {
+      setScanning(true);
+      arbitrageService.scan({ minNetBps: minNet, notional, feeTierBps: tier.bps })
+        .then((d) => { if (alive) { setData(d); setScanning(false); setLastScan(new Date()); } })
+        .catch(() => alive && setScanning(false));
+    };
+    run();
+    const id = setInterval(run, 10000);
+    return () => { alive = false; clearInterval(id); };
+  }, [feeTier, notional, minNet]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    let alive = true;
+    const poll = () => arbitrageService.status().then((s) => alive && setStatus(s)).catch(() => {});
+    poll();
+    const id = setInterval(poll, 12000);
+    return () => { alive = false; clearInterval(id); };
+  }, []);
+
+  const runArb = () => {
+    setRunning(true); setMsg("");
+    arbitrageService.run({ minNetBps: minNet, notional, feeTierBps: tier.bps })
+      .then((r) => {
+        if (!r.ran) setMsg(r.reason || "Executor is off.");
+        else setMsg(`Booked ${r.executed.length} paper pair(s) · skipped ${r.skipped.length}`);
+        return arbitrageService.status().then(setStatus);
+      })
+      .catch((e) => setMsg(e.status === 401 || e.status === 403
+        ? "Sign in to book paper arbitrage pairs."
+        : (e.message || "Could not run the arbitrage cycle.")))
+      .finally(() => setRunning(false));
+  };
+
+  const closePair = (id) => {
+    arbitrageService.close(id)
+      .then(() => arbitrageService.status().then(setStatus))
+      .catch(() => {});
+  };
+
+  const opps = data?.opportunities || [];
+  const actionable = opps.filter((o) => o.actionable);
+
+  return (
+    <>
+      {/* Fee-honesty banner */}
+      <div className={`vx-arb-banner ${actionable.length ? "hot" : ""}`}>
+        {tier.bps === undefined
+          ? "At standard retail taker fees, fees + slippage swallow every cross-venue spread — so nothing is actionable. That's the honest reality of retail arbitrage."
+          : `Modelling a ${tier.label.toLowerCase()} (${tier.bps} bps/side). An edge only exists at institutional fee tiers — and even then it's small and fleeting.`}
+      </div>
+
+      {/* Paper executor panel */}
+      <div className="vx-auto-panel">
+        <div className="vx-auto-head">
+          <div>
+            <b>🔀 Paper spread executor</b>
+            <span className="vx-auto-mode vx-auto-mode--paper">PAPER</span>
+            {status && !status.gate_open && <span className="vx-auto-off">{status.enabled ? "gated" : "disabled"}</span>}
+            {status?.kill_switch && <span className="vx-auto-kill">KILL SWITCH ON</span>}
+          </div>
+          <button className="vx-btn-primary vx-btn-sm" onClick={runArb} disabled={running}>
+            {running ? "Running…" : "Book actionable pairs (paper) ↻"}
+          </button>
+        </div>
+        <div className="vx-auto-stats">
+          <div><span>Gate</span><b>{status?.gate_open ? "open" : "closed"}</b></div>
+          <div><span>Open pairs</span><b>{status?.open_count ?? 0}/{status?.max_open ?? "—"}</b></div>
+          <div><span>Realized (paper)</span><b>${status?.realized_usd ?? 0}</b></div>
+          <div><span>Actionable now</span><b>{actionable.length}</b></div>
+          <div><span>Slippage buffer</span><b>{status?.slippage_bps ?? "—"} bps</b></div>
+          <div><span>Notional</span><b>${notional.toLocaleString()}</b></div>
+        </div>
+        {msg && <p className="vx-auto-msg">{msg}</p>}
+        {status?.open_pairs?.length > 0 && (
+          <div className="vx-arb-open">
+            {status.open_pairs.map((p) => (
+              <div key={p.id} className="vx-arb-open-row">
+                <b>{p.symbol}</b>
+                <span className="vx-muted">L {p.long_venue} / S {p.short_venue}</span>
+                <span className="vx-mono">entry {p.net_bps} bps · now {p.current_net_bps ?? "—"} bps</span>
+                <button className="vx-btn-secondary vx-btn-xs" onClick={() => closePair(p.id)}>Close</button>
+              </div>
+            ))}
+          </div>
+        )}
+        <p className="vx-auto-note">
+          Paper only — no real money. The executor reuses the auto-trader's guardrails
+          (enable flag, kill switch, high-impact news guard, max-open) and books a
+          fully-hedged long/short pair only when the net edge is positive.
+        </p>
+      </div>
+
+      {/* Controls */}
+      <div className="vx-scanner-bar">
+        <div className={`vx-radar ${scanning ? "spinning" : ""}`}>
+          <span className="vx-radar-sweep" />
+          <span className="vx-radar-dot" />
+        </div>
+        <div className="vx-scanner-status">
+          <b>{scanning ? "Scanning venues…" : `${opps.length} pairs · ${actionable.length} net-positive`}</b>
+          <small className="vx-muted">{lastScan ? `Updated ${lastScan.toLocaleTimeString()}` : "—"} · auto-refresh 10s</small>
+        </div>
+        <div className="vx-filters-right">
+          <div className="vx-tf-toggle">
+            {FEE_TIERS.map((f) => (
+              <button key={f.id} className={f.id === feeTier ? "active" : ""} onClick={() => setFeeTier(f.id)} title={f.note}>
+                {f.label}
+              </button>
+            ))}
+          </div>
+          <label className="vx-conf-filter">Min net {minNet} bps
+            <input type="range" min="0" max="10" value={minNet} onChange={(e) => setMinNet(+e.target.value)} />
+          </label>
+        </div>
+      </div>
+
+      {/* Opportunities table */}
+      <div className="vx-arb-table-wrap">
+        <table className="vx-arb-table">
+          <thead>
+            <tr>
+              <th>Symbol</th><th>Buy @</th><th>Sell @</th>
+              <th>Gross</th><th>Fees</th><th>Net</th><th>Net $</th><th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {opps.map((o) => (
+              <tr key={o.symbol} className={o.actionable ? "hot" : ""}>
+                <td><b>{o.symbol}</b><small className="vx-muted"> {o.asset_class}</small></td>
+                <td><span className="vx-mono">{o.buy_at}</span><small className="vx-muted"> {o.buy_venue}</small></td>
+                <td><span className="vx-mono">{o.sell_at}</span><small className="vx-muted"> {o.sell_venue}</small></td>
+                <td className={o.gross_bps >= 0 ? "vx-up" : "vx-down"}>{o.gross_bps} bps</td>
+                <td className="vx-muted">{o.fee_bps} bps</td>
+                <td className={o.net_bps >= 0 ? "vx-up" : "vx-down"}><b>{o.net_bps} bps</b></td>
+                <td className={o.net_usd >= 0 ? "vx-up" : "vx-down"}>${o.net_usd}</td>
+                <td>{o.actionable
+                  ? <span className="vx-pill vx-pill--long">edge</span>
+                  : <span className="vx-pill vx-pill--flat">no edge</span>}</td>
+              </tr>
+            ))}
+            {!scanning && opps.length === 0 && (
+              <tr><td colSpan="8" className="vx-muted" style={{ textAlign: "center", padding: "1.4rem" }}>
+                No cross-listed pairs available right now.
+              </td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Basis table */}
+      {data?.basis?.length > 0 && (
+        <div className="vx-arb-basis">
+          <h3>Futures vs spot basis <small className="vx-muted">— carry relationship, not a free lunch</small></h3>
+          <div className="vx-arb-basis-grid">
+            {data.basis.map((b) => (
+              <div key={b.future} className="vx-arb-basis-card">
+                <div className="vx-arb-basis-top">
+                  <b>{b.future}</b><span className="vx-muted">vs {b.spot}</span>
+                </div>
+                <div className={`vx-arb-basis-bps ${b.basis_bps >= 0 ? "vx-up" : "vx-down"}`}>
+                  {b.basis_bps > 0 ? "+" : ""}{b.basis_bps} bps
+                </div>
+                <div className="vx-muted">{b.structure} · {b.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <p className="vx-fineprint">{data?.disclaimer ||
+        "Fee-aware, paper-first. Simulated results have inherent limitations (CFTC Rule 4.41). Not financial advice."}</p>
+    </>
   );
 }

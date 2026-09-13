@@ -2934,3 +2934,50 @@ body {
 .vx-gal-thumb.active span { color: var(--vx-accent); font-weight: 600; }
 @media (max-width: 480px) { .vx-gal-thumbs { grid-template-columns: repeat(2, 1fr); } }
 .vx-gal-photo { object-fit: cover; }
+
+/* ---------- Scanner mode toggle + Arbitrage view ---------- */
+.vx-mode-toggle { display: inline-flex; gap: 4px; background: var(--vx-bg-elev);
+  padding: 4px; border-radius: 12px; margin: 4px 0 18px; }
+.vx-mode-toggle button { background: transparent; border: none; color: var(--vx-text-dim);
+  padding: 8px 16px; border-radius: 9px; font-size: 13px; font-weight: 700; cursor: pointer;
+  transition: background .15s, color .15s; }
+.vx-mode-toggle button.active { background: var(--vx-accent-soft); color: var(--vx-accent); }
+
+/* status pills reused by signals + arbitrage cards */
+.vx-pill { font-size: 10px; font-weight: 800; letter-spacing: .3px; padding: 2px 8px;
+  border-radius: 20px; text-transform: uppercase; }
+.vx-pill--long  { background: rgba(69,224,160,0.16); color: var(--vx-success); }
+.vx-pill--short { background: rgba(255,85,96,0.16); color: var(--vx-danger); }
+.vx-pill--flat  { background: var(--vx-bg-elev); color: var(--vx-text-dim); }
+
+.vx-arb-banner { background: rgba(77,124,255,0.08); border: 1px solid var(--vx-border);
+  border-left: 3px solid var(--vx-primary); border-radius: 10px; padding: 11px 15px;
+  font-size: 13px; color: var(--vx-text-dim); line-height: 1.5; margin-bottom: 14px; }
+.vx-arb-banner.hot { border-left-color: var(--vx-accent); background: rgba(194,245,61,0.07); color: var(--vx-text); }
+
+.vx-arb-open { display: flex; flex-direction: column; gap: 6px; margin: 10px 0 4px; }
+.vx-arb-open-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  background: var(--vx-bg-elev); border: 1px solid var(--vx-border); border-radius: 10px; padding: 8px 12px; }
+.vx-arb-open-row b { font-family: var(--vx-font-mono); }
+.vx-arb-open-row .vx-mono { font-size: 12px; }
+.vx-arb-open-row button { margin-left: auto; }
+.vx-btn-xs { padding: 4px 10px !important; font-size: 11px !important; }
+
+.vx-arb-table-wrap { overflow-x: auto; border: 1px solid var(--vx-border); border-radius: 14px; margin-top: 4px; }
+.vx-arb-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 640px; }
+.vx-arb-table th { text-align: left; padding: 10px 14px; font-size: 11px; text-transform: uppercase;
+  letter-spacing: .4px; color: var(--vx-text-dim); border-bottom: 1px solid var(--vx-border); }
+.vx-arb-table td { padding: 11px 14px; border-bottom: 1px solid var(--vx-border); }
+.vx-arb-table tbody tr:last-child td { border-bottom: none; }
+.vx-arb-table tbody tr.hot { background: rgba(194,245,61,0.05); }
+.vx-arb-table .vx-mono { font-family: var(--vx-font-mono); }
+
+.vx-arb-basis { margin-top: 22px; }
+.vx-arb-basis h3 { font-size: 15px; margin: 0 0 12px; }
+.vx-arb-basis-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+.vx-arb-basis-card { background: var(--vx-bg-card); border: 1px solid var(--vx-border); border-radius: 12px; padding: 12px 14px; }
+.vx-arb-basis-top { display: flex; justify-content: space-between; align-items: baseline; }
+.vx-arb-basis-top b { font-family: var(--vx-font-mono); font-size: 15px; }
+.vx-arb-basis-top span { font-size: 11px; }
+.vx-arb-basis-bps { font-size: 20px; font-weight: 800; font-family: var(--vx-font-mono); margin: 6px 0 2px; }
+.vx-arb-basis-card .vx-muted { font-size: 11px; text-transform: capitalize; }
