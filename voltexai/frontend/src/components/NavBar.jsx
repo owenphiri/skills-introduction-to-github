@@ -1,5 +1,6 @@
 // src/components/NavBar.jsx — shared top navigation + live ticker
-import { Link, NavLink, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { BrandLogo } from "./BrandLogo";
 import { useI18n } from "../i18n";
@@ -30,6 +31,11 @@ export function NavBar() {
   const { user, logout } = useAuth();
   const { t } = useI18n();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  // close the mobile menu on navigation
+  useEffect(() => { setMenuOpen(false); }, [location.pathname, location.search]);
 
   return (
     <header className="vx-nav">
@@ -43,6 +49,10 @@ export function NavBar() {
             </NavLink>
           ))}
         </nav>
+        <button className={`vx-nav-burger ${menuOpen ? "open" : ""}`} aria-label="Menu"
+          aria-expanded={menuOpen} onClick={() => setMenuOpen((o) => !o)}>
+          <span /><span /><span />
+        </button>
         <div className="vx-nav-actions">
           <LanguageSelector compact />
           {user ? (
@@ -72,6 +82,28 @@ export function NavBar() {
           )}
         </div>
       </div>
+
+      {/* Mobile drawer — same destinations as the desktop nav */}
+      <nav className={`vx-nav-mobile ${menuOpen ? "open" : ""}`} hidden={!menuOpen}>
+        {LINKS.map((l) => (
+          <NavLink key={l.to} to={l.to}
+            className={({ isActive }) => `vx-nav-mobile-link ${isActive ? "active" : ""}`}>
+            {t(l.key)}
+          </NavLink>
+        ))}
+        {user?.role === "admin" && (
+          <NavLink to="/admin/signals" className="vx-nav-mobile-link">🛠️ {t("action.admin")}</NavLink>
+        )}
+        {user ? (
+          <NavLink to="/account" className="vx-nav-mobile-link">{t("action.account")}</NavLink>
+        ) : (
+          <>
+            <NavLink to="/login" className="vx-nav-mobile-link">{t("action.login")}</NavLink>
+            <NavLink to="/signup" className="vx-nav-mobile-link vx-nav-mobile-link--cta">{t("action.getStarted")}</NavLink>
+          </>
+        )}
+      </nav>
+
       <LiveTicker />
     </header>
   );

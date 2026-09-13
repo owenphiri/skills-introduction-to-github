@@ -589,6 +589,24 @@ body {
 .vx-nav-link:hover { color: var(--vx-text); background: var(--vx-bg-elev); }
 .vx-nav-link.active { color: var(--vx-accent); background: var(--vx-accent-soft); }
 .vx-nav-actions { display: flex; align-items: center; gap: 10px; }
+
+/* Mobile hamburger + drawer (shown only on narrow screens) */
+.vx-nav-burger { display: none; flex-direction: column; justify-content: center; gap: 5px;
+  width: 40px; height: 40px; padding: 0 9px; background: var(--vx-bg-elev);
+  border: 1px solid var(--vx-border); border-radius: 10px; cursor: pointer; }
+.vx-nav-burger span { display: block; height: 2px; width: 100%; background: var(--vx-text);
+  border-radius: 2px; transition: transform .2s, opacity .2s; }
+.vx-nav-burger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.vx-nav-burger.open span:nth-child(2) { opacity: 0; }
+.vx-nav-burger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+.vx-nav-mobile { display: none; flex-direction: column; padding: 8px 12px 14px;
+  border-top: 1px solid var(--vx-border); background: rgba(10,14,26,0.96); }
+.vx-nav-mobile-link { color: var(--vx-text-dim); text-decoration: none; font-size: 15px;
+  padding: 12px 12px; border-radius: 10px; }
+.vx-nav-mobile-link:hover { color: var(--vx-text); background: var(--vx-bg-elev); }
+.vx-nav-mobile-link.active { color: var(--vx-accent); background: var(--vx-accent-soft); }
+.vx-nav-mobile-link--cta { color: #0a0e1a; background: var(--vx-accent); font-weight: 700;
+  text-align: center; margin-top: 6px; }
 .vx-nav-user { display: flex; align-items: center; gap: 8px; color: var(--vx-text);
   text-decoration: none; font-size: 14px; }
 .vx-plan-chip { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 20px;
@@ -816,6 +834,8 @@ body {
   .vx-hero-copy h1 { font-size: 38px; }
   .vx-aum-grid { grid-template-columns: 1fr; }
   .vx-nav-links { display: none; }
+  .vx-nav-burger { display: flex; margin-left: auto; }
+  .vx-nav-mobile.open { display: flex; }
   .vx-table { font-size: 12px; }
   .vx-table th:nth-child(6), .vx-table td:nth-child(6) { display: none; }
   .vx-trade-grid { grid-template-columns: 1fr; }
