@@ -1076,6 +1076,19 @@ body {
   background: rgba(244,183,64,0.1); border: 1px solid rgba(244,183,64,0.3);
   border-radius: 7px; padding: 4px 8px; }
 .vx-scan-news.live { color: #ff5c8a; background: rgba(255,92,138,0.1); border-color: rgba(255,92,138,0.35); }
+/* ICT liquidity read on a signal card */
+.vx-scan-liq { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 11px; }
+.vx-liq-zone { font-weight: 800; text-transform: uppercase; letter-spacing: .3px; font-size: 10px;
+  padding: 2px 7px; border-radius: 6px; }
+.vx-liq-zone--discount { color: var(--vx-success); background: rgba(69,224,160,0.14); }
+.vx-liq-zone--premium { color: #ff5c8a; background: rgba(255,92,138,0.12); }
+.vx-liq-zone--equilibrium { color: var(--vx-text-dim); background: var(--vx-bg-elev); }
+.vx-liq-draw { color: var(--vx-text-dim); }
+.vx-liq-sweep { color: var(--vx-accent); font-weight: 600; }
+.vx-liq-score { margin-left: auto; font-family: var(--vx-font-mono); color: var(--vx-text-dim); }
+.vx-scan-liqwarn { font-size: 11px; line-height: 1.45; color: var(--vx-warn, #e8a13a);
+  background: rgba(232,161,58,0.08); border: 1px solid rgba(232,161,58,0.25);
+  border-radius: 7px; padding: 5px 8px; }
 .vx-class-tabs--scanner { margin: 12px 0 16px; flex-wrap: wrap; }
 .vx-quality-toggle { border: 1px solid var(--vx-border); background: var(--vx-bg-card); color: var(--vx-text-dim);
   border-radius: 20px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; }

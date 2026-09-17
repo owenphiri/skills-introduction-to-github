@@ -204,6 +204,23 @@ function SignalsView() {
                       : `⚠️ ${s.news_warning.code} in ${s.news_warning.countdown}`}
                   </div>
                 )}
+                {s.liquidity && s.liquidity.zone && (
+                  <div className="vx-scan-liq">
+                    <span className={`vx-liq-zone vx-liq-zone--${s.liquidity.zone}`}>{s.liquidity.zone}</span>
+                    {s.liquidity.likely_draw && (
+                      <span className="vx-liq-draw">→ {s.liquidity.likely_draw} draw</span>
+                    )}
+                    {s.liquidity.sweep && (
+                      <span className="vx-liq-sweep">✦ {s.liquidity.sweep} sweep → {s.liquidity.reversal_bias}</span>
+                    )}
+                    {typeof s.liquidity_score === "number" && (
+                      <span className="vx-liq-score">liq {s.liquidity_score}/10</span>
+                    )}
+                  </div>
+                )}
+                {s.liquidity_warning && (
+                  <div className="vx-scan-liqwarn">⚠ {s.liquidity_warning}</div>
+                )}
               </Link>
             );
           })}

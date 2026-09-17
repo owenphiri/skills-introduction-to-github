@@ -223,10 +223,14 @@ def generate(symbol: str, timeframe: str = "M15") -> dict:
         tp1, tp2, tp3 = entry - risk, entry - 2 * risk, entry - 3 * risk
 
     rr1 = round(abs(tp1 - entry) / risk, 2) if risk else 0
+    liq = _liquidity_block(symbol, timeframe, direction)
     return {
         "symbol": symbol, "display": inst["display"],
         "asset_class": inst["asset_class"], "timeframe": timeframe,
         "direction": direction,
+        "liquidity": liq,
+        "liquidity_score": liq.get("liquidity_score"),
+        "liquidity_warning": liq.get("warning"),
         "confidence": confidence,
         "grade": _grade(confidence),
         "quality": confidence * 10,
@@ -247,6 +251,30 @@ def generate(symbol: str, timeframe: str = "M15") -> dict:
         "news_warning": news,
         "generated_at": _now_iso(),
     }
+
+
+def _liquidity_block(symbol: str, timeframe: str, direction: str) -> dict:
+    """Compact ICT liquidity context for a signal (draw-on-liquidity, premium/
+    discount, fresh sweep, a 0-10 liquidity score and the top caution). Fails soft
+    — a signal never breaks because the liquidity read is unavailable."""
+    try:
+        from . import liquidity
+        a = liquidity.assess(symbol, timeframe, direction)
+        if a.get("error"):
+            return {}
+        return {
+            "zone": a["range"]["zone"],
+            "likely_draw": a["draw_on_liquidity"].get("likely_draw"),
+            "buy_side": a["draw_on_liquidity"].get("buy_side"),
+            "sell_side": a["draw_on_liquidity"].get("sell_side"),
+            "sweep": a["sweep"].get("side") if a["sweep"].get("swept") else None,
+            "reversal_bias": a["sweep"].get("reversal_bias") if a["sweep"].get("swept") else None,
+            "liquidity_score": a.get("liquidity_score"),
+            "stance": a.get("stance"),
+            "warning": a["warnings"][0] if a.get("warnings") else None,
+        }
+    except Exception:
+        return {}
 
 
 def scan(symbols: list[str], timeframe: str = "M15",
@@ -297,9 +325,15 @@ def quality_scan(symbols: list[str], timeframe: str = "M15", htf: str = "H1",
             continue
         # a composite quality score used for ranking + auto-exec priority
         sig["quality_trade"] = True
+        # ICT liquidity confluence lifts (or, when entering into resting liquidity,
+        # tempers) execution priority — so sweep-and-reverse setups in the right
+        # premium/discount zone rank above setups that walk straight into stops.
+        liq_score = sig.get("liquidity_score")
+        liq_adj = ((liq_score - 5.0) / 5.0) if isinstance(liq_score, (int, float)) else 0.0
         sig["exec_priority"] = round(
             sig["confidence"] + (1.5 if sig["htf_aligned"] else 0)
-            + min(2.0, (sig.get("risk_reward_tp3") or 0) / 2), 2)
+            + min(2.0, (sig.get("risk_reward_tp3") or 0) / 2)
+            + liq_adj, 2)
         out.append(sig)
     out.sort(key=lambda x: (x["exec_priority"], x["confidence"]), reverse=True)
     return out[:limit] if limit else out

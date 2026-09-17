@@ -1,0 +1,37 @@
+"""
+VoltexAI - ICT liquidity routes (news-aware smart-money mapping)
+
+GET /api/liquidity/map/{symbol}       - liquidity pools + premium/discount (public)
+GET /api/liquidity/assess/{symbol}    - full news-aware assessment (public)
+GET /api/liquidity/news               - pre-news liquidity board across the hot list
+
+Educational / analytical only — structured ICT reading, not financial advice and
+not a profit guarantee (CFTC Rule 4.41).
+"""
+from fastapi import APIRouter, Query, HTTPException
+
+from ..services import liquidity
+
+router = APIRouter(prefix="/api/liquidity", tags=["liquidity"])
+
+
+@router.get("/map/{symbol}")
+def liquidity_map(symbol: str, timeframe: str = Query("M15")):
+    m = liquidity.liquidity_map(symbol, timeframe)
+    if m.get("error"):
+        raise HTTPException(404, m["error"])
+    return m
+
+
+@router.get("/assess/{symbol}")
+def assess(symbol: str, timeframe: str = Query("M15"),
+           direction: str = Query(None, pattern="^(LONG|SHORT)$")):
+    a = liquidity.assess(symbol, timeframe, direction)
+    if a.get("error"):
+        raise HTTPException(404, a["error"])
+    return a
+
+
+@router.get("/news")
+def news_board(timeframe: str = Query("M15")):
+    return liquidity.news_liquidity(timeframe=timeframe)
