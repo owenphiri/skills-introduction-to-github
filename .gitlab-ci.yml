@@ -1,0 +1,57 @@
+# VoltexAI — GitLab CI/CD
+# Pipeline: build the React frontend and deploy it to Firebase Hosting.
+# The FastAPI backend stays on Render (deployed from render.yaml via Render's own
+# GitLab connection) — it is intentionally NOT deployed from this pipeline.
+#
+# Required GitLab CI/CD variables (Settings → CI/CD → Variables), all "Masked":
+#   FIREBASE_TOKEN    - a Firebase deploy token  (run `firebase login:ci` locally)
+#   FIREBASE_PROJECT  - (optional) Firebase project id; defaults to .firebaserc "default"
+#   VITE_API_URL      - (optional) backend URL; defaults to the Render service below
+#
+# NEVER commit these values — they live only in GitLab's protected variable store.
+
+stages:
+  - build
+  - deploy
+
+variables:
+  # Overridden by a GitLab CI/CD variable of the same name if you set one.
+  VITE_API_URL: "https://voltexai-api.onrender.com"
+
+build_frontend:
+  stage: build
+  image: node:20-alpine
+  cache:
+    key:
+      files:
+        - voltexai/frontend/package-lock.json
+    paths:
+      - voltexai/frontend/node_modules/
+  script:
+    - cd voltexai/frontend
+    - npm ci
+    - npm run build
+  artifacts:
+    paths:
+      - voltexai/frontend/dist
+    expire_in: 1 week
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+deploy_hosting:
+  stage: deploy
+  image: node:20-alpine
+  needs:
+    - build_frontend
+  script:
+    - npm install -g firebase-tools
+    - firebase deploy --only hosting --non-interactive
+        --project "${FIREBASE_PROJECT:-default}"
+        --token "$FIREBASE_TOKEN"
+  environment:
+    name: production
+    url: https://$CI_PROJECT_NAME.web.app
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_COMMIT_BRANCH == "main"'
