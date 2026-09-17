@@ -6,6 +6,7 @@ import { Footer } from "../components/Footer";
 import { signalsService } from "../services/signals";
 import { autotradeService } from "../services/autotrade";
 import { arbitrageService } from "../services/arbitrage";
+import { liquidityService } from "../services/liquidity";
 
 const TFS = ["M5", "M15", "M30", "H1", "H4"];
 const CLASSES = ["all", "forex", "metals", "energy", "indices", "crypto", "stocks", "synthetics", "futures"];
@@ -169,6 +170,8 @@ function SignalsView() {
           ))}
         </div>
 
+        <ScoreBacktest symbol={signals[0]?.symbol || "XAUUSD"} />
+
         <div className="vx-signal-grid">
           {signals.map((s) => {
             const long = s.direction === "LONG";
@@ -233,6 +236,64 @@ function SignalsView() {
         </div>
         <p className="vx-fineprint">Automated educational analysis, not financial advice. Auto-execution defaults to paper.</p>
     </>
+  );
+}
+
+// ----------------------------- Liquidity-score backtest -----------------------------
+// Honest validation: shows how the liquidity score bucketed against forward outcomes.
+// The scanner feed is synthetic here, so this measures engine consistency, not a
+// real-market edge — the panel says so plainly.
+function ScoreBacktest({ symbol }) {
+  const [bt, setBt] = useState(null);
+  const [open, setOpen] = useState(false);
+  const [err, setErr] = useState(false);
+
+  useEffect(() => {
+    if (!open || bt) return;
+    liquidityService.backtest(symbol).then(setBt).catch(() => setErr(true));
+  }, [open, symbol, bt]);
+
+  // reset when the symbol changes
+  useEffect(() => { setBt(null); setErr(false); }, [symbol]);
+
+  const maxWr = bt ? Math.max(0.01, ...bt.buckets.map((b) => b.win_rate || 0)) : 1;
+
+  return (
+    <div className="vx-bt">
+      <button className="vx-bt-toggle" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+        {open ? "▾" : "▸"} Liquidity-score backtest <span className="vx-muted">· {symbol}</span>
+        <span className="vx-bt-tag">honest check</span>
+      </button>
+      {open && (
+        <div className="vx-bt-body">
+          {!bt && !err && <p className="vx-muted">Running walk-forward backtest…</p>}
+          {err && <p className="vx-muted">Sign in or try again — backtest unavailable.</p>}
+          {bt && (
+            <>
+              <div className="vx-bt-summary">
+                <div><span>Sample</span><b>{bt.sample}</b></div>
+                <div><span>Win rate</span><b>{Math.round((bt.overall.win_rate || 0) * 100)}%</b></div>
+                <div><span>Expectancy</span><b className={bt.overall.avg_R >= 0 ? "vx-up" : "vx-down"}>{bt.overall.avg_R} R</b></div>
+                <div><span>Score↔R corr</span><b className={bt.score_R_correlation >= 0 ? "vx-up" : "vx-down"}>{bt.score_R_correlation ?? "—"}</b></div>
+              </div>
+              <div className="vx-bt-buckets">
+                {bt.buckets.map((b) => (
+                  <div key={b.range} className="vx-bt-bucket">
+                    <span className="vx-bt-brange">{b.range}</span>
+                    <div className="vx-bt-bar">
+                      <i style={{ width: `${((b.win_rate || 0) / maxWr) * 100}%` }} />
+                    </div>
+                    <span className="vx-bt-bval">{b.trades ? `${Math.round((b.win_rate) * 100)}% · ${b.avg_R}R · n${b.trades}` : "—"}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="vx-bt-verdict">{bt.verdict}</p>
+              <p className="vx-bt-note">⚠ {bt.synthetic ? "Synthetic data — measures engine consistency, not a real-market edge." : "Hypothetical results have limitations (CFTC 4.41)."}{bt.live_provider_wired ? "" : " Wire a live data provider for a market-meaningful test."}</p>
+            </>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 

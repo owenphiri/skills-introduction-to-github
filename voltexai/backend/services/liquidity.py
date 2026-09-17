@@ -135,12 +135,22 @@ def _round_numbers(symbol: str, price: float):
 
 # ----------------------------- core map -----------------------------
 def liquidity_map(symbol: str, timeframe: str = "M15", count: int = 300) -> dict:
-    """Build the full liquidity picture for a symbol."""
+    """Build the full liquidity picture for a symbol (fetches candles, then maps)."""
     symbol = symbol.upper()
     inst = instruments.get_instrument(symbol)
     if not inst:
         return {"symbol": symbol, "error": "unknown instrument"}
     candles = market_service.get_candles(symbol, timeframe, count)
+    return map_from_candles(symbol, candles, timeframe)
+
+
+def map_from_candles(symbol: str, candles: list[dict], timeframe: str = "M15") -> dict:
+    """Map liquidity from an explicit candle series — no fetch, so the backtester can
+    pass only PAST candles (no lookahead)."""
+    symbol = symbol.upper()
+    inst = instruments.get_instrument(symbol)
+    if not inst:
+        return {"symbol": symbol, "error": "unknown instrument"}
     if len(candles) < 40:
         return {"symbol": symbol, "error": "insufficient data"}
 
@@ -179,8 +189,9 @@ def liquidity_map(symbol: str, timeframe: str = "M15", count: int = 300) -> dict
     add("SSL", "Round number", rb); add("BSL", "Round number", ra)
 
     # dealing range + premium/discount (ICT equilibrium)
-    hi = max(c["high"] for c in candles[-count // 2:])
-    lo = min(c["low"] for c in candles[-count // 2:])
+    half = max(20, len(candles) // 2)
+    hi = max(c["high"] for c in candles[-half:])
+    lo = min(c["low"] for c in candles[-half:])
     eq = (hi + lo) / 2
     zone = "premium" if price > eq else "discount" if price < eq else "equilibrium"
 
@@ -219,6 +230,13 @@ def sweep_state(symbol: str, timeframe: str = "M15", lookback: int = 5) -> dict:
     if "error" in lmap:
         return {"swept": False, **lmap}
     candles = market_service.get_candles(symbol, timeframe, 60)
+    return sweep_from_candles(candles, lmap, lookback)
+
+
+def sweep_from_candles(candles: list[dict], lmap: dict, lookback: int = 5) -> dict:
+    """Sweep read from an explicit candle series + a prebuilt liquidity map."""
+    if "error" in lmap or len(candles) < lookback:
+        return {"swept": False, "note": "insufficient data for sweep read."}
     recent = candles[-lookback:]
     hi_recent = max(c["high"] for c in recent)
     lo_recent = min(c["low"] for c in recent)
@@ -277,6 +295,20 @@ _WEIGHTS = {
     "base": 5.0, "pd_align": 1.6, "draw_align": 1.4, "sweep_align": 2.0,
     "near_pips": 12.0, "into_liquidity": 2.2, "news_into_liquidity": 1.5,
 }
+
+
+def score_from_candles(symbol: str, candles: list[dict], direction: str,
+                       news: dict | None = None) -> float:
+    """Liquidity-confluence score computed from an explicit (past-only) candle
+    series — the backtester's entry point. News defaults to None because reliable
+    historical event mapping isn't available; the backtest therefore measures the
+    pure liquidity-STRUCTURE signal."""
+    lmap = map_from_candles(symbol, candles)
+    if lmap.get("error"):
+        return 0.0
+    draw = draw_on_liquidity(lmap)
+    sweep = sweep_from_candles(candles, lmap)
+    return liquidity_score(direction, lmap, draw, sweep, news)
 
 
 def assess(symbol: str, timeframe: str = "M15", direction: str | None = None,
