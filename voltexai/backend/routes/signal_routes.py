@@ -12,7 +12,7 @@ import logging
 
 from fastapi import APIRouter, Query, HTTPException, Depends
 
-from ..services import signal_engine
+from ..services import signal_engine, topdown
 from ..services.claude_service import claude_service
 from ..data.instruments import list_by_class, ALL_SYMBOLS
 from ..models import User
@@ -44,6 +44,33 @@ def scan(asset_class: str = Query("all"),
     signals = signal_engine.scan(syms, timeframe, min_confidence)
     return {"timeframe": timeframe.upper(), "asset_class": asset_class,
             "count": len(signals), "signals": signals}
+
+
+@router.get("/quality")
+def quality(asset_class: str = Query("all"),
+            timeframe: str = Query("M15"),
+            htf: str = Query("H1"),
+            min_grade: str = Query("A", pattern="^(A\\+|A|B|C)$"),
+            min_rr: float = Query(1.8, ge=0),
+            session_gate: bool = Query(False),
+            limit: int = Query(24, ge=1, le=100)):
+    """Wide-scope quality scan: only high-grade, higher-timeframe-confirmed,
+    execution-ready trades across CFDs, metals, futures, crypto & synthetics."""
+    syms = [i["symbol"] for i in list_by_class(asset_class)]
+    sigs = signal_engine.quality_scan(syms, timeframe, htf, min_grade, min_rr,
+                                      session_gate, limit)
+    return {"asset_class": asset_class, "timeframe": timeframe.upper(),
+            "htf": htf.upper(), "min_grade": min_grade, "min_rr": min_rr,
+            "scanned": len(syms), "count": len(sigs), "signals": sigs}
+
+
+@router.get("/topdown/{symbol}")
+def topdown_analysis(symbol: str, mode: str = Query("day", pattern="^(day|intraday)$")):
+    """Top-down multi-timeframe read: HTF bias → LTF entry, one clear verdict."""
+    res = topdown.analyze(symbol, mode)
+    if res.get("error"):
+        raise HTTPException(404, res["error"])
+    return res
 
 
 @router.get("/{symbol}/rationale")

@@ -18,6 +18,7 @@ import time
 from datetime import datetime, timedelta, timezone
 
 from . import market_service
+from ..data import news_events
 
 
 # ----------------------------- indicators -----------------------------
@@ -131,6 +132,7 @@ def generate(symbol: str, timeframe: str = "M15") -> dict:
     cl = [c["close"] for c in candles]
     price = cl[-1]
     pip = inst["pip_size"]
+    news = news_events.symbol_alert(symbol)   # high-impact event soon? (per-signal warning)
 
     ema20 = ema(cl, 20)[-1]
     ema50 = ema(cl, 50)[-1]
@@ -202,7 +204,8 @@ def generate(symbol: str, timeframe: str = "M15") -> dict:
             "session_context": _session_ctx(),
             "indicators": _indicator_block(r, macd_line, signal_line, hist,
                                            ema20, ema50, ema200, a),
-            "generated_at": _now_iso(),
+            "news_warning": news,
+        "generated_at": _now_iso(),
         }
 
     direction = "LONG" if score > 0 else "SHORT"
@@ -220,10 +223,14 @@ def generate(symbol: str, timeframe: str = "M15") -> dict:
         tp1, tp2, tp3 = entry - risk, entry - 2 * risk, entry - 3 * risk
 
     rr1 = round(abs(tp1 - entry) / risk, 2) if risk else 0
+    liq = _liquidity_block(symbol, timeframe, direction)
     return {
         "symbol": symbol, "display": inst["display"],
         "asset_class": inst["asset_class"], "timeframe": timeframe,
         "direction": direction,
+        "liquidity": liq,
+        "liquidity_score": liq.get("liquidity_score"),
+        "liquidity_warning": liq.get("warning"),
         "confidence": confidence,
         "grade": _grade(confidence),
         "quality": confidence * 10,
@@ -241,8 +248,33 @@ def generate(symbol: str, timeframe: str = "M15") -> dict:
         "valid_until": _valid_until(timeframe),
         "indicators": _indicator_block(r, macd_line, signal_line, hist,
                                        ema20, ema50, ema200, a),
+        "news_warning": news,
         "generated_at": _now_iso(),
     }
+
+
+def _liquidity_block(symbol: str, timeframe: str, direction: str) -> dict:
+    """Compact ICT liquidity context for a signal (draw-on-liquidity, premium/
+    discount, fresh sweep, a 0-10 liquidity score and the top caution). Fails soft
+    — a signal never breaks because the liquidity read is unavailable."""
+    try:
+        from . import liquidity
+        a = liquidity.assess(symbol, timeframe, direction)
+        if a.get("error"):
+            return {}
+        return {
+            "zone": a["range"]["zone"],
+            "likely_draw": a["draw_on_liquidity"].get("likely_draw"),
+            "buy_side": a["draw_on_liquidity"].get("buy_side"),
+            "sell_side": a["draw_on_liquidity"].get("sell_side"),
+            "sweep": a["sweep"].get("side") if a["sweep"].get("swept") else None,
+            "reversal_bias": a["sweep"].get("reversal_bias") if a["sweep"].get("swept") else None,
+            "liquidity_score": a.get("liquidity_score"),
+            "stance": a.get("stance"),
+            "warning": a["warnings"][0] if a.get("warnings") else None,
+        }
+    except Exception:
+        return {}
 
 
 def scan(symbols: list[str], timeframe: str = "M15",
@@ -256,6 +288,55 @@ def scan(symbols: list[str], timeframe: str = "M15",
             out.append(sig)
     out.sort(key=lambda x: x["confidence"], reverse=True)
     return out
+
+
+_GRADE_RANK = {"C": 0, "B": 1, "A": 2, "A+": 3}
+
+
+def quality_scan(symbols: list[str], timeframe: str = "M15", htf: str = "H1",
+                 min_grade: str = "A", min_rr: float = 1.8,
+                 session_gate: bool = False, limit: int = 0) -> list[dict]:
+    """Scan a wide universe and return only *quality* trades: high-grade setups
+    that are confirmed by the higher timeframe and clear a minimum reward:risk.
+
+    This is what the auto-executor consumes — every returned signal is
+    execution-ready (entry, stop, TPs) and carries HTF-bias context. Signals
+    whose higher-timeframe bias *opposes* the entry are dropped outright.
+    """
+    want = _GRADE_RANK.get(min_grade.upper(), 2)
+    out: list[dict] = []
+    for s in symbols:
+        sig = generate(s, timeframe)
+        if sig.get("direction") not in ("LONG", "SHORT"):
+            continue
+        if _GRADE_RANK.get(sig.get("grade", "C"), 0) < want:
+            continue
+        if (sig.get("risk_reward_tp3") or 0) < min_rr:
+            continue
+        # higher-timeframe confirmation
+        htf_sig = generate(s, htf)
+        htf_dir = htf_sig.get("direction")
+        if htf_dir in ("LONG", "SHORT") and htf_dir != sig["direction"]:
+            continue                                  # HTF opposes -> reject
+        sig["htf_timeframe"] = htf.upper()
+        sig["htf_bias"] = htf_dir
+        sig["htf_aligned"] = (htf_dir == sig["direction"])
+        if session_gate and (sig.get("session_context", {}).get("quality_score", 0) < 50):
+            continue
+        # a composite quality score used for ranking + auto-exec priority
+        sig["quality_trade"] = True
+        # ICT liquidity confluence lifts (or, when entering into resting liquidity,
+        # tempers) execution priority — so sweep-and-reverse setups in the right
+        # premium/discount zone rank above setups that walk straight into stops.
+        liq_score = sig.get("liquidity_score")
+        liq_adj = ((liq_score - 5.0) / 5.0) if isinstance(liq_score, (int, float)) else 0.0
+        sig["exec_priority"] = round(
+            sig["confidence"] + (1.5 if sig["htf_aligned"] else 0)
+            + min(2.0, (sig.get("risk_reward_tp3") or 0) / 2)
+            + liq_adj, 2)
+        out.append(sig)
+    out.sort(key=lambda x: (x["exec_priority"], x["confidence"]), reverse=True)
+    return out[:limit] if limit else out
 
 
 # ----------------------------- helpers -----------------------------

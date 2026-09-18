@@ -11,6 +11,7 @@ import { SocialProof } from "./components/SocialProof";
 import { SocialRail } from "./components/Social";
 import { PromoModal } from "./components/PromoModal";
 import { ReferralCapture } from "./components/ReferralCapture";
+import { CookieConsent } from "./components/CookieConsent";
 
 import Landing from "./pages/Landing";
 import Markets from "./pages/Markets";
@@ -18,14 +19,19 @@ import Signals from "./pages/Signals";
 import PropFirms from "./pages/PropFirms";
 import Brokers from "./pages/Brokers";
 import AUM from "./pages/AUM";
+import RealEstate from "./pages/RealEstate";
+import RealEstateProperty from "./pages/RealEstateProperty";
+import AdminRealEstate from "./pages/AdminRealEstate";
 import Products from "./pages/Products";
 import Academy from "./pages/Academy";
 import Scanner from "./pages/Scanner";
 import Competition from "./pages/Competition";
 import Store from "./pages/Store";
 import Pay from "./pages/Pay";
+import Wallet from "./pages/Wallet";
 import Vision from "./pages/Vision";
 import Patterns from "./pages/Patterns";
+import TopDown from "./pages/TopDown";
 import Success from "./pages/Success";
 import Sentiment from "./pages/Sentiment";
 import Live from "./pages/Live";
@@ -35,6 +41,13 @@ import Travel from "./pages/Travel";
 import Dashboard from "./pages/Dashboard";
 import Sitemap from "./pages/Sitemap";
 import About from "./pages/About";
+import Support from "./pages/Support";
+import Contact from "./pages/Contact";
+import Privacy from "./pages/Privacy";
+import Terms from "./pages/Terms";
+import Security from "./pages/Security";
+import RiskDisclosure from "./pages/RiskDisclosure";
+import PitchDeck from "./pages/PitchDeck";
 import Careers from "./pages/Careers";
 import CSR from "./pages/CSR";
 import Foundation from "./pages/Foundation";
@@ -51,6 +64,8 @@ import Calculators from "./pages/Calculators";
 import EAs from "./pages/EAs";
 import SignalsPro from "./pages/SignalsPro";
 import AdminSignals from "./pages/AdminSignals";
+import AdminCoins from "./pages/AdminCoins";
+import AdminResults from "./pages/AdminResults";
 import Referrals from "./pages/Referrals";
 import AdminAnalytics from "./pages/AdminAnalytics";
 
@@ -79,6 +94,7 @@ export default function App() {
         <SocialRail />
         <PromoModal />
         <ReferralCapture />
+        <CookieConsent />
         <Routes>
           {/* Public marketing + data surfaces */}
           <Route path="/" element={<Landing />} />
@@ -87,14 +103,18 @@ export default function App() {
           <Route path="/prop-firms" element={<PropFirms />} />
           <Route path="/brokers" element={<Brokers />} />
           <Route path="/aum" element={<AUM />} />
+          <Route path="/real-estate" element={<RealEstate />} />
+          <Route path="/real-estate/:id" element={<RealEstateProperty />} />
           <Route path="/products" element={<Products />} />
           <Route path="/academy" element={<Academy />} />
           <Route path="/scanner" element={<Scanner />} />
           <Route path="/competition" element={<Competition />} />
           <Route path="/store" element={<Store />} />
           <Route path="/pay" element={<Pay />} />
+          <Route path="/coin" element={<Wallet />} />
           <Route path="/vision" element={<Vision />} />
           <Route path="/patterns" element={<Patterns />} />
+          <Route path="/topdown" element={<TopDown />} />
           <Route path="/success" element={<Success />} />
           <Route path="/sentiment" element={<Sentiment />} />
           <Route path="/live" element={<Live />} />
@@ -105,7 +125,14 @@ export default function App() {
 
           {/* Company & media */}
           <Route path="/sitemap" element={<Sitemap />} />
+          <Route path="/support" element={<Support />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/security" element={<Security />} />
+          <Route path="/risk-disclosure" element={<RiskDisclosure />} />
           <Route path="/about" element={<About />} />
+          <Route path="/pitch" element={<PitchDeck />} />
           <Route path="/careers" element={<Careers />} />
           <Route path="/csr" element={<CSR />} />
           <Route path="/foundation" element={<Foundation />} />
@@ -175,6 +202,30 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <AdminAnalytics />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/coins"
+            element={
+              <ProtectedRoute>
+                <AdminCoins />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/real-estate"
+            element={
+              <ProtectedRoute>
+                <AdminRealEstate />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/results"
+            element={
+              <ProtectedRoute>
+                <AdminResults />
               </ProtectedRoute>
             }
           />

@@ -1,5 +1,7 @@
 // src/components/Footer.jsx — company footer with product map, copyright, CEO
+import { useState } from "react";
 import { Link } from "react-router-dom";
+import { mailingService } from "../services/mailing";
 import { SocialBar } from "./Social";
 import { LanguageSelector } from "./LanguageSelector";
 import { BrandLogo } from "./BrandLogo";
@@ -10,7 +12,8 @@ const COLS = [
   { title: "Platform", links: [
     ["Voltex Markets", "/markets"], ["Voltex Signals", "/signals"],
     ["Signals Pro (VIP)", "/pro-signals"],
-    ["Voltex Scanner", "/scanner"], ["Voltex Vision", "/vision"],
+    ["Voltex Scanner", "/scanner"], ["Voltex Arbitrage", "/scanner?mode=arb"],
+    ["Voltex Vision", "/vision"],
     ["Voltex Terminal", "/terminal"], ["Voltex Trade Desk", "/trade"],
     ["Trade Journal", "/journal"], ["Command Center", "/dashboard"],
   ]},
@@ -31,8 +34,9 @@ const COLS = [
     ["Refer & Earn", "/referrals"],
   ]},
   { title: "Company", links: [
-    ["About Us", "/about"], ["Careers", "/careers"], ["Press", "/press"],
-    ["CSR", "/csr"], ["VoltexAI Foundation", "/foundation"], ["Awards", "/awards"],
+    ["About Us", "/about"], ["Investor Pitch", "/pitch"], ["Careers", "/careers"],
+    ["Press", "/press"], ["CSR", "/csr"], ["VoltexAI Foundation", "/foundation"],
+    ["Awards", "/awards"],
   ]},
   { title: "Media", links: [
     ["VoltexAI Media", "/media"], ["VoltexAI TV", "/tv"],
@@ -41,7 +45,47 @@ const COLS = [
   { title: "Explore", links: [
     ["FAQ", "/faq"], ["Sitemap", "/sitemap"], ["Ecosystem", "/products"],
   ]},
+  { title: "Resources", links: [
+    ["Support", "/support"], ["Contact", "/contact"],
+    ["Privacy policy", "/privacy"], ["Terms of use", "/terms"],
+    ["Security center", "/security"], ["Risk disclosure", "/risk-disclosure"],
+    ["Sitemap", "/sitemap"],
+  ]},
 ];
+
+function NewsletterSignup() {
+  const [email, setEmail] = useState("");
+  const [state, setState] = useState("idle");   // idle | sending | ok | error
+  const [msg, setMsg] = useState("");
+
+  const submit = (e) => {
+    e.preventDefault();
+    if (!email.trim()) return;
+    setState("sending"); setMsg("");
+    mailingService.subscribe(email.trim())
+      .then((r) => { setState("ok"); setMsg(r.message || "Subscribed — check your inbox."); setEmail(""); })
+      .catch((err) => {
+        setState("error");
+        setMsg(err?.data?.detail || err?.message || "Could not subscribe — try again.");
+      });
+  };
+
+  return (
+    <form className="vx-newsletter" onSubmit={submit}>
+      <label htmlFor="vx-nl-email" className="vx-newsletter-label">Get quality signal digests &amp; news alerts</label>
+      <div className="vx-newsletter-row">
+        <input id="vx-nl-email" type="email" inputMode="email" autoComplete="email"
+          placeholder="you@email.com" value={email} required
+          onChange={(e) => setEmail(e.target.value)} disabled={state === "sending"} />
+        <button type="submit" className="vx-btn-primary vx-btn-sm" disabled={state === "sending"}>
+          {state === "sending" ? "…" : "Subscribe"}
+        </button>
+      </div>
+      {msg && <p className={`vx-newsletter-msg ${state === "error" ? "err" : "ok"}`}>{msg}</p>}
+      <p className="vx-newsletter-fine">No spam. Unsubscribe anytime.</p>
+    </form>
+  );
+}
 
 export function Footer() {
   const { t } = useI18n();
@@ -54,6 +98,7 @@ export function Footer() {
           <Link to="/" className="vx-logo"><BrandLogo /></Link>
           <p className="vx-footer-tag">{isFlagship ? t("footer.tag") : brand.tagline}</p>
           <p className="vx-footer-motto">{isFlagship ? t("footer.motto") : brand.motto}</p>
+          {isFlagship && <NewsletterSignup />}
           <SocialBar />
           <div className="vx-footer-lang"><LanguageSelector /></div>
         </div>
@@ -75,6 +120,13 @@ export function Footer() {
           <span><b>{brand.ceo}</b> — {t("footer.founderCeo")}{isFlagship ? " · Methodology by Owens Forex Academy" : ""}</span>
         )}
         <span className="vx-footer-risk">{t("footer.risk")}</span>
+        <span className="vx-footer-risk">
+          Trading FX, CFDs, futures, synthetic indices &amp; crypto is high-risk and may
+          not suit all investors; you can lose more than you invest. VoltexAI provides
+          technology &amp; education only — not financial advice. Hypothetical/simulated
+          results have inherent limitations (CFTC Rule 4.41). See the full{" "}
+          <Link to="/risk-disclosure">Risk Disclosure &amp; CFTC notices</Link>.
+        </span>
       </div>
     </footer>
   );

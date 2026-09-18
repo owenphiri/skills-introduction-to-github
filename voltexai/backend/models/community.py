@@ -14,5 +14,6 @@ class Post(Base):
     author = Column(String(80), nullable=False)
     country = Column(String(60), nullable=True)
     body = Column(Text, nullable=False)
+    topic = Column(String(60), nullable=True, index=True)   # e.g. signal:XAUUSD, topdown:EURUSD; null = global wall
     likes = Column(Integer, default=0, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

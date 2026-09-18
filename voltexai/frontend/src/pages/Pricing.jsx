@@ -1,7 +1,9 @@
 // src/pages/Pricing.jsx
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, Link } from "react-router-dom";
 import { paymentsService } from "../services/payments";
+import { coinService } from "../services/coin";
+import { geoService } from "../services/ecosystem";
 import { useAuth } from "../contexts/AuthContext";
 import { Testimonials } from "../components/Testimonials";
 import { useI18n } from "../i18n";
@@ -25,10 +27,20 @@ const PRICING_FAQ = [
     a: "Each tier has a daily AI Copilot allowance (10 on Free up to 2,500 on Elite). If you reach it, the Copilot pauses until the next day — everything else on your plan keeps working. Upgrade any time for a higher limit." },
 ];
 
+const MAX_REDEEM_PCT = 30, VXC_PER_USD = 100;
+function coinDiscount(priceUsd, balance) {
+  if (!priceUsd) return 0;
+  const maxOff = priceUsd * (MAX_REDEEM_PCT / 100);
+  return Math.round(Math.min(maxOff, (balance || 0) / VXC_PER_USD) * 100) / 100;
+}
+
 export default function Pricing() {
   const { user } = useAuth();
   const { t } = useI18n();
   const [plans, setPlans] = useState([]);
+  const [coins, setCoins] = useState(null);
+  const [geo, setGeo] = useState(null);
+  const [currency, setCurrency] = useState("USD");
   const [billing, setBilling] = useState(null);
   const [interval, setInterval] = useState("month"); // "month" | "year"
   const [busy, setBusy] = useState("");
@@ -36,12 +48,6 @@ export default function Pricing() {
   const [params] = useSearchParams();
   const reason = params.get("reason");
   const checkoutStatus = params.get("checkout");
-  const [region, setRegion] = useState(
-    user?.country === "Zambia" || user?.country === "Nigeria" ||
-    user?.country === "Kenya" || user?.country === "Uganda" ||
-    user?.country === "Ghana" || user?.country === "Tanzania"
-      ? "africa" : "international"
-  );
 
   useEffect(() => {
     paymentsService.listPlans().then((r) => {
@@ -52,7 +58,25 @@ export default function Pricing() {
     }).catch((e) => setError(e.message));
   }, []);
 
+  useEffect(() => {
+    if (user) coinService.wallet().then((w) => setCoins(w.balance)).catch(() => {});
+  }, [user]);
+
+  useEffect(() => {
+    geoService.config(user?.country).then((g) => {
+      setGeo(g);
+      setCurrency(g.detected_currency || "USD");
+    }).catch(() => {});
+  }, [user]);
+
   const annual = interval === "year";
+  const cc = geo?.currencies?.find((c) => c.code === currency)
+    || { code: "USD", symbol: "$", per_usd: 1, rail: "stripe" };
+  const money = (usd) => {
+    const v = usd * cc.per_usd;
+    const n = v >= 100 ? Math.round(v) : Math.round(v * 100) / 100;
+    return `${cc.symbol}${n.toLocaleString()}`;
+  };
 
   async function startCheckout(plan, provider) {
     setError(""); setBusy(`${plan}-${provider}`);
@@ -62,8 +86,10 @@ export default function Pricing() {
       if (provider === "stripe") {
         res = await paymentsService.stripeCheckout(plan, interval);
       } else {
+        // Flutterwave charges in a local African currency; fall back to ZMW
+        const flwCcy = cc.rail === "flutterwave" ? cc.code : "ZMW";
         res = await paymentsService.flutterwaveCheckout({
-          plan, interval, currency: "ZMW", phone: user.phone,
+          plan, interval, currency: flwCcy, phone: user.phone,
         });
       }
       window.location.href = res.checkout_url;
@@ -80,6 +106,12 @@ export default function Pricing() {
         <h1>{t("price.title")}</h1>
         <p>{t("price.sub")}</p>
 
+        {coins > 0 && (
+          <div className="vx-coin-banner" style={{ maxWidth: 640, margin: "0 auto 1rem" }}>
+            🪙 You have <b>{coins.toLocaleString()} VXC</b> — up to <b>{MAX_REDEEM_PCT}% off</b> your
+            first payment, applied automatically. <Link to="/coin" className="vx-inline-link">Wallet →</Link>
+          </div>
+        )}
         {reason === "upgrade" && (
           <div className="vx-banner vx-banner--info">
             That feature needs a paid plan. Pick one below to unlock it.
@@ -96,20 +128,25 @@ export default function Pricing() {
           </div>
         )}
 
-        <div className="vx-region-toggle">
-          <button
-            className={region === "africa" ? "active" : ""}
-            onClick={() => setRegion("africa")}
-          >
-            Africa · Mobile Money & ZMW
-          </button>
-          <button
-            className={region === "international" ? "active" : ""}
-            onClick={() => setRegion("international")}
-          >
-            International · Card (USD)
-          </button>
+        <div className="vx-currency-bar">
+          <label className="vx-currency-select">
+            🌍 Currency
+            <select value={currency} onChange={(e) => setCurrency(e.target.value)}>
+              {(geo?.currencies || [{ code: "USD", name: "US Dollar", symbol: "$" }]).map((c) => (
+                <option key={c.code} value={c.code}>{c.code} · {c.name} ({c.symbol})</option>
+              ))}
+            </select>
+          </label>
+          <span className="vx-currency-rail">
+            {cc.rail === "flutterwave" ? "Mobile money & cards" : "Card · Stripe"}
+          </span>
         </div>
+        {geo?.reach && (
+          <p className="vx-billing-note">
+            🌐 Available in <b>{geo.reach.countries} countries</b> · {geo.reach.languages} languages ·
+            {" "}{geo.reach.currencies} currencies · card + mobile money
+          </p>
+        )}
 
         <div className="vx-billing-toggle" role="group" aria-label="Billing period">
           <button
@@ -165,27 +202,23 @@ export default function Pricing() {
               </div>
               {p.tagline && <p className="vx-plan-tagline">{p.tagline}</p>}
               {(() => {
-                const africa = region === "africa";
-                const cur = africa ? "K" : "$";
-                const fmt = (n) => `${cur}${Math.round(n).toLocaleString()}`;
-                // per-month figure shown as the headline
-                const perMonth = africa
-                  ? (annual ? p.zmw_annual / 12 : p.zmw)
-                  : (annual ? p.usd_annual_monthly : p.usd);
-                const yearTotal = africa ? p.zmw_annual : p.usd_annual;
-                const saved = africa ? (p.zmw * 12 - p.zmw_annual) : p.annual_savings_usd;
+                // all figures convert from the plan's USD base into the selected currency
+                const fmt = (usd) => money(usd);
+                const perMonthUsd = annual ? p.usd_annual_monthly : p.usd;
+                const yearTotalUsd = p.usd_annual;
+                const savedUsd = p.annual_savings_usd;
                 return (
                   <div className="vx-plan-price-wrap">
                     <div className="vx-plan-price">
                       <span className="vx-price-amount">
-                        {p.id === "free" ? "Free" : fmt(perMonth)}
+                        {p.id === "free" ? "Free" : fmt(perMonthUsd)}
                       </span>
                       {isPaid && <span className="vx-price-period">/month</span>}
                     </div>
                     {isPaid && annual && (
                       <p className="vx-price-annual">
-                        {fmt(yearTotal)} billed yearly
-                        {saved > 0 && <span className="vx-price-saved"> · save {fmt(saved)}</span>}
+                        {fmt(yearTotalUsd)} billed yearly
+                        {savedUsd > 0 && <span className="vx-price-saved"> · save {fmt(savedUsd)}</span>}
                       </p>
                     )}
                     {isPaid && !annual && p.annual_discount_pct > 0 && (
@@ -193,6 +226,13 @@ export default function Pricing() {
                         Save {p.annual_discount_pct}% with annual
                       </button>
                     )}
+                    {isPaid && coins > 0 && (() => {
+                      const usd = annual ? p.usd_annual : p.usd;
+                      const off = coinDiscount(usd, coins);
+                      return off > 0 ? (
+                        <p className="vx-coin-save">🪙 −${off} with VXC on your first payment</p>
+                      ) : null;
+                    })()}
                   </div>
                 );
               })()}
@@ -204,7 +244,7 @@ export default function Pricing() {
                 <button className="vx-btn-current" disabled>{t("price.currentPlan")}</button>
               ) : p.id === "free" ? (
                 <a href="/signup" className="vx-btn-secondary">{t("price.startFree")}</a>
-              ) : region === "africa" ? (
+              ) : cc.rail === "flutterwave" ? (
                 <button
                   className="vx-btn-primary"
                   disabled={busy === `${p.id}-flutterwave`}
@@ -224,7 +264,7 @@ export default function Pricing() {
 
               {p.id !== "free" && (
                 <p className="vx-plan-finetext">
-                  {region === "africa"
+                  {cc.rail === "flutterwave"
                     ? "MTN MoMo · Airtel Money · M-Pesa · Visa/Mastercard"
                     : "Visa · Mastercard · Amex · Secured by Stripe"}
                 </p>

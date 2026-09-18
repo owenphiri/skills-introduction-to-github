@@ -25,6 +25,11 @@ export const referralsService = {
 
 export const adminService = {
   analytics: () => api.get("/api/admin/analytics"),
+  // Results wall moderation
+  results: (onlyUnverified = false) =>
+    api.get(`/api/admin/results?limit=200${onlyUnverified ? "&only_unverified=true" : ""}`),
+  verifyResult: (id, verified) => api.post(`/api/admin/results/${id}/verify`, { verified }),
+  deleteResult: (id) => api.del(`/api/admin/results/${id}`),
 };
 
 export const patternsService = {
@@ -46,6 +51,10 @@ export const sessionsService = {
   status: () => api.get("/api/sessions"),
 };
 
+export const newsService = {
+  status: (horizonDays = 10) => api.get(`/api/news?horizon_days=${horizonDays}`),
+};
+
 export const resourcesService = {
   list: (category = "all") => api.get(`/api/resources?category=${category}`),
   calendar: (days = 7) => api.get(`/api/resources/calendar?days=${days}`),
@@ -57,7 +66,8 @@ export const travelService = {
 };
 
 export const communityService = {
-  feed: (limit = 30) => api.get(`/api/community/feed?limit=${limit}`),
-  post: (body) => api.post("/api/community/posts", { body }),
+  feed: (limit = 30, topic) =>
+    api.get(`/api/community/feed?limit=${limit}${topic ? `&topic=${encodeURIComponent(topic)}` : ""}`),
+  post: (body, topic) => api.post("/api/community/posts", { body, topic }),
   like: (id) => api.post(`/api/community/posts/${id}/like`, {}),
 };

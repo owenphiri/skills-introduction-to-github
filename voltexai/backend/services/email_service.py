@@ -127,3 +127,102 @@ def send_kyc_status_email(email: str, name: str | None, status: str) -> bool:
     body = f"Hi {name or 'trader'}, {msgs.get(status, 'your verification status was updated.')}"
     return send_email(email, f"VoltexAI verification: {status}",
                       _wrap("Identity verification", body), text=body)
+
+
+# ----------------------------- receipts -----------------------------
+def _money(amount: float, currency: str) -> str:
+    """Format an amount with a symbol for common currencies, code otherwise."""
+    sym = {"USD": "$", "ZMW": "K", "NGN": "₦", "KES": "KSh",
+           "GHS": "₵", "ZAR": "R"}.get((currency or "").upper())
+    n = f"{amount:,.2f}"
+    return f"{sym}{n}" if sym else f"{n} {currency.upper()}"
+
+
+def _receipt_html(*, receipt_no: str, date_str: str, buyer_name: str | None,
+                  buyer_email: str, items: list[tuple[str, str, float]],
+                  total: float, currency: str, method: str, reference: str) -> str:
+    from ..data.products import COMPANY
+    rows = ""
+    for label, detail, amount in items:
+        sub = (f'<div style="color:#6b7689;font-size:12px;margin-top:2px;">{detail}</div>'
+               if detail else "")
+        rows += (
+            f'<tr><td style="padding:12px 0;border-bottom:1px solid #1f2a3d;color:#e6ecf3;">'
+            f'<div style="font-weight:600;color:#e6ecf3;">{label}</div>{sub}</td>'
+            f'<td style="padding:12px 0;border-bottom:1px solid #1f2a3d;text-align:right;'
+            f'white-space:nowrap;font-family:monospace;color:#e6ecf3;">'
+            f'{_money(amount, currency)}</td></tr>')
+    return f"""\
+<div style="background:#0a0e1a;color:#e6ecf3;font-family:Inter,Arial,sans-serif;
+     padding:32px;border-radius:16px;max-width:600px;margin:auto;">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+    <div>
+      <div style="font-size:22px;font-weight:800;color:{_BRAND};">⚡ VoltexAI</div>
+      <div style="color:#6b7689;font-size:12px;margin-top:2px;">{COMPANY['powered_by']}</div>
+    </div>
+    <div style="text-align:right;">
+      <div style="font-weight:800;letter-spacing:1px;color:#b8c2d4;">RECEIPT</div>
+      <div style="color:#6b7689;font-size:12px;margin-top:2px;">{receipt_no}</div>
+    </div>
+  </div>
+  <hr style="border:none;border-top:1px solid #1f2a3d;margin:20px 0;">
+  <table style="width:100%;font-size:13px;color:#b8c2d4;">
+    <tr>
+      <td style="vertical-align:top;">
+        <div style="color:#6b7689;text-transform:uppercase;font-size:11px;letter-spacing:.5px;">Billed to</div>
+        <div style="margin-top:4px;color:#e6ecf3;font-weight:600;">{buyer_name or 'Valued trader'}</div>
+        <div style="margin-top:2px;">{buyer_email}</div>
+      </td>
+      <td style="vertical-align:top;text-align:right;">
+        <div style="color:#6b7689;text-transform:uppercase;font-size:11px;letter-spacing:.5px;">Date</div>
+        <div style="margin-top:4px;color:#e6ecf3;">{date_str}</div>
+        <div style="color:#6b7689;text-transform:uppercase;font-size:11px;letter-spacing:.5px;margin-top:10px;">Payment</div>
+        <div style="margin-top:4px;">{method}</div>
+      </td>
+    </tr>
+  </table>
+  <table style="width:100%;border-collapse:collapse;margin-top:22px;font-size:14px;">
+    <thead><tr>
+      <th style="text-align:left;color:#6b7689;font-size:11px;text-transform:uppercase;
+          letter-spacing:.5px;padding-bottom:8px;border-bottom:1px solid #1f2a3d;">Item</th>
+      <th style="text-align:right;color:#6b7689;font-size:11px;text-transform:uppercase;
+          letter-spacing:.5px;padding-bottom:8px;border-bottom:1px solid #1f2a3d;">Amount</th>
+    </tr></thead>
+    <tbody>{rows}</tbody>
+  </table>
+  <table style="width:100%;margin-top:16px;font-size:16px;">
+    <tr>
+      <td style="font-weight:700;color:#e6ecf3;">Total paid</td>
+      <td style="text-align:right;font-weight:800;color:{_BRAND};font-family:monospace;">
+        {_money(total, currency)}</td>
+    </tr>
+  </table>
+  <div style="background:#121826;border:1px solid #1f2a3d;border-radius:10px;
+       padding:12px 14px;margin-top:20px;color:#6b7689;font-size:12px;">
+    Transaction reference: <span style="font-family:monospace;color:#b8c2d4;">{reference}</span>
+    <br>Status: <span style="color:{_BRAND};font-weight:700;">PAID</span>
+  </div>
+  <p style="color:#6b7689;font-size:12px;margin-top:22px;line-height:1.6;">
+    Thank you for your purchase. This receipt confirms your payment to
+    {COMPANY['name']} ({COMPANY['legal']}), {COMPANY['hq']} · {COMPANY['established']}.
+    Keep it for your records. Questions? Just reply to this email.
+    <br><br>Trading carries a high risk of loss; this is not investment advice.
+    <br>{COMPANY['copyright']}
+  </p>
+</div>"""
+
+
+def send_receipt_email(email: str, name: str | None, *, receipt_no: str,
+                       items: list[tuple[str, str, float]], total: float,
+                       currency: str, method: str, reference: str,
+                       date_str: str | None = None) -> bool:
+    """Email an itemized, branded purchase receipt. Best-effort like all sends."""
+    from datetime import datetime, timezone
+    date_str = date_str or datetime.now(timezone.utc).strftime("%d %b %Y, %H:%M UTC")
+    html = _receipt_html(receipt_no=receipt_no, date_str=date_str, buyer_name=name,
+                         buyer_email=email, items=items, total=total, currency=currency,
+                         method=method, reference=reference)
+    lines = "\n".join(f"  {lbl} — {_money(amt, currency)}" for lbl, _d, amt in items)
+    text = (f"VoltexAI receipt {receipt_no}\nDate: {date_str}\n\n{lines}\n\n"
+            f"Total paid: {_money(total, currency)}\nReference: {reference}\nStatus: PAID")
+    return send_email(email, f"Your VoltexAI receipt · {receipt_no}", html, text=text)

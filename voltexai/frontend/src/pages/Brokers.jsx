@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { NavBar } from "../components/NavBar";
 import { directoryService } from "../services/directory";
 
-const CLASSES = ["all", "forex", "metals", "energy", "indices", "crypto", "stocks"];
+const CLASSES = ["all", "synthetics", "forex", "metals", "energy", "indices", "crypto", "stocks"];
 
 export default function Brokers() {
   const [assetClass, setAssetClass] = useState("all");
@@ -27,6 +27,14 @@ export default function Brokers() {
           </p>
         </div>
 
+        <p className="vx-partner-disclosure">
+          <span className="vx-disc-mark">✦</span>
+          <span><b>Partner disclosure:</b> brokers marked ✦ Partner include VoltexAI affiliate
+            links. If you open an account through them, VoltexAI may earn a commission — at no
+            extra cost to you. It never changes your pricing, and our listings and ratings stay
+            editorial and independent. Always verify regulation and current terms before depositing.</span>
+        </p>
+
         <div className="vx-filters">
           <div className="vx-class-tabs">
             {CLASSES.map((c) => (
@@ -46,7 +54,14 @@ export default function Brokers() {
             <div key={b.id} className="vx-dir-card">
               <div className="vx-dir-head">
                 <div>
-                  <h3>{b.name} {b.partner && <span className="vx-partner-badge">✦ Partner</span>}</h3>
+                  <h3>
+                    {b.url ? (
+                      <a className="vx-dir-name-link" href={b.url} target="_blank" rel="noopener noreferrer"
+                        title={`Open ${b.name} — via VoltexAI`}>{b.name}</a>
+                    ) : b.name}
+                    {" "}
+                    {b.partner && <span className="vx-partner-badge">✦ Partner</span>}
+                  </h3>
                   <span className="vx-muted">{b.regulators.join(" · ")}</span>
                 </div>
                 <span className="vx-rating">★ {b.rating}</span>
@@ -58,6 +73,7 @@ export default function Brokers() {
                 <div><span>Commission</span><b>{b.commission}</b></div>
               </div>
               <div className="vx-dir-tags">
+                {b.always_on && <span className="vx-chip vx-chip--ok">24/7 markets</span>}
                 {b.africa_friendly && <span className="vx-chip vx-chip--accent">Africa-friendly</span>}
                 {b.instant_withdrawals && <span className="vx-chip vx-chip--ok">Instant withdrawals</span>}
                 {b.platforms.slice(0, 3).map((p) => <span key={p} className="vx-chip">{p}</span>)}
@@ -66,6 +82,12 @@ export default function Brokers() {
                 <span className="vx-muted">Funding:</span> {b.funding.join(" · ")}
               </div>
               <p className="vx-dir-best">{b.best_for}</p>
+              {b.highlights?.length > 0 && (
+                <ul className="vx-dir-highlights">
+                  {b.highlights.map((h, i) => <li key={i}>{h}</li>)}
+                </ul>
+              )}
+              {b.promo && <p className="vx-dir-promo">🎁 {b.promo}</p>}
               <a href={b.url} target="_blank" rel="noopener noreferrer"
                 className={`vx-btn-sm ${b.partner ? "vx-btn-primary" : "vx-btn-secondary"}`}>
                 {b.partner ? `Open a ${b.name} account ↗` : `Visit ${b.name} ↗`}

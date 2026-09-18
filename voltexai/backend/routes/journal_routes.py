@@ -54,6 +54,13 @@ def add_trade(data: TradeIn, user: User = Depends(get_current_user),
     db.add(t)
     db.commit()
     db.refresh(t)
+    # Voltex Coin: reward logging a trade (deduped per trade, capped 10/day)
+    try:
+        from ..services import voltex_coin_service
+        voltex_coin_service.award_capped_daily(
+            db, user.id, "journal_trade", ref=f"journal:{t.id}", max_per_day=10)
+    except Exception:
+        pass
     return journal_service.to_dict(t)
 
 

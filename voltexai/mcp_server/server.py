@@ -1,0 +1,121 @@
+"""
+VoltexAI MCP server (Phase 0 — read-only market data).
+
+Run over stdio (how Claude Desktop / IDEs launch it):
+    cd voltexai && python -m mcp_server.server
+
+Install the SDK first:  pip install -r requirements-mcp.txt
+
+READ-ONLY by design: quotes, candles and the symbol catalog only. No account
+access, no orders. Those arrive in later phases behind the risk layer.
+"""
+# NOTE: do NOT add `from __future__ import annotations` here. FastMCP introspects
+# each tool's parameter annotations at registration time and calls
+# issubclass(annotation, Context); stringized annotations make that raise
+# `TypeError: issubclass() arg 1 must be a class`. Real annotations (list[str]
+# etc.) work natively on Python 3.10+.
+from . import tools
+from . import account_tools
+from . import order_tools
+
+try:
+    from mcp.server.fastmcp import FastMCP
+except ModuleNotFoundError as exc:  # pragma: no cover - runtime guard
+    raise SystemExit(
+        "The MCP SDK isn't installed. From the voltexai/ directory run:\n"
+        "    pip install -r requirements-mcp.txt\n"
+    ) from exc
+
+mcp = FastMCP(
+    "voltexai-markets",
+    instructions=(
+        "VoltexAI trading tools (Phase 0-2). Market data: list_symbols, get_quote, "
+        "get_quotes, get_candles. Account (read-only, demo): get_account, "
+        "list_positions, get_account_summary. PAPER trading behind a risk layer: "
+        "place_order, close_position, get_risk_status — these hit a simulated paper "
+        "book (MCP_BROKER=paper), never real money, and every order is checked "
+        "against operator-set limits (size, open positions, daily loss, symbol "
+        "allowlist, kill switch). This server cannot trade a live account."
+    ),
+)
+
+
+@mcp.tool()
+async def list_symbols(asset_class: str = "all") -> dict:
+    """List tradable symbols, optionally filtered by asset class
+    (forex, metals, energy, indices, crypto, stocks, or 'all')."""
+    return await tools.list_symbols(asset_class)
+
+
+@mcp.tool()
+async def get_quote(symbol: str) -> dict:
+    """Get the latest quote for one symbol, e.g. 'EURUSD', 'XAUUSD', 'BTCUSD'."""
+    return await tools.get_quote(symbol)
+
+
+@mcp.tool()
+async def get_quotes(symbols: list[str]) -> dict:
+    """Get the latest quotes for up to 25 symbols in one call."""
+    return await tools.get_quotes(symbols)
+
+
+@mcp.tool()
+async def get_candles(symbol: str, timeframe: str = "M15", count: int = 200) -> dict:
+    """Get OHLC candles for a symbol. timeframe: M1, M5, M15, M30, H1, H4, D1.
+    count: up to 500 (default 200)."""
+    return await tools.get_candles(symbol, timeframe, count)
+
+
+# --- Phase 1: read-only broker account (demo) -------------------------------
+
+@mcp.tool()
+async def get_account() -> dict:
+    """Get the connected DEMO broker account: balance, currency, demo flag.
+    Read-only. Requires a Deriv demo API token in the server environment."""
+    return await account_tools.get_account()
+
+
+@mcp.tool()
+async def list_positions() -> dict:
+    """List open positions on the connected DEMO broker account. Read-only."""
+    return await account_tools.list_positions()
+
+
+@mcp.tool()
+async def get_account_summary() -> dict:
+    """Account balance plus a roll-up of open positions (count, staked,
+    open profit) in one call. Read-only, demo account."""
+    return await account_tools.get_account_summary()
+
+
+# --- Phase 2: paper trading behind the risk layer ---------------------------
+
+@mcp.tool()
+async def place_order(symbol: str, side: str, size: float) -> dict:
+    """Open a PAPER position (no real money). side: 'buy' or 'sell'; size is
+    notional units. The order is placed only if the risk layer approves it
+    (size, open-position, daily-loss and allowlist limits, kill switch);
+    otherwise it is rejected with reasons. Requires MCP_BROKER=paper."""
+    return await order_tools.place_order(symbol, side, size)
+
+
+@mcp.tool()
+async def close_position(position_id: str) -> dict:
+    """Close an open PAPER position by its id (e.g. 'P1') and realize its P/L.
+    Requires MCP_BROKER=paper."""
+    return await order_tools.close_position(position_id)
+
+
+@mcp.tool()
+async def get_risk_status() -> dict:
+    """Show the active risk limits and how much of the daily-loss budget and
+    open-position slots are used. Read-only."""
+    return await order_tools.get_risk_status()
+
+
+def main() -> None:
+    mcp.run()   # stdio transport
+
+
+if __name__ == "__main__":
+    main()

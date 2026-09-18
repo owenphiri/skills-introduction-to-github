@@ -19,7 +19,9 @@ from .routes import (auth_router, ai_router, payment_router,
                      social_router, hub_router, community_router,
                      dashboard_router, company_router, journal_router,
                      pro_signals_router, telegram_router, referral_router,
-                     admin_router, pattern_router, tenant_router)
+                     admin_router, pattern_router, tenant_router, coin_router,
+                     autotrade_router, arbitrage_router, liquidity_router,
+                     mailing_router, result_router)
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s")
@@ -119,6 +121,12 @@ app.include_router(referral_router)
 app.include_router(admin_router)
 app.include_router(pattern_router)
 app.include_router(tenant_router)
+app.include_router(coin_router)
+app.include_router(autotrade_router)
+app.include_router(arbitrage_router)
+app.include_router(liquidity_router)
+app.include_router(mailing_router)
+app.include_router(result_router)
 
 
 @app.get("/")

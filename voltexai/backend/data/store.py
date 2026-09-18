@@ -64,3 +64,7 @@ def list_products(category: str | None = None) -> list[dict]:
     if not category or category == "all":
         return PRODUCTS
     return [p for p in PRODUCTS if p["category"] == category]
+
+
+def get_product(product_id: str) -> dict | None:
+    return PRODUCTS_BY_ID.get(product_id)

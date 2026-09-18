@@ -29,8 +29,12 @@ PLAN_TO_PRICE_ID = {
 
 
 def create_checkout_session(user_email: str, user_id: int, plan: str,
-                            interval: str = "month") -> dict:
-    """Create a Stripe Checkout Session for a subscription plan (monthly or annual)."""
+                            interval: str = "month",
+                            discount_usd: float = 0.0, vxc_redeem: int = 0) -> dict:
+    """Create a Stripe Checkout Session for a subscription plan (monthly or annual).
+    A Voltex Coin credit is applied to the FIRST invoice via a one-time coupon
+    (`amount_off`, duration='once'); `vxc_redeem` coins are burned on webhook
+    success (stamped into metadata)."""
     if plan not in PLAN_TO_PRICE_ID:
         raise ValueError(f"Unknown plan: {plan}")
     if interval not in ("month", "year"):
@@ -40,8 +44,9 @@ def create_checkout_session(user_email: str, user_id: int, plan: str,
         suffix = "_ANNUAL" if interval == "year" else ""
         raise ValueError(f"STRIPE_PRICE_{plan.upper()}{suffix} not configured")
 
-    meta = {"user_id": str(user_id), "plan": plan, "interval": interval}
-    session = stripe.checkout.Session.create(
+    meta = {"user_id": str(user_id), "plan": plan, "interval": interval,
+            "vxc_redeem": str(int(vxc_redeem))}
+    kwargs = dict(
         mode="subscription",
         customer_email=user_email,
         line_items=[{"price": price_id, "quantity": 1}],
@@ -50,6 +55,42 @@ def create_checkout_session(user_email: str, user_id: int, plan: str,
         client_reference_id=str(user_id),
         metadata=meta,
         subscription_data={"metadata": meta},
+    )
+    if discount_usd and float(discount_usd) > 0:
+        coupon = stripe.Coupon.create(
+            amount_off=int(round(float(discount_usd) * 100)), currency="usd",
+            duration="once", name="Voltex Coin credit")
+        kwargs["discounts"] = [{"coupon": coupon.id}]
+    session = stripe.checkout.Session.create(**kwargs)
+    return {"checkout_url": session.url, "session_id": session.id}
+
+
+def create_product_checkout(user_email: str, user_id: int, product: dict,
+                            discount_usd: float = 0.0, vxc_redeem: int = 0) -> dict:
+    """One-time Stripe Checkout for a Store product (course, EA, merch).
+    Uses inline price_data so no per-product Stripe price is required.
+    `discount_usd` is a Voltex Coin credit applied to the charge; `vxc_redeem`
+    is the coin count to burn on webhook success (stamped into metadata)."""
+    gross = float(product["price_usd"])
+    net = max(0.0, round(gross - max(0.0, float(discount_usd)), 2))
+    amount_cents = int(round(net * 100))
+    meta = {"user_id": str(user_id), "kind": "store", "product_id": product["id"],
+            "vxc_redeem": str(int(vxc_redeem)), "gross_usd": str(gross)}
+    session = stripe.checkout.Session.create(
+        mode="payment",
+        customer_email=user_email,
+        line_items=[{
+            "quantity": 1,
+            "price_data": {
+                "currency": "usd",
+                "unit_amount": amount_cents,
+                "product_data": {"name": f"VoltexAI · {product['name']}"},
+            },
+        }],
+        success_url=f"{settings.FRONTEND_URL}/account?checkout=success&session_id={{CHECKOUT_SESSION_ID}}",
+        cancel_url=f"{settings.FRONTEND_URL}/store?checkout=cancelled",
+        client_reference_id=str(user_id),
+        metadata=meta,
     )
     return {"checkout_url": session.url, "session_id": session.id}
 

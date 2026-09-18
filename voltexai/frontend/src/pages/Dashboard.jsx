@@ -1,21 +1,31 @@
 // src/pages/Dashboard.jsx — Voltex Command Center (advanced KPI + analytics dashboard)
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { NavBar } from "../components/NavBar";
 import { Footer } from "../components/Footer";
+import { arbitrageService } from "../services/arbitrage";
 import { BarSeries, Sparkline } from "../components/Analytics";
 import { VMarquee } from "../components/VMarquee";
 import { SocialBar } from "../components/Social";
+import { Discussion } from "../components/Discussion";
+import { ResultsWall } from "../components/ResultsWall";
+import { ResultsMarquee } from "../components/ResultsMarquee";
 import { SubscriberTracker } from "../components/SubscriberTracker";
-import { dashboardService } from "../services/hub";
+import { GlobeMap } from "../components/GlobeMap";
+import { dashboardService, sessionsService } from "../services/hub";
 
 export default function Dashboard() {
   const [d, setD] = useState(null);
+  const [globe, setGlobe] = useState(null);
 
   useEffect(() => {
     const load = () => dashboardService.snapshot().then(setD).catch(() => {});
     load();
     const t = setInterval(load, 20000);
-    return () => clearInterval(t);
+    const loadGlobe = () => sessionsService.status().then((s) => setGlobe(s.globe)).catch(() => {});
+    loadGlobe();
+    const gt = setInterval(loadGlobe, 30000);
+    return () => { clearInterval(t); clearInterval(gt); };
   }, []);
 
   return (
@@ -40,6 +50,8 @@ export default function Dashboard() {
         {d && (
           <>
             <SubscriberTracker />
+
+            {globe && <GlobeMap data={globe} />}
 
             {/* KPI grid */}
             <div className="vx-kpi-grid">
@@ -82,6 +94,7 @@ export default function Dashboard() {
                     </div>
                   ))}
                 </div>
+                <ArbPulse />
               </div>
 
               <div className="vx-marquee-col">
@@ -102,10 +115,70 @@ export default function Dashboard() {
               <span className="vx-muted">Join the movement — trade with the team:</span>
               <SocialBar />
             </div>
+
+            <ResultsMarquee />
+
+            <ResultsWall />
+
+            <section className="vx-panel vx-dash-discuss">
+              <span className="vx-eyebrow">Share &amp; discuss</span>
+              <Discussion title="VoltexAI — Africa's AI trading terminal" />
+            </section>
           </>
         )}
       </main>
       <Footer />
+    </div>
+  );
+}
+
+// Live arbitrage pulse — cross-venue net-edge count + top spreads (honest: usually
+// nothing clears retail fees). Links through to the full scanner.
+function ArbPulse() {
+  const [sc, setSc] = useState(null);
+
+  useEffect(() => {
+    const load = () => arbitrageService.scan({ minNetBps: 0 }).then(setSc).catch(() => {});
+    load();
+    const t = setInterval(load, 20000);
+    return () => clearInterval(t);
+  }, []);
+
+  const opps = sc?.opportunities || [];
+  const top = opps.slice(0, 4);
+  const actionable = sc?.actionable_count ?? 0;
+
+  return (
+    <div className="vx-panel vx-arb-pulse">
+      <div className="vx-arb-pulse-head">
+        <h3>🔀 Arbitrage radar</h3>
+        <span className={`vx-arb-pulse-count ${actionable ? "hot" : ""}`}>
+          {actionable} net-positive
+        </span>
+      </div>
+      {sc ? (
+        <>
+          <div className="vx-arb-pulse-rows">
+            {top.map((o) => (
+              <div key={o.symbol} className="vx-arb-pulse-row">
+                <b>{o.symbol}</b>
+                <span className="vx-muted">{o.buy_venue}→{o.sell_venue}</span>
+                <span className={`vx-mono ${o.net_bps >= 0 ? "vx-up" : "vx-down"}`}>
+                  {o.net_bps >= 0 ? "+" : ""}{o.net_bps} bps net
+                </span>
+              </div>
+            ))}
+          </div>
+          <p className="vx-arb-pulse-note">
+            {actionable
+              ? "A net edge is showing — rare and small. Verify before acting."
+              : "No net edge right now — fees & slippage swallow the spread. That's normal."}
+          </p>
+        </>
+      ) : (
+        <p className="vx-muted">Scanning venues…</p>
+      )}
+      <Link to="/scanner?mode=arb" className="vx-btn-secondary vx-btn-sm">Open arbitrage scanner →</Link>
     </div>
   );
 }

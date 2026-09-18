@@ -58,7 +58,8 @@ _RAW = [
     ("stocks", "META", "Meta Platforms",           0.01,   505.20, 2.00),
 ]
 
-ASSET_CLASSES = ["forex", "metals", "energy", "indices", "crypto", "stocks"]
+ASSET_CLASSES = ["forex", "metals", "energy", "indices", "crypto", "stocks",
+                 "synthetics", "futures"]
 
 INSTRUMENTS: dict[str, dict] = {}
 for asset_class, symbol, display, pip, seed, vol in _RAW:
@@ -71,6 +72,53 @@ for asset_class, symbol, display, pip, seed, vol in _RAW:
         "daily_vol_pct": vol,
         # mid-cap crypto / equities quote in USD, FX quotes are price-as-is
         "quote_ccy": "USD",
+        "always_on": False,
+        "venue": "cfd",
+        "deriv_symbol": None,
+    }
+
+# ---- Deriv synthetic indices (trade 24/7/365) ----
+# deriv_symbol is the code the Deriv API uses, so the auto-executor can route an
+# order to Deriv directly. Seeds/vol are references for the synthetic feed.
+_SYNTHETICS = [
+    # symbol,    display,                   pip,    seed,     vol%, deriv_symbol
+    ("V10",      "Volatility 10 Index",     0.001,  6500.0,   1.10, "R_10"),
+    ("V25",      "Volatility 25 Index",     0.001,  2600.0,   2.60, "R_25"),
+    ("V50",      "Volatility 50 Index",     0.0001, 245.0,    4.90, "R_50"),
+    ("V75",      "Volatility 75 Index",     0.0001, 39500.0,  7.30, "R_75"),
+    ("V100",     "Volatility 100 Index",    0.01,   1560.0,   9.60, "R_100"),
+    ("BOOM500",  "Boom 500 Index",          0.0001, 9200.0,   2.20, "BOOM500"),
+    ("BOOM1000", "Boom 1000 Index",         0.001,  11500.0,  1.80, "BOOM1000"),
+    ("CRASH500", "Crash 500 Index",         0.0001, 8700.0,   2.20, "CRASH500"),
+    ("CRASH1000","Crash 1000 Index",        0.001,  10200.0,  1.80, "CRASH1000"),
+    ("STEPIDX",  "Step Index",              0.1,    9300.0,   1.20, "stpRNG"),
+    ("JUMP75",   "Jump 75 Index",           0.0001, 22800.0,  6.10, "JD75"),
+    ("JUMP100",  "Jump 100 Index",          0.01,   19100.0,  8.40, "JD100"),
+]
+for symbol, display, pip, seed, vol, deriv in _SYNTHETICS:
+    INSTRUMENTS[symbol] = {
+        "symbol": symbol, "display": display, "asset_class": "synthetics",
+        "pip_size": pip, "seed": seed, "daily_vol_pct": vol, "quote_ccy": "USD",
+        "always_on": True, "venue": "deriv", "deriv_symbol": deriv,
+    }
+
+# ---- Futures (CME / ICE style) ----
+_FUTURES = [
+    # symbol,  display,                     pip,   seed,     vol%
+    ("ES",     "S&P 500 E-mini",            0.25,  5460.0,   0.95),
+    ("NQ",     "Nasdaq 100 E-mini",         0.25,  19650.0,  1.25),
+    ("YM",     "Dow E-mini",                1.0,   39250.0,  0.85),
+    ("GC",     "Gold Futures",              0.1,   2338.0,   1.05),
+    ("SI",     "Silver Futures",            0.005, 29.45,    1.85),
+    ("CL",     "Crude Oil Futures (WTI)",   0.01,  79.50,    1.95),
+    ("NG",     "Natural Gas Futures",       0.001, 2.75,     3.10),
+    ("6E",     "Euro FX Futures",           0.0001, 1.0845,  0.55),
+]
+for symbol, display, pip, seed, vol in _FUTURES:
+    INSTRUMENTS[symbol] = {
+        "symbol": symbol, "display": display, "asset_class": "futures",
+        "pip_size": pip, "seed": seed, "daily_vol_pct": vol, "quote_ccy": "USD",
+        "always_on": False, "venue": "futures", "deriv_symbol": None,
     }
 
 ALL_SYMBOLS = list(INSTRUMENTS.keys())

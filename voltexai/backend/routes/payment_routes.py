@@ -18,11 +18,91 @@ from ..database import get_db
 from ..config import settings
 from ..models import User, Payment, PaymentStatus
 from ..services import (stripe_service, flutterwave_service, subscription_service,
-                        pricing_service)
+                        pricing_service, email_service)
 from ..middleware.auth_middleware import get_current_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/payments", tags=["payments"])
+
+_METHOD_LABELS = {"stripe": "Card · Stripe",
+                  "flutterwave": "Mobile Money / Card · Flutterwave"}
+
+
+def _receipt_no(provider: str, reference: str) -> str:
+    """Human-friendly, unique-enough receipt id: VXR-YYYYMMDD-XXXXXX."""
+    from datetime import datetime, timezone
+    tail = "".join(c for c in (reference or "") if c.isalnum())[-6:].upper() or "000000"
+    day = datetime.now(timezone.utc).strftime("%Y%m%d")
+    return f"VXR-{day}-{provider[:2].upper()}{tail}"
+
+
+def _emit_receipt(db: Session, *, user_id: int, provider: str, reference: str,
+                  item_label: str, item_detail: str, amount: float,
+                  currency: str) -> None:
+    """Best-effort: email the buyer a branded receipt. Never breaks the webhook."""
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user or not user.email:
+            return
+        email_service.send_receipt_email(
+            user.email, user.full_name,
+            receipt_no=_receipt_no(provider, reference),
+            items=[(item_label, item_detail, amount)],
+            total=amount, currency=currency,
+            method=_METHOD_LABELS.get(provider, provider.title()),
+            reference=reference or "—")
+    except Exception:
+        logger.exception("receipt email failed (user=%s, ref=%s)", user_id, reference)
+
+
+def _award_cashback(db: Session, user_id: int, usd_amount: float, ref: str) -> None:
+    """Best-effort Voltex Coin cashback on a confirmed purchase (USD-denominated)."""
+    try:
+        from ..services import voltex_coin_service
+        voltex_coin_service.purchase_cashback(db, user_id, usd_amount, ref=ref)
+    except Exception:
+        logger.exception("VXC cashback failed (user=%s)", user_id)
+
+
+def _burn_applied_coins(db: Session, user_id: int, meta: dict, ref: str) -> None:
+    """Redeem the Voltex Coin credit that was applied at checkout, now that the
+    (discounted) payment has confirmed. Capped to current balance; best-effort."""
+    try:
+        vxc = int(meta.get("vxc_redeem", 0) or 0)
+        if vxc <= 0:
+            return
+        from ..services import voltex_coin_service
+        available = voltex_coin_service.balance(db, user_id)
+        spend = min(vxc, available)
+        if spend > 0:
+            voltex_coin_service.redeem(db, user_id, spend,
+                                       reason="checkout_redeem", ref=ref)
+    except Exception:
+        logger.exception("VXC checkout redeem failed (user=%s, ref=%s)", user_id, ref)
+
+
+def _emit_store_receipt(db: Session, *, user_id: int, provider: str, reference: str,
+                        product_id: str | None, amount: float, currency: str) -> None:
+    from ..data.store import get_product
+    product = get_product(product_id) if product_id else None
+    label = product["name"] if product else "VoltexAI Store purchase"
+    detail = product.get("desc", "") if product else ""
+    _emit_receipt(db, user_id=user_id, provider=provider, reference=reference,
+                  item_label=label, item_detail=detail, amount=amount, currency=currency)
+    usd = float(product["price_usd"]) if product else (amount if currency == "USD" else 0)
+    _award_cashback(db, user_id, usd, reference or "store")
+
+
+def _emit_plan_receipt(db: Session, *, user_id: int, provider: str, reference: str,
+                       plan: str, interval: str, amount: float, currency: str) -> None:
+    cycle = "annual" if interval == "year" else "monthly"
+    label = f"{plan.title()} Plan — {cycle} subscription"
+    _emit_receipt(db, user_id=user_id, provider=provider, reference=reference,
+                  item_label=label, item_detail="VoltexAI membership",
+                  amount=amount, currency=currency)
+    usd = (pricing_service.annual_usd(plan) if interval == "year"
+           else pricing_service.monthly_usd(plan))
+    _award_cashback(db, user_id, float(usd or 0), reference or "plan")
 
 
 # ---------- schemas ----------
@@ -33,6 +113,7 @@ _INTERVAL_RE = "^(month|year)$"
 class CheckoutIn(BaseModel):
     plan: str = Field(pattern=_PLAN_RE)
     interval: str = Field(default="month", pattern=_INTERVAL_RE)
+    apply_coins: bool = True
 
 
 class FlutterwaveCheckoutIn(BaseModel):
@@ -40,6 +121,15 @@ class FlutterwaveCheckoutIn(BaseModel):
     interval: str = Field(default="month", pattern=_INTERVAL_RE)
     currency: str = "ZMW"
     phone: str | None = None
+    apply_coins: bool = True
+
+
+class StoreCheckoutIn(BaseModel):
+    product_id: str = Field(min_length=2, max_length=60)
+    provider: str = Field(pattern="^(stripe|flutterwave)$")
+    currency: str = "ZMW"
+    phone: str | None = None
+    apply_coins: bool = True          # auto-apply Voltex Coin credit (up to MAX_REDEEM_PCT)
 
 
 # ---------- public ----------
@@ -91,13 +181,21 @@ def list_plans():
 
 # ---------- create checkout ----------
 @router.post("/stripe/checkout")
-def stripe_checkout(data: CheckoutIn, user: User = Depends(get_current_user)):
+def stripe_checkout(data: CheckoutIn, user: User = Depends(get_current_user),
+                    db: Session = Depends(get_db)):
+    from ..services import voltex_coin_service
+    price_usd = pricing_service.price_usd(data.plan, data.interval)
+    quote = voltex_coin_service.redeem_quote(db, user.id, float(price_usd))
+    discount_usd = quote["usd_off"] if data.apply_coins else 0.0
+    vxc_redeem = quote["vxc"] if data.apply_coins else 0
     try:
         result = stripe_service.create_checkout_session(
             user_email=user.email, user_id=user.id, plan=data.plan,
-            interval=data.interval,
+            interval=data.interval, discount_usd=discount_usd, vxc_redeem=vxc_redeem,
         )
-        return result
+        return {**result, "coins": {"applied": bool(data.apply_coins and vxc_redeem > 0),
+                                    "vxc": vxc_redeem, "usd_off": discount_usd,
+                                    "pay_usd": round(float(price_usd) - discount_usd, 2)}}
     except Exception as e:
         logger.exception("Stripe checkout failed")
         raise HTTPException(502, f"Stripe error: {e}")
@@ -107,11 +205,17 @@ def stripe_checkout(data: CheckoutIn, user: User = Depends(get_current_user)):
 async def flutterwave_checkout(data: FlutterwaveCheckoutIn,
                                user: User = Depends(get_current_user),
                                db: Session = Depends(get_db)):
+    from ..services import voltex_coin_service
+    price_usd = pricing_service.price_usd(data.plan, data.interval)
+    quote = voltex_coin_service.redeem_quote(db, user.id, float(price_usd))
+    discount_usd = quote["usd_off"] if data.apply_coins else 0.0
+    vxc_redeem = quote["vxc"] if data.apply_coins else 0
     try:
         result = await flutterwave_service.create_payment_link(
             user_id=user.id, email=user.email, full_name=user.full_name,
             plan=data.plan, currency=data.currency,
             phone=data.phone or user.phone, interval=data.interval,
+            discount_usd=discount_usd, vxc_redeem=vxc_redeem,
         )
     except Exception as e:
         logger.exception("Flutterwave checkout failed")
@@ -124,7 +228,58 @@ async def flutterwave_checkout(data: FlutterwaveCheckoutIn,
                    status=PaymentStatus.PENDING,
                    method="mobile_money_or_card"))
     db.commit()
-    return result
+    return {**result, "coins": {"applied": bool(data.apply_coins and vxc_redeem > 0),
+                                "vxc": vxc_redeem, "usd_off": discount_usd}}
+
+
+# ---------- Voltex Pay: one-time Store checkout ----------
+@router.post("/store/checkout")
+async def store_checkout(data: StoreCheckoutIn,
+                         user: User = Depends(get_current_user),
+                         db: Session = Depends(get_db)):
+    """Buy a one-time Store product (course, EA, merch) via card or mobile money."""
+    from ..data.store import get_product
+    product = get_product(data.product_id)
+    if not product:
+        raise HTTPException(404, "Unknown product")
+    if product["category"] == "plans":
+        raise HTTPException(400, "Plans are billed as subscriptions — use /pricing.")
+
+    # Voltex Coin auto-apply: compute a credit against the product price. Coins
+    # are only BURNED on webhook success — an abandoned checkout costs nothing.
+    from ..services import voltex_coin_service
+    quote = voltex_coin_service.redeem_quote(db, user.id, float(product["price_usd"]))
+    discount_usd = quote["usd_off"] if data.apply_coins else 0.0
+    vxc_redeem = quote["vxc"] if data.apply_coins else 0
+
+    try:
+        if data.provider == "stripe":
+            result = stripe_service.create_product_checkout(
+                user_email=user.email, user_id=user.id, product=product,
+                discount_usd=discount_usd, vxc_redeem=vxc_redeem)
+            ref, amount, ccy, method = (result["session_id"],
+                                        round(float(product["price_usd"]) - discount_usd, 2),
+                                        "USD", "card")
+        else:
+            result = await flutterwave_service.create_product_link(
+                user_id=user.id, email=user.email, full_name=user.full_name,
+                product=product, currency=data.currency, phone=data.phone or user.phone,
+                discount_usd=discount_usd, vxc_redeem=vxc_redeem)
+            ref, amount, ccy, method = result["tx_ref"], result["amount"], result["currency"], "mobile_money_or_card"
+    except Exception as e:
+        logger.exception("Store checkout failed")
+        raise HTTPException(502, f"Checkout error: {e}")
+
+    db.add(Payment(user_id=user.id, provider=data.provider, provider_ref=ref,
+                   amount=amount, currency=ccy, plan=product["id"],
+                   status=PaymentStatus.PENDING, method=f"store:{method}"))
+    db.commit()
+    return {**result,
+            "product": {"id": product["id"], "name": product["name"],
+                        "price_usd": product["price_usd"]},
+            "coins": {"applied": bool(data.apply_coins and vxc_redeem > 0),
+                      "vxc": vxc_redeem, "usd_off": discount_usd,
+                      "pay_usd": round(float(product["price_usd"]) - discount_usd, 2)}}
 
 
 # ---------- webhooks ----------
@@ -143,24 +298,53 @@ async def stripe_webhook(request: Request,
     logger.info("Stripe webhook: %s", etype)
 
     if etype == "checkout.session.completed":
-        user_id = int(obj.get("client_reference_id") or
-                      obj.get("metadata", {}).get("user_id", 0))
-        plan = obj.get("metadata", {}).get("plan", "trader")
-        interval = obj.get("metadata", {}).get("interval", "month")
+        meta = obj.get("metadata", {})
+        user_id = int(obj.get("client_reference_id") or meta.get("user_id", 0))
+        # One-time Store purchase: mark the pending Payment paid, no plan change.
+        if meta.get("kind") == "store" and user_id:
+            amount = (obj.get("amount_total") or 0) / 100.0
+            currency = (obj.get("currency") or "usd").upper()
+            p = (db.query(Payment)
+                   .filter(Payment.provider_ref == obj.get("id")).first())
+            if p:
+                p.status = PaymentStatus.SUCCESS
+                p.raw_payload = json.dumps(obj)[:3500]
+                amount, currency = p.amount, p.currency
+            else:
+                db.add(Payment(user_id=user_id, provider="stripe",
+                               provider_ref=obj.get("id"),
+                               amount=amount, currency=currency,
+                               plan=meta.get("product_id", "store"),
+                               status=PaymentStatus.SUCCESS, method="store:card",
+                               raw_payload=json.dumps(obj)[:3500]))
+            db.commit()
+            _burn_applied_coins(db, user_id, meta, obj.get("id"))
+            _emit_store_receipt(db, user_id=user_id, provider="stripe",
+                                reference=obj.get("id"),
+                                product_id=meta.get("product_id"),
+                                amount=amount, currency=currency)
+            return {"received": True}
+        plan = meta.get("plan", "trader")
+        interval = meta.get("interval", "month")
         sub_id = obj.get("subscription")
         if user_id:
             subscription_service.activate_plan(
                 db, user_id=user_id, plan=plan, provider="stripe",
                 external_id=sub_id, period_days=pricing_service.period_days(interval),
             )
+            amount = (obj.get("amount_total") or 0) / 100.0
+            currency = (obj.get("currency") or "usd").upper()
             db.add(Payment(user_id=user_id, provider="stripe",
                            provider_ref=obj.get("id"),
-                           amount=(obj.get("amount_total") or 0) / 100.0,
-                           currency=(obj.get("currency") or "usd").upper(),
+                           amount=amount, currency=currency,
                            plan=plan, status=PaymentStatus.SUCCESS,
                            method="card",
                            raw_payload=json.dumps(obj)[:3500]))
             db.commit()
+            _burn_applied_coins(db, user_id, meta, obj.get("id"))
+            _emit_plan_receipt(db, user_id=user_id, provider="stripe",
+                               reference=obj.get("id"), plan=plan, interval=interval,
+                               amount=amount, currency=currency)
 
     elif etype in ("customer.subscription.deleted",
                    "customer.subscription.paused"):
@@ -201,6 +385,22 @@ async def flutterwave_webhook(request: Request,
         if not user_id:
             return {"received": True, "warning": "no user_id in meta"}
 
+        # One-time Store purchase: mark the pending Payment paid, no plan change.
+        if meta.get("kind") == "store":
+            if event.get("event") == "charge.completed" and status_ == "successful":
+                p = db.query(Payment).filter(Payment.provider_ref == tx_ref).first()
+                if p:
+                    p.status = PaymentStatus.SUCCESS
+                    p.method = "store:" + (data_obj.get("payment_type", "unknown"))
+                    p.raw_payload = json.dumps(data_obj)[:3500]
+                    db.commit()
+                    _burn_applied_coins(db, user_id, meta, tx_ref)
+                    _emit_store_receipt(
+                        db, user_id=user_id, provider="flutterwave", reference=tx_ref,
+                        product_id=meta.get("product_id"),
+                        amount=p.amount, currency=p.currency)
+            return {"received": True}
+
         if event.get("event") == "charge.completed" and status_ == "successful":
             # Server-side verify before activating
             try:
@@ -220,6 +420,11 @@ async def flutterwave_webhook(request: Request,
                         p.method = data_obj.get("payment_type", "unknown")
                         p.raw_payload = json.dumps(data_obj)[:3500]
                         db.commit()
+                        _burn_applied_coins(db, user_id, meta, tx_ref)
+                        _emit_plan_receipt(
+                            db, user_id=user_id, provider="flutterwave",
+                            reference=tx_ref, plan=plan, interval=interval,
+                            amount=p.amount, currency=p.currency)
             except Exception as e:
                 logger.exception("FLW verify failed: %s", e)
         elif event.get("event") == "subscription.cancelled":

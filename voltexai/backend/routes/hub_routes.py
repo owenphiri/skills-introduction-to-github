@@ -16,6 +16,7 @@ from ..services import sentiment_service
 from ..data import sessions as sessions_data
 from ..data import resources as resources_data
 from ..data import travel as travel_data
+from ..data import news_events
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["hub"])
@@ -29,7 +30,8 @@ async def sentiment():
 @router.get("/api/sessions")
 def sessions():
     return {**sessions_data.sessions_status(),
-            "streams": sessions_data.next_streams(8)}
+            "streams": sessions_data.next_streams(8),
+            "globe": sessions_data.global_map()}
 
 
 @router.get("/api/resources")
@@ -42,6 +44,13 @@ def resources(category: str = Query("all")):
 def calendar(days: int = Query(7, ge=1, le=14)):
     events = resources_data.economic_calendar(days)
     return {"count": len(events), "events": events}
+
+
+@router.get("/api/news")
+def news(horizon_days: int = Query(10, ge=1, le=30)):
+    """High-impact news events: live windows, countdowns and per-event playbooks
+    for building live trading sessions (CPI, NFP, FOMC, and more)."""
+    return news_events.news_status(horizon_days=horizon_days)
 
 
 @router.get("/api/travel")
