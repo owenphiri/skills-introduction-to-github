@@ -2968,6 +2968,37 @@ body {
 @media (max-width: 480px) { .vx-gal-thumbs { grid-template-columns: repeat(2, 1fr); } }
 .vx-gal-photo { object-fit: cover; }
 
+/* ---------- Cookie consent ---------- */
+.vx-cookie { position: fixed; left: 0; right: 0; bottom: 0; z-index: 200;
+  background: rgba(10,14,26,0.97); backdrop-filter: blur(10px);
+  border-top: 1px solid var(--vx-border); }
+.vx-cookie-body { max-width: 1180px; margin: 0 auto; padding: 16px 20px;
+  display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.vx-cookie-text { flex: 1; min-width: 260px; }
+.vx-cookie-text b { font-size: 14px; }
+.vx-cookie-text p { margin: 4px 0 0; font-size: 12.5px; color: var(--vx-text-dim); line-height: 1.5; max-width: 70ch; }
+.vx-cookie-text a { color: var(--vx-accent); }
+.vx-cookie-opts { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 10px; }
+.vx-cookie-opt { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--vx-text); }
+.vx-cookie-opt em { color: var(--vx-text-dim); font-style: normal; font-size: 11px; }
+.vx-cookie-opt--fixed span { color: var(--vx-text-dim); }
+.vx-cookie-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+@media (max-width: 640px) { .vx-cookie-actions { width: 100%; } .vx-cookie-actions button { flex: 1; } }
+
+/* ---------- Footer newsletter ---------- */
+.vx-newsletter { margin: 14px 0 4px; display: flex; flex-direction: column; gap: 6px; }
+.vx-newsletter-label { font-size: 12.5px; color: var(--vx-text); font-weight: 600; }
+.vx-newsletter-row { display: flex; gap: 8px; max-width: 340px; }
+.vx-newsletter-row input { flex: 1; min-width: 0; background: var(--vx-bg-elev);
+  border: 1px solid var(--vx-border); border-radius: 10px; color: var(--vx-text);
+  padding: 9px 12px; font-size: 13px; }
+.vx-newsletter-row input:focus { outline: none; border-color: var(--vx-accent);
+  box-shadow: 0 0 0 3px var(--vx-accent-soft); }
+.vx-newsletter-msg { margin: 0; font-size: 12px; }
+.vx-newsletter-msg.ok { color: var(--vx-success); }
+.vx-newsletter-msg.err { color: var(--vx-danger); }
+.vx-newsletter-fine { margin: 0; font-size: 11px; color: var(--vx-text-dim); }
+
 /* ---------- Liquidity-score backtest panel ---------- */
 .vx-bt { border: 1px solid var(--vx-border); border-radius: 12px; background: var(--vx-bg-card); margin-bottom: 14px; }
 .vx-bt-toggle { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;

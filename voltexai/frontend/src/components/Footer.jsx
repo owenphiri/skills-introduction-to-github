@@ -1,5 +1,7 @@
 // src/components/Footer.jsx — company footer with product map, copyright, CEO
+import { useState } from "react";
 import { Link } from "react-router-dom";
+import { mailingService } from "../services/mailing";
 import { SocialBar } from "./Social";
 import { LanguageSelector } from "./LanguageSelector";
 import { BrandLogo } from "./BrandLogo";
@@ -51,6 +53,40 @@ const COLS = [
   ]},
 ];
 
+function NewsletterSignup() {
+  const [email, setEmail] = useState("");
+  const [state, setState] = useState("idle");   // idle | sending | ok | error
+  const [msg, setMsg] = useState("");
+
+  const submit = (e) => {
+    e.preventDefault();
+    if (!email.trim()) return;
+    setState("sending"); setMsg("");
+    mailingService.subscribe(email.trim())
+      .then((r) => { setState("ok"); setMsg(r.message || "Subscribed — check your inbox."); setEmail(""); })
+      .catch((err) => {
+        setState("error");
+        setMsg(err?.data?.detail || err?.message || "Could not subscribe — try again.");
+      });
+  };
+
+  return (
+    <form className="vx-newsletter" onSubmit={submit}>
+      <label htmlFor="vx-nl-email" className="vx-newsletter-label">Get quality signal digests &amp; news alerts</label>
+      <div className="vx-newsletter-row">
+        <input id="vx-nl-email" type="email" inputMode="email" autoComplete="email"
+          placeholder="you@email.com" value={email} required
+          onChange={(e) => setEmail(e.target.value)} disabled={state === "sending"} />
+        <button type="submit" className="vx-btn-primary vx-btn-sm" disabled={state === "sending"}>
+          {state === "sending" ? "…" : "Subscribe"}
+        </button>
+      </div>
+      {msg && <p className={`vx-newsletter-msg ${state === "error" ? "err" : "ok"}`}>{msg}</p>}
+      <p className="vx-newsletter-fine">No spam. Unsubscribe anytime.</p>
+    </form>
+  );
+}
+
 export function Footer() {
   const { t } = useI18n();
   const brand = useBrand();
@@ -62,6 +98,7 @@ export function Footer() {
           <Link to="/" className="vx-logo"><BrandLogo /></Link>
           <p className="vx-footer-tag">{isFlagship ? t("footer.tag") : brand.tagline}</p>
           <p className="vx-footer-motto">{isFlagship ? t("footer.motto") : brand.motto}</p>
+          {isFlagship && <NewsletterSignup />}
           <SocialBar />
           <div className="vx-footer-lang"><LanguageSelector /></div>
         </div>

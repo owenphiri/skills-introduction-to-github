@@ -16,8 +16,10 @@ from .tenant import Tenant
 from .coin import CoinTransaction, CoinEntryKind
 from .realestate import RealEstateInterest
 from .result import ResultPost
+from .mailing import NewsletterSubscriber, EmailLog, Campaign
 
 __all__ = [
+    "NewsletterSubscriber", "EmailLog", "Campaign",
     "RealEstateInterest", "ResultPost",
     "CoinTransaction", "CoinEntryKind",
     "Tenant",

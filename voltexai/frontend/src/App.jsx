@@ -11,6 +11,7 @@ import { SocialProof } from "./components/SocialProof";
 import { SocialRail } from "./components/Social";
 import { PromoModal } from "./components/PromoModal";
 import { ReferralCapture } from "./components/ReferralCapture";
+import { CookieConsent } from "./components/CookieConsent";
 
 import Landing from "./pages/Landing";
 import Markets from "./pages/Markets";
@@ -93,6 +94,7 @@ export default function App() {
         <SocialRail />
         <PromoModal />
         <ReferralCapture />
+        <CookieConsent />
         <Routes>
           {/* Public marketing + data surfaces */}
           <Route path="/" element={<Landing />} />
