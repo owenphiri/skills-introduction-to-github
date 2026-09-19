@@ -22,9 +22,15 @@ Open `nchito-android/` in **Android Studio** (Hedgehog or newer). It will provis
 
 From the command line (with Gradle 8.7+ installed): `gradle :app:assembleDebug`.
 
+## Demo mode vs. live
+
+The app picks its backend at runtime from `data/SupabaseConfig.kt`: empty means `MockRepository` over the seed data and OTP `123456`; filled in means `LiveRepository` over Supabase with real phone OTP. Both sit behind the same `NchitoRepository` interface, so demo mode exercises the identical code paths rather than being a separate branch that rots.
+
+Going live needs the same four steps as iOS — see [that README](../nchito-ios/README.md#going-live).
+
 ## Architecture
 
-Single-module Compose app, one `AppViewModel` holding all state on mock data (`data/MockData.kt`). Production wiring mirrors iOS:
+Single-module Compose app. `AppViewModel` holds UI state and delegates all I/O to a `NchitoRepository`; `NchitoApi` speaks PostgREST over `HttpURLConnection` with kotlinx-serialization for JSON. Mirrors the iOS layering:
 
 - Auth → Supabase GoTrue phone OTP (`POST /auth/v1/otp`, `/auth/v1/verify`)
 - Data → the schema in [`../nchito-ios/supabase/migrations/0001_init.sql`](../nchito-ios/supabase/migrations/0001_init.sql)

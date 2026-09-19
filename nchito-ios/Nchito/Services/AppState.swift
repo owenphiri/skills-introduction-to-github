@@ -7,6 +7,69 @@ final class AppState: ObservableObject {
 
     @AppStorage("hasOnboarded") var hasOnboarded = false
 
+    // MARK: - Backend
+
+    /// `LiveRepository` when Supabase is configured, `MockRepository` otherwise.
+    /// Demo mode has been a design rule from the start — the app stays fully
+    /// demoable with no backend, for pitches, screenshots and offline work.
+    private var repository: NchitoRepository = MockRepository()
+    private let api = NchitoAPI()
+
+    @Published private(set) var isLoading = false
+    /// Set when a load fails. Shown to the user rather than leaving a blank
+    /// screen they have no way to interpret.
+    @Published var loadError: String?
+
+    var isLive: Bool { SupabaseConfig.isConfigured }
+
+    /// Called once the user is signed in. Until then there is no token, and
+    /// PostgREST would fall back to the anon role and return nothing.
+    func connect(accessToken: String, userID: UUID) async {
+        guard SupabaseConfig.isConfigured, !accessToken.isEmpty else { return }
+        await api.setAccessToken(accessToken)
+        repository = LiveRepository(api: api, userID: userID)
+        await refresh()
+    }
+
+    /// Loads everything the tabs need. Independent reads run concurrently —
+    /// on Zambian mobile data, six sequential round trips is a visibly slow app.
+    func refresh() async {
+        isLoading = true
+        loadError = nil
+        defer { isLoading = false }
+
+        do {
+            async let profile = repository.loadProfile()
+            async let gigList = repository.loadGigs(city: nil, category: nil)
+            async let tasks = repository.loadMicroTasks()
+            async let ledger = repository.loadTransactions()
+            async let chats = repository.loadConversations()
+            async let applied = repository.loadAppliedGigIDs()
+
+            user = try await profile
+            gigs = try await gigList
+            microTasks = try await tasks
+            transactions = try await ledger
+            conversations = try await chats
+            appliedGigIDs = try await applied
+
+            // These depend on nothing above and are less urgent, so they load
+            // after the first screenful is already usable.
+            async let record = repository.loadWorkRecord()
+            async let settled = repository.loadSettledGigs()
+            async let advanceList = repository.loadAdvances()
+
+            workRecord = try await record
+            settledGigs = try await settled
+            advances = try await advanceList
+
+            proofPhotos = try await repository.loadProofPhotos(gigIDs: Array(appliedGigIDs))
+        } catch {
+            loadError = (error as? LocalizedError)?.errorDescription
+                ?? "Couldn't load your data. Check your connection and pull to refresh."
+        }
+    }
+
     @Published var user: UserProfile = MockDataService.currentUser
     @Published var gigs: [Gig] = MockDataService.gigs
     @Published var microTasks: [MicroTask] = MockDataService.microTasks
@@ -24,24 +87,52 @@ final class AppState: ObservableObject {
     @Published var workRecordSharing = WorkRecordSharing(isPublic: false, slug: "k7mq2xrp")
 
     /// Settled gigs kept for price comparison only — never shown in the feed.
-    let settledGigs: [Gig] = MockDataService.settledGigs
+    @Published var settledGigs: [Gig] = MockDataService.settledGigs
 
     var walletBalance: Double {
         transactions.reduce(0) { $0 + $1.amountZMW }
     }
 
+    /// One place that turns any thrown error into something a user can read.
+    private func message(from error: Error) -> String {
+        (error as? LocalizedError)?.errorDescription
+            ?? "Something went wrong. Please try again."
+    }
+
     // MARK: - Gigs
 
+    /// Updates the UI immediately and reconciles with the server after. A
+    /// worker on a slow connection tapping Apply should see it land at once;
+    /// if the write fails the change is rolled back and the error surfaced.
     func apply(to gig: Gig) {
         guard !appliedGigIDs.contains(gig.id) else { return }
         appliedGigIDs.insert(gig.id)
-        if let i = gigs.firstIndex(where: { $0.id == gig.id }) {
-            gigs[i].applicants += 1
+        if let i = gigs.firstIndex(where: { $0.id == gig.id }) { gigs[i].applicants += 1 }
+
+        Task {
+            do {
+                _ = try await repository.apply(gigID: gig.id)
+            } catch {
+                appliedGigIDs.remove(gig.id)
+                if let i = gigs.firstIndex(where: { $0.id == gig.id }) { gigs[i].applicants -= 1 }
+                loadError = message(from: error)
+            }
         }
     }
 
     func post(gig: Gig) {
         gigs.insert(gig, at: 0)
+        Task {
+            do {
+                let saved = try await repository.post(gig: gig)
+                // Replace the local copy with the server's, which carries the
+                // real id and timestamps.
+                if let i = gigs.firstIndex(where: { $0.id == gig.id }) { gigs[i] = saved }
+            } catch {
+                gigs.removeAll { $0.id == gig.id }
+                loadError = message(from: error)
+            }
+        }
     }
 
     // MARK: - Micro-tasks
@@ -57,6 +148,19 @@ final class AppState: ObservableObject {
                               note: task.title, date: .now),
             at: 0
         )
+        Task {
+            do {
+                try await repository.complete(taskID: task.id)
+                // The reward is credited by the server, so re-read the ledger
+                // rather than trusting the optimistic row we just inserted.
+                transactions = try await repository.loadTransactions()
+            } catch {
+                microTasks[i].isCompleted = false
+                microTasks[i].slotsLeft += 1
+                transactions.removeFirst()
+                loadError = message(from: error)
+            }
+        }
     }
 
     // MARK: - Chat
@@ -71,9 +175,31 @@ final class AppState: ObservableObject {
     func send(_ body: String, in conversation: Conversation) {
         let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        messages.append(ChatMessage(id: UUID(), conversationID: conversation.id,
-                                    isMine: true, body: trimmed, date: .now))
+        let pending = ChatMessage(id: UUID(), conversationID: conversation.id,
+                                  isMine: true, body: trimmed, date: .now)
+        messages.append(pending)
         touch(conversation)
+
+        Task {
+            do {
+                let saved = try await repository.send(message: trimmed,
+                                                      conversationID: conversation.id)
+                if let i = messages.firstIndex(where: { $0.id == pending.id }) {
+                    messages[i] = saved
+                }
+            } catch {
+                messages.removeAll { $0.id == pending.id }
+                loadError = message(from: error)
+            }
+        }
+    }
+
+    /// Pulls a thread fresh — production also subscribes to Supabase Realtime on
+    /// `messages`, but a read on open covers the gap while that connects.
+    func refreshMessages(in conversation: Conversation) async {
+        guard let fetched = try? await repository.loadMessages(conversationID: conversation.id) else { return }
+        messages.removeAll { $0.conversationID == conversation.id }
+        messages.append(contentsOf: fetched)
     }
 
     /// Returns the existing conversation for a gig or starts a new one —
@@ -106,11 +232,23 @@ final class AppState: ObservableObject {
     /// Records a capture. Demo mode simulates the photo and stamps Lusaka
     /// coordinates; production uploads to the `proofs` bucket and reads the
     /// real device location and capture time.
-    func captureProof(_ kind: ProofPhoto.Kind, for gig: Gig) {
+    /// `imageData` is nil in demo mode, where the capture is simulated. In
+    /// production the camera supplies the JPEG and Core Location the
+    /// coordinates; both are stamped at capture, not at upload.
+    func captureProof(_ kind: ProofPhoto.Kind, for gig: Gig,
+                      imageData: Data? = nil,
+                      latitude: Double? = nil, longitude: Double? = nil) {
         guard !proofPhotos.contains(where: { $0.gigID == gig.id && $0.kind == kind }) else { return }
-        proofPhotos.append(ProofPhoto(id: UUID(), gigID: gig.id, kind: kind,
-                                      storagePath: "", capturedAt: .now,
-                                      latitude: -15.3875, longitude: 28.3228))
+        Task {
+            do {
+                let photo = try await repository.captureProof(
+                    kind, gigID: gig.id, imageData: imageData,
+                    latitude: latitude, longitude: longitude)
+                proofPhotos.append(photo)
+            } catch {
+                loadError = message(from: error)
+            }
+        }
     }
 
     /// Mirrors the guard inside `release_escrow()`: no complete proof, no payment.
@@ -134,12 +272,23 @@ final class AppState: ObservableObject {
 
     func setWorkRecordPublic(_ isPublic: Bool) {
         workRecordSharing.isPublic = isPublic
+        Task {
+            guard let slug = try? await repository.setWorkRecordSharing(
+                isPublic: isPublic, rotate: false) else { return }
+            workRecordSharing.slug = slug
+        }
     }
 
     /// Issues a new slug, which invalidates any link already shared.
     func rotateWorkRecordLink() {
-        let alphabet = "abcdefghijklmnopqrstuvwxyz0123456789"
-        workRecordSharing.slug = String((0..<8).map { _ in alphabet.randomElement()! })
+        Task {
+            do {
+                workRecordSharing.slug = try await repository.setWorkRecordSharing(
+                    isPublic: workRecordSharing.isPublic, rotate: true)
+            } catch {
+                loadError = message(from: error)
+            }
+        }
     }
 
     func exportWorkRecordCV() -> URL? {
@@ -215,6 +364,20 @@ final class AppState: ObservableObject {
             WalletTransaction(id: UUID(), kind: .wageAdvance, amountZMW: amount,
                               note: "Early payment on \(gig.title)", date: .now),
             at: 0)
+
+        Task {
+            do {
+                // The server re-checks eligibility and recomputes the fee, so
+                // reload both rather than trusting what this screen assumed.
+                _ = try await repository.requestAdvance(gigID: gig.id, amount: amount)
+                advances = try await repository.loadAdvances()
+                transactions = try await repository.loadTransactions()
+            } catch {
+                advances.removeAll { $0.gigID == gig.id }
+                transactions.removeFirst()
+                loadError = message(from: error)
+            }
+        }
         return true
     }
 
@@ -238,6 +401,16 @@ final class AppState: ObservableObject {
         guard pin.count == 4, pin.allSatisfy(\.isNumber),
               !Self.tooCommonPINs.contains(pin) else { return false }
         hasChannelPIN = true
+        Task {
+            do {
+                // The server hashes it with bcrypt and re-applies the same
+                // rules; the PIN is never stored on the device.
+                try await repository.setChannelPIN(pin)
+            } catch {
+                hasChannelPIN = false
+                loadError = message(from: error)
+            }
+        }
         return true
     }
 
@@ -249,13 +422,22 @@ final class AppState: ObservableObject {
     @discardableResult
     func cashOut(amount: Double) -> Bool {
         guard amount > 0, amount <= walletBalance else { return false }
-        transactions.insert(
-            WalletTransaction(id: UUID(), kind: .cashOut,
-                              amountZMW: -amount,
-                              note: "Cash out to \(payoutProvider.rawValue)",
-                              date: .now),
-            at: 0
-        )
+        let pending = WalletTransaction(id: UUID(), kind: .cashOut, amountZMW: -amount,
+                                        note: "Cash out to \(payoutProvider.rawValue)", date: .now)
+        transactions.insert(pending, at: 0)
+
+        Task {
+            do {
+                _ = try await repository.cashOut(amount: amount)
+                // Re-read rather than trust the optimistic row: the real
+                // disbursement is confirmed by an aggregator webhook, so the
+                // server's ledger is the only accurate view of the balance.
+                transactions = try await repository.loadTransactions()
+            } catch {
+                transactions.removeAll { $0.id == pending.id }
+                loadError = message(from: error)
+            }
+        }
         return true
     }
 }

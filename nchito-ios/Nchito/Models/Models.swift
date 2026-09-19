@@ -163,6 +163,13 @@ enum TransactionKind: String, Codable {
     case wageAdvance = "Early Payment"
     case advanceRepayment = "Early Payment Repaid"
     case advanceRecovery = "Early Payment Owed Back"
+    // Poster-side movements: funding escrow, and getting it back if a gig falls through.
+    case escrowIn = "Paid Into Escrow"
+    case escrowRefund = "Escrow Refunded"
+    /// Anything the server knows about that this build doesn't. Mobile versions
+    /// live in the wild for a long time; a kind added by a later migration must
+    /// show as a plain row rather than breaking the whole wallet.
+    case other = "Transaction"
 }
 
 struct WalletTransaction: Identifiable, Codable {

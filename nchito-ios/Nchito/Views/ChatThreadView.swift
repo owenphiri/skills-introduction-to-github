@@ -31,6 +31,11 @@ struct ChatThreadView: View {
                     proxy.scrollTo(lastID, anchor: .bottom)
                 }
             }
+            .task {
+                // Production also subscribes to Supabase Realtime on `messages`;
+                // this read covers the gap while that connects.
+                await state.refreshMessages(in: conversation)
+            }
         }
         .navigationTitle(conversation.counterpartName)
         .navigationBarTitleDisplayMode(.inline)

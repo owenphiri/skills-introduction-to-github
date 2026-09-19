@@ -16,7 +16,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilterChip
@@ -25,6 +27,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -54,6 +57,21 @@ fun HomeScreen(vm: AppViewModel, onOpenGig: (String) -> Unit) {
         }
         .sortedWith(compareByDescending<Gig> { it.isBoosted }.thenBy { it.minutesAgo })
 
+    // A failed load must say why, not leave a blank feed with no explanation.
+    vm.loadError?.let { error ->
+        AlertDialog(
+            onDismissRequest = { vm.loadError = null },
+            title = { Text("Couldn't load") },
+            text = { Text(error) },
+            confirmButton = {
+                TextButton(onClick = { vm.loadError = null; vm.refresh() }) { Text("Try again") }
+            },
+            dismissButton = {
+                TextButton(onClick = { vm.loadError = null }) { Text("OK") }
+            },
+        )
+    }
+
     Scaffold(
         floatingActionButton = {
             ExtendedFloatingActionButton(
@@ -70,8 +88,16 @@ fun HomeScreen(vm: AppViewModel, onOpenGig: (String) -> Unit) {
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item {
-                Text("Gigs near you", style = MaterialTheme.typography.headlineMedium,
-                     fontWeight = FontWeight.Bold)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Gigs near you", style = MaterialTheme.typography.headlineMedium,
+                         fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.weight(1f))
+                    if (vm.isLoading) {
+                        CircularProgressIndicator(Modifier.height(20.dp))
+                    } else {
+                        TextButton(onClick = { vm.refresh() }) { Text("Refresh") }
+                    }
+                }
             }
             item {
                 OutlinedTextField(

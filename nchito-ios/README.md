@@ -36,7 +36,10 @@ nchito-ios/
     ├── Theme.swift          # Zambian-flag palette + shared components
     ├── Models/              # Gig, MicroTask, Wallet, User, Chat domain models
     ├── Services/
-    │   ├── AppState.swift        # Observable app state (swap for API client later)
+    │   ├── AppState.swift        # Observable app state, async loads, optimistic writes
+    │   ├── NchitoAPI.swift       # PostgREST + RPC + Storage over URLSession
+    │   ├── Repository.swift      # NchitoRepository protocol + MockRepository
+    │   ├── LiveRepository.swift  # The Supabase-backed implementation
     │   ├── AuthService.swift     # Phone-OTP auth (Supabase GoTrue via URLSession)
     │   ├── SupabaseConfig.swift  # Project URL + anon key (empty = demo mode)
     │   └── MockDataService.swift # Realistic Lusaka/Kitwe/Ndola seed data
@@ -56,7 +59,28 @@ xcodegen generate
 open Nchito.xcodeproj   # then ⌘R on any iPhone simulator
 ```
 
-No third-party dependencies — pure SwiftUI, so it builds out of the box. The app runs fully offline on mock data (`MockDataService`), which makes it perfect for demos, App Store screenshots, and investor pitches while the backend is being built.
+No third-party dependencies — pure SwiftUI, so it builds out of the box.
+
+## Demo mode vs. live
+
+The app picks its backend at runtime from `SupabaseConfig.swift`:
+
+| | `SupabaseConfig` empty | filled in |
+|---|---|---|
+| Data | `MockRepository` over the seed data | `LiveRepository` over Supabase |
+| Sign-in | any Zambian number, code `123456` | real phone OTP |
+| Writes | in memory | PostgREST + Postgres functions |
+
+Both go through the same `NchitoRepository` protocol, so demo mode exercises the identical code paths — it isn't a separate, rotting branch of the app. That keeps it usable for pitches, App Store screenshots and offline development while the backend is live for real users.
+
+### Going live
+
+1. Apply all five migrations in [`supabase/migrations/`](supabase/migrations/) in order, and set the Work Record signing secret (see [`supabase/README.md`](supabase/README.md)).
+2. Enable phone auth with an SMS provider that reaches +260.
+3. Create a **`proofs`** storage bucket (private) for proof-of-work photos.
+4. Paste your project URL and anon key into `SupabaseConfig.swift`.
+
+Writes that carry rules — applying, taking an advance, setting a PIN, sharing a Work Record — go through Postgres functions rather than direct table writes, because commission tiering, proof gates and PIN checks live there and must not be re-implemented, or skippable, on the client.
 
 ## Roadmap to production
 
@@ -66,7 +90,7 @@ No third-party dependencies — pure SwiftUI, so it builds out of the box. The a
 4. ~~Android build~~ ✅ ([`../nchito-android/`](../nchito-android/))
 5. ~~Phase 1 defensibility~~ ✅ — loyalty-decaying commission, proof-of-work capture, fair-price bands (`0002_phase1_defensibility.sql`)
 6. ~~Work Record~~ ✅ — signed, append-only work history with CV export and opt-in sharing (`0003_work_record.sql`; set the signing secret per `supabase/README.md`)
-7. Replace `MockDataService` reads/writes with Supabase queries (PostgREST) in `AppState`; upload proof photos to the `proofs` storage bucket.
+7. ~~Live Supabase data~~ ✅ — repository layer with live and mock implementations; proof photos upload to the `proofs` bucket
 8. Mobile-money escrow + disbursements via an aggregator (Flutterwave/Lenco or direct MTN & Airtel APIs) from Edge Functions.
 9. ~~WhatsApp/USSD layer~~ ✅ — Edge Functions in [`supabase/functions/`](supabase/functions/); deploy and register a shortcode per that README
 10. ~~Earned wage access~~ ✅ — advances against escrow, gated on proof-of-work and Work Record standing (`0005_wage_advances.sql`)

@@ -5,6 +5,9 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -17,6 +20,11 @@ import java.util.UUID
  *  - chat: insert into `messages`, subscribe via Realtime
  *  - wallet: read-only ledger + Edge Function cash-out
  */
+/** Replaces a state list's contents in place, so Compose sees one update. */
+private fun <T> androidx.compose.runtime.snapshots.SnapshotStateList<T>.replaceAll(items: List<T>) {
+    clear(); addAll(items)
+}
+
 class AppViewModel : ViewModel() {
 
     companion object {
@@ -32,6 +40,67 @@ class AppViewModel : ViewModel() {
         )
     }
 
+    // Backend
+
+    /**
+     * LiveRepository when Supabase is configured, MockRepository otherwise.
+     * Demo mode has been a design rule from the start — the app stays fully
+     * demoable with no backend, for pitches, screenshots and offline work.
+     */
+    private var repository: NchitoRepository = MockRepository()
+    private val api = NchitoApi()
+
+    var isLoading by mutableStateOf(false)
+        private set
+    /** Set when a load fails, so the user sees a reason rather than a blank screen. */
+    var loadError by mutableStateOf<String?>(null)
+
+    val isLive: Boolean get() = SupabaseConfig.isConfigured
+
+    /**
+     * Called once signed in. Until then there is no token, and PostgREST falls
+     * back to the anon role and quietly returns nothing.
+     */
+    fun connect(accessToken: String, userId: UUID) {
+        if (!SupabaseConfig.isConfigured || accessToken.isEmpty()) return
+        api.setAccessToken(accessToken)
+        repository = LiveRepository(api, userId)
+        refresh()
+    }
+
+    /** Loads everything the tabs need, concurrently where the reads are independent. */
+    fun refresh() {
+        viewModelScope.launch {
+            isLoading = true
+            loadError = null
+            try {
+                // On Zambian mobile data, sequential round trips are visibly slow.
+                val gigsJob = async { repository.loadGigs(null, null) }
+                val tasksJob = async { repository.loadMicroTasks() }
+                val ledgerJob = async { repository.loadTransactions() }
+                val chatsJob = async { repository.loadConversations() }
+                val appliedJob = async { repository.loadAppliedGigIds() }
+                val recordJob = async { repository.loadWorkRecord() }
+                val advancesJob = async { repository.loadAdvances() }
+
+                gigs.replaceAll(gigsJob.await())
+                microTasks.replaceAll(tasksJob.await())
+                transactions.replaceAll(ledgerJob.await())
+                conversations.replaceAll(chatsJob.await())
+                appliedGigIds.replaceAll(appliedJob.await())
+                workRecord.replaceAll(recordJob.await())
+                advances.replaceAll(advancesJob.await())
+
+                proofPhotos.replaceAll(repository.loadProofPhotos(appliedGigIds.toList()))
+            } catch (e: Exception) {
+                loadError = e.message
+                    ?: "Couldn't load your data. Check your connection and pull to refresh."
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+
     // Auth
     var signedInPhone by mutableStateOf("")
         private set
@@ -42,6 +111,9 @@ class AppViewModel : ViewModel() {
     val isSignedIn get() = signedInPhone.isNotEmpty()
     val isDemoMode get() = !SupabaseConfig.isConfigured
 
+    var isAuthBusy by mutableStateOf(false)
+        private set
+
     fun requestOtp(raw: String) {
         authError = null
         val digits = raw.filter { it.isDigit() }
@@ -51,16 +123,46 @@ class AppViewModel : ViewModel() {
             authError = "Enter a valid Zambian number, e.g. 097 123 4567."
             return
         }
-        otpSentTo = "+260$digits"
+        val phone = "+260$digits"
+
+        if (isDemoMode) { otpSentTo = phone; return }
+
+        viewModelScope.launch {
+            isAuthBusy = true
+            try {
+                AuthApi.requestOtp(phone)
+                otpSentTo = phone
+            } catch (e: Exception) {
+                authError = "Couldn't send the code. Check your connection and try again."
+            } finally {
+                isAuthBusy = false
+            }
+        }
     }
 
     fun verifyOtp(code: String) {
         val phone = otpSentTo ?: return
-        if (code == DEMO_OTP) {
-            signedInPhone = phone
-            authError = null
-        } else {
-            authError = "Wrong code. In demo mode the code is $DEMO_OTP."
+        authError = null
+
+        if (isDemoMode) {
+            if (code == DEMO_OTP) signedInPhone = phone
+            else authError = "Wrong code. In demo mode the code is $DEMO_OTP."
+            return
+        }
+
+        viewModelScope.launch {
+            isAuthBusy = true
+            try {
+                val session = AuthApi.verifyOtp(phone, code)
+                signedInPhone = phone
+                // Only now is there a token; without it PostgREST falls back to
+                // the anon role and RLS returns nothing.
+                connect(session.accessToken, session.userId)
+            } catch (e: Exception) {
+                authError = "That code didn't work. Request a new one and try again."
+            } finally {
+                isAuthBusy = false
+            }
         }
     }
 
@@ -71,14 +173,42 @@ class AppViewModel : ViewModel() {
     val gigs = mutableStateListOf<Gig>().apply { addAll(MockData.gigs) }
     val appliedGigIds = mutableStateListOf<UUID>()
 
+    /**
+     * Updates the UI immediately and reconciles after. A worker on a slow
+     * connection tapping Apply should see it land at once; a failed write rolls
+     * the change back and surfaces the reason.
+     */
     fun apply(gig: Gig) {
         if (gig.id in appliedGigIds) return
         appliedGigIds.add(gig.id)
         val i = gigs.indexOfFirst { it.id == gig.id }
         if (i >= 0) gigs[i] = gigs[i].copy(applicants = gigs[i].applicants + 1)
+
+        viewModelScope.launch {
+            try {
+                repository.apply(gig.id)
+            } catch (e: Exception) {
+                appliedGigIds.remove(gig.id)
+                if (i >= 0) gigs[i] = gigs[i].copy(applicants = gigs[i].applicants - 1)
+                loadError = e.message
+            }
+        }
     }
 
-    fun postGig(gig: Gig) = gigs.add(0, gig)
+    fun postGig(gig: Gig) {
+        gigs.add(0, gig)
+        viewModelScope.launch {
+            try {
+                // Replace with the server's copy, which carries the real id.
+                val saved = repository.postGig(gig)
+                val i = gigs.indexOfFirst { it.id == gig.id }
+                if (i >= 0) gigs[i] = saved
+            } catch (e: Exception) {
+                gigs.removeAll { it.id == gig.id }
+                loadError = e.message
+            }
+        }
+    }
 
     // Micro-tasks
     val microTasks = mutableStateListOf<MicroTask>().apply { addAll(MockData.microTasks) }
@@ -91,6 +221,20 @@ class AppViewModel : ViewModel() {
             slotsLeft = (microTasks[i].slotsLeft - 1).coerceAtLeast(0))
         transactions.add(0, WalletTransaction(
             kind = TxKind.TASK_REWARD, amountZMW = task.rewardZMW, note = task.title))
+
+        viewModelScope.launch {
+            try {
+                repository.completeTask(task.id)
+                // The reward is credited server-side, so re-read the ledger
+                // rather than trusting the optimistic row.
+                transactions.replaceAll(repository.loadTransactions())
+            } catch (e: Exception) {
+                microTasks[i] = microTasks[i].copy(isCompleted = false,
+                                                   slotsLeft = microTasks[i].slotsLeft + 1)
+                transactions.removeAt(0)
+                loadError = e.message
+            }
+        }
     }
 
     // Wallet
@@ -101,9 +245,21 @@ class AppViewModel : ViewModel() {
 
     fun cashOut(amount: Double): Boolean {
         if (amount <= 0 || amount > walletBalance) return false
-        transactions.add(0, WalletTransaction(
-            kind = TxKind.CASH_OUT, amountZMW = -amount,
-            note = "Cash out to ${payoutProvider.label}"))
+        val pending = WalletTransaction(kind = TxKind.CASH_OUT, amountZMW = -amount,
+                                        note = "Cash out to ${payoutProvider.label}")
+        transactions.add(0, pending)
+
+        viewModelScope.launch {
+            try {
+                repository.cashOut(amount)
+                // The real disbursement is confirmed by an aggregator webhook,
+                // so the server's ledger is the only accurate view.
+                transactions.replaceAll(repository.loadTransactions())
+            } catch (e: Exception) {
+                transactions.remove(pending)
+                loadError = e.message
+            }
+        }
         return true
     }
 
@@ -177,6 +333,20 @@ class AppViewModel : ViewModel() {
         transactions.add(0, WalletTransaction(
             kind = TxKind.WAGE_ADVANCE, amountZMW = amount,
             note = "Early payment on ${gig.title}"))
+
+        viewModelScope.launch {
+            try {
+                // The server re-checks eligibility and recomputes the fee, so
+                // reload rather than trusting what this screen assumed.
+                repository.requestAdvance(gig.id, amount)
+                advances.replaceAll(repository.loadAdvances())
+                transactions.replaceAll(repository.loadTransactions())
+            } catch (e: Exception) {
+                advances.removeAll { it.gigId == gig.id }
+                transactions.removeAt(0)
+                loadError = e.message
+            }
+        }
         return true
     }
 
@@ -191,6 +361,14 @@ class AppViewModel : ViewModel() {
     fun setChannelPin(pin: String): Boolean {
         if (pin.length != 4 || !pin.all { it.isDigit() } || pin in TOO_COMMON_PINS) return false
         hasChannelPin = true
+        viewModelScope.launch {
+            try {
+                repository.setChannelPin(pin)
+            } catch (e: Exception) {
+                hasChannelPin = false
+                loadError = e.message
+            }
+        }
         return true
     }
 
@@ -209,13 +387,22 @@ class AppViewModel : ViewModel() {
 
     fun setWorkRecordPublic(isPublic: Boolean) {
         workRecordSharing = workRecordSharing.copy(isPublic = isPublic)
+        viewModelScope.launch {
+            runCatching { repository.setWorkRecordSharing(isPublic, false) }
+                .onSuccess { workRecordSharing = workRecordSharing.copy(slug = it) }
+        }
     }
 
     /** Issues a new slug, which invalidates any link already shared. */
     fun rotateWorkRecordLink() {
-        val alphabet = "abcdefghijklmnopqrstuvwxyz0123456789"
-        workRecordSharing = workRecordSharing.copy(
-            slug = (1..8).map { alphabet.random() }.joinToString(""))
+        viewModelScope.launch {
+            try {
+                workRecordSharing = workRecordSharing.copy(
+                    slug = repository.setWorkRecordSharing(workRecordSharing.isPublic, true))
+            } catch (e: Exception) {
+                loadError = e.message
+            }
+        }
     }
 
     fun exportWorkRecordCv(context: android.content.Context) = CvExporter.export(
@@ -245,11 +432,21 @@ class AppViewModel : ViewModel() {
      * coordinates; production uploads to the `proofs` bucket and reads the real
      * device location and capture time.
      */
-    fun captureProof(kind: ProofKind, gig: Gig) {
+    /**
+     * `image` is null in demo mode, where the capture is simulated. In
+     * production the camera supplies the JPEG and location services the
+     * coordinates; both are stamped at capture, not at upload.
+     */
+    fun captureProof(kind: ProofKind, gig: Gig, image: ByteArray? = null,
+                     latitude: Double? = null, longitude: Double? = null) {
         if (proofPhotos.any { it.gigId == gig.id && it.kind == kind }) return
-        val now = SimpleDateFormat("d MMM HH:mm", Locale.getDefault()).format(Date())
-        proofPhotos.add(ProofPhoto(gigId = gig.id, kind = kind, capturedAtLabel = now,
-                                   latitude = -15.3875, longitude = 28.3228))
+        viewModelScope.launch {
+            try {
+                proofPhotos.add(repository.captureProof(kind, gig.id, image, latitude, longitude))
+            } catch (e: Exception) {
+                loadError = e.message
+            }
+        }
     }
 
     /** Mirrors the guard inside `release_escrow()`: no complete proof, no payment. */
@@ -275,8 +472,33 @@ class AppViewModel : ViewModel() {
         val trimmed = body.trim()
         if (trimmed.isEmpty()) return
         val time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
-        messages.add(ChatMessage(conversationId = conversation.id,
-                                 isMine = true, body = trimmed, time = time))
+        val pending = ChatMessage(conversationId = conversation.id,
+                                  isMine = true, body = trimmed, time = time)
+        messages.add(pending)
+
+        viewModelScope.launch {
+            try {
+                val saved = repository.sendMessage(trimmed, conversation.id)
+                val i = messages.indexOfFirst { it.id == pending.id }
+                if (i >= 0) messages[i] = saved
+            } catch (e: Exception) {
+                messages.remove(pending)
+                loadError = e.message
+            }
+        }
+    }
+
+    /**
+     * Pulls a thread fresh — production also subscribes to Supabase Realtime on
+     * `messages`, but a read on open covers the gap while that connects.
+     */
+    fun refreshMessages(conversation: Conversation) {
+        viewModelScope.launch {
+            runCatching { repository.loadMessages(conversation.id) }.onSuccess { fetched ->
+                messages.removeAll { it.conversationId == conversation.id }
+                messages.addAll(fetched)
+            }
+        }
     }
 
     fun conversationAbout(gig: Gig): Conversation {

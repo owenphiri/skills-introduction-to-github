@@ -14,6 +14,14 @@ struct NchitoApp: App {
                     PhoneAuthView()
                 } else {
                     MainTabView()
+                        .task(id: auth.accessToken) {
+                            // Runs on sign-in and again if the token is renewed.
+                            // Without a token PostgREST falls back to the anon
+                            // role and RLS quietly returns nothing.
+                            if let userID = auth.userID {
+                                await state.connect(accessToken: auth.accessToken, userID: userID)
+                            }
+                        }
                 }
             }
             .environmentObject(state)

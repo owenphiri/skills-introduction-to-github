@@ -25,6 +25,10 @@ Generate one with `openssl rand -base64 48`. Keep it out of the apps and out of 
 
 Rotating this secret invalidates every signature already issued, so treat it as permanent.
 
+## Storage bucket
+
+Proof-of-work photos upload to a bucket named **`proofs`**. Create it as **private** — these are photos of people's homes and workplaces, and the gig parties are the only ones who should see them. The apps write objects at `<gig_id>/<before|after>.jpg`.
+
 ## Offline channels
 
 USSD and WhatsApp run as Edge Functions in [`functions/`](functions/) — deployment, secrets and the security model are documented there. They use the service role and therefore bypass RLS, so they go through the `channel_*` RPCs in `0004_offline_channels.sql`, which authorise by phone number themselves.

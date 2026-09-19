@@ -19,6 +19,10 @@ final class AuthService: ObservableObject {
     @Published private(set) var accessToken: String {
         didSet { UserDefaults.standard.set(accessToken, forKey: "accessToken") }
     }
+    /// Needed to scope queries and to tell my own chat messages from theirs.
+    @Published private(set) var userID: UUID? {
+        didSet { UserDefaults.standard.set(userID?.uuidString, forKey: "userID") }
+    }
     @Published var step: Step = .enterPhone
     @Published var isBusy = false
     @Published var errorMessage: String?
@@ -26,6 +30,7 @@ final class AuthService: ObservableObject {
     init() {
         signedInPhone = UserDefaults.standard.string(forKey: "signedInPhone") ?? ""
         accessToken = UserDefaults.standard.string(forKey: "accessToken") ?? ""
+        userID = UserDefaults.standard.string(forKey: "userID").flatMap(UUID.init)
     }
 
     static let demoOTP = "123456"
@@ -74,9 +79,14 @@ final class AuthService: ObservableObject {
         do {
             let data = try await post(path: "/auth/v1/verify",
                                       body: ["phone": phone, "token": code, "type": "sms"])
-            struct Session: Decodable { let access_token: String }
+            struct Session: Decodable {
+                let access_token: String
+                let user: SessionUser
+                struct SessionUser: Decodable { let id: UUID }
+            }
             let session = try JSONDecoder().decode(Session.self, from: data)
             accessToken = session.access_token
+            userID = session.user.id
             signedInPhone = phone
         } catch {
             errorMessage = "That code didn't work. Request a new one and try again."
@@ -86,6 +96,7 @@ final class AuthService: ObservableObject {
     func signOut() {
         signedInPhone = ""
         accessToken = ""
+        userID = nil
         step = .enterPhone
     }
 

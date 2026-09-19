@@ -165,6 +165,11 @@ enum class TxKind(val label: String) {
     WAGE_ADVANCE("Early Payment"),
     ADVANCE_REPAYMENT("Early Payment Repaid"),
     ADVANCE_RECOVERY("Early Payment Owed Back"),
+    // Poster-side movements: funding escrow, and getting it back if a gig falls through.
+    ESCROW_IN("Paid Into Escrow"),
+    ESCROW_REFUND("Escrow Refunded"),
+    /** Anything the server knows about that this build doesn't — see txKindFromWire. */
+    OTHER("Transaction"),
 }
 
 data class WalletTransaction(

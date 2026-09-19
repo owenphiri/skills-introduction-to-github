@@ -41,6 +41,21 @@ struct HomeView: View {
                 .padding(.horizontal)
             }
             .background(Color(.systemGroupedBackground))
+            .refreshable { await state.refresh() }
+            .overlay {
+                if state.isLoading && state.gigs.isEmpty {
+                    ProgressView("Loading gigs…")
+                }
+            }
+            .alert("Couldn't load", isPresented: Binding(
+                get: { state.loadError != nil },
+                set: { if !$0 { state.loadError = nil } }
+            )) {
+                Button("Try again") { Task { await state.refresh() } }
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(state.loadError ?? "")
+            }
             .navigationTitle("Gigs near you")
             .searchable(text: $search, prompt: "Search gigs…")
             .toolbar {
