@@ -14,6 +14,9 @@ settings:
     INFOPLIST_KEY_UILaunchScreen_Generation: YES
     INFOPLIST_KEY_CFBundleDisplayName: Nchito
     INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait
+    # Points Xcode at Assets.xcassets/AppIcon.appiconset. Xcode 14+ derives every
+    # size from the single 1024 marketing icon there.
+    ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
 targets:
   Nchito:
     type: application

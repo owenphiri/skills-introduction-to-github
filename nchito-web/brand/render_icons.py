@@ -72,22 +72,52 @@ def render(size, tile=True, bg=None):
                 px.extend([0, 0, 0, 0])
     return bytes(px)
 
-def write_png(path, size, raw):
+def to_rgb(raw, size):
+    """Strips the alpha channel, compositing onto the brand green."""
+    out = bytearray()
+    i = 0
+    for _ in range(size):
+        out.append(raw[i]); i += 1              # filter byte
+        for _ in range(size):
+            r, g, b, a = raw[i], raw[i+1], raw[i+2], raw[i+3]; i += 4
+            if a == 255:
+                out.extend([r, g, b])
+            else:
+                f = a / 255
+                out.extend([int(r * f + GREEN[0] * (1 - f)),
+                            int(g * f + GREEN[1] * (1 - f)),
+                            int(b * f + GREEN[2] * (1 - f))])
+    return bytes(out)
+
+
+def write_png(path, size, raw, rgb=False):
     def chunk(tag, data):
         c = tag + data
         return struct.pack(">I", len(data)) + c + struct.pack(">I", zlib.crc32(c) & 0xFFFFFFFF)
     png = b"\x89PNG\r\n\x1a\n"
-    png += chunk(b"IHDR", struct.pack(">IIBBBBB", size, size, 8, 6, 0, 0, 0))
+    # Colour type 6 is RGBA, 2 is RGB. Apple requires no alpha on the icon.
+    png += chunk(b"IHDR", struct.pack(">IIBBBBB", size, size, 8, 2 if rgb else 6, 0, 0, 0))
     png += chunk(b"IDAT", zlib.compress(raw, 9))
     png += chunk(b"IEND", b"")
     open(path, "wb").write(png)
 
-for size in (16, 32, 180, 192, 512):
-    # apple-touch-icon must be opaque: iOS puts no background behind it.
-    write_png(f"icon-{size}.png", size, render(size, tile=True))
-    print(f"  icon-{size}.png")
+import os, sys
 
-# Maskable icon: Android crops to a circle, so the mark sits inside the safe area.
+OUT = sys.argv[1] if len(sys.argv) > 1 else "."
+
+def emit(path, size, rgb=False, **kw):
+    full = os.path.join(OUT, path)
+    os.makedirs(os.path.dirname(full) or ".", exist_ok=True)
+    raw = render(size, **kw)
+    write_png(full, size, to_rgb(raw, size) if rgb else raw, rgb=rgb)
+    print(f"  {path}  ({size}x{size}{', no alpha' if rgb else ''})")
+
+# --- Web / PWA -------------------------------------------------------------
+for size in (16, 32, 180, 192, 512):
+    # An opaque tile: iOS puts no background behind apple-touch-icon.
+    emit(f"icon-{size}.png", size, tile=True)
+
+# Maskable: Android crops to a circle, so the mark sits inside the safe area.
 def render_maskable(size):
     px = bytearray()
     scale = 64.0 / size
@@ -100,13 +130,72 @@ def render_maskable(size):
                 for sx in range(SS):
                     dx = (pxx + (sx + 0.5) / SS) * scale
                     dy = (py + (sy + 0.5) / SS) * scale
-                    mx = (dx - 32) / inset + 32
-                    my = (dy - 32) / inset + 32
-                    c = sample(mx, my, tile=False) or GREEN
+                    c = sample((dx - 32) / inset + 32, (dy - 32) / inset + 32,
+                               tile=False) or GREEN
                     r += c[0]; g += c[1]; b += c[2]; a += 255
             n = SS * SS
             px.extend([int(r / n), int(g / n), int(b / n), int(a / n)])
     return bytes(px)
 
-write_png("icon-maskable-512.png", 512, render_maskable(512))
-print("  icon-maskable-512.png")
+write_png(os.path.join(OUT, "icon-maskable-512.png"), 512, render_maskable(512))
+print("  icon-maskable-512.png  (512x512)")
+
+# --- iOS -------------------------------------------------------------------
+# Xcode 14+ takes a single 1024 marketing icon and derives the rest. It must be
+# fully opaque with no alpha, or App Store Connect rejects the upload.
+ios = "ios/AppIcon.appiconset"
+emit(f"{ios}/icon-1024.png", 1024, rgb=True, tile=True)
+os.makedirs(os.path.join(OUT, ios), exist_ok=True)
+open(os.path.join(OUT, ios, "Contents.json"), "w").write("""{
+  "images" : [
+    {
+      "filename" : "icon-1024.png",
+      "idiom" : "universal",
+      "platform" : "ios",
+      "size" : "1024x1024"
+    }
+  ],
+  "info" : { "author" : "xcode", "version" : 1 }
+}
+""")
+print("  ios/AppIcon.appiconset/Contents.json")
+
+# --- Android ---------------------------------------------------------------
+# Legacy launcher bitmaps for pre-API-26 devices, at the five density buckets.
+DENSITIES = {"mdpi": 48, "hdpi": 72, "xhdpi": 96, "xxhdpi": 144, "xxxhdpi": 192}
+for bucket, size in DENSITIES.items():
+    emit(f"android/mipmap-{bucket}/ic_launcher.png", size, tile=True)
+    # The round variant is what launchers use on circular-icon devices.
+    emit(f"android/mipmap-{bucket}/ic_launcher_round.png", size, tile=True)
+
+# Adaptive-icon foreground. Android crops the outer ~28%, so the mark is inset
+# and the layer is transparent — the background layer supplies the colour.
+for bucket, size in DENSITIES.items():
+    full = os.path.join(OUT, f"android/mipmap-{bucket}/ic_launcher_foreground.png")
+    os.makedirs(os.path.dirname(full), exist_ok=True)
+    fg = int(size * 108 / 48)          # adaptive icons are authored at 108dp
+    px = bytearray()
+    scale = 64.0 / fg
+    inset = 0.62                        # leaves the 28% Android may crop
+    for py in range(fg):
+        px.append(0)
+        for pxx in range(fg):
+            r = g = b = a = 0
+            for sy in range(SS):
+                for sx in range(SS):
+                    dx = (pxx + (sx + 0.5) / SS) * scale
+                    dy = (py + (sy + 0.5) / SS) * scale
+                    c = sample((dx - 32) / inset + 32, (dy - 32) / inset + 32, tile=False)
+                    if c:
+                        r += c[0]; g += c[1]; b += c[2]; a += 255
+            n = SS * SS
+            if a:
+                cov = a / 255
+                px.extend([int(r / cov), int(g / cov), int(b / cov), int(a / n)])
+            else:
+                px.extend([0, 0, 0, 0])
+    write_png(full, fg, bytes(px))
+    print(f"  android/mipmap-{bucket}/ic_launcher_foreground.png  ({fg}x{fg})")
+
+# --- Play Store ------------------------------------------------------------
+emit("store/play-icon-512.png", 512, rgb=True, tile=True)

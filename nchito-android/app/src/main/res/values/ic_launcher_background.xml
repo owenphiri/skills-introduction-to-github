@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Nchito eagle-green, the same value as NchitoColors.Green. -->
+    <color name="ic_launcher_background">#0E7A18</color>
+</resources>

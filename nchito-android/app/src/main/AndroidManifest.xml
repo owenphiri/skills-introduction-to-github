@@ -5,7 +5,8 @@
 
     <application
         android:label="Nchito"
-        android:icon="@android:drawable/sym_def_app_icon"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
         <!-- Hands the exported Work Record PDF to WhatsApp, Gmail or Drive
