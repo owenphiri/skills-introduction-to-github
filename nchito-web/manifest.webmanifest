@@ -1,0 +1,19 @@
+{
+  "name": "Nchito — Zambia's gig & quick-task app",
+  "short_name": "Nchito",
+  "description": "Find local work, complete quick tasks, and get paid straight to MTN MoMo, Airtel Money or Zamtel Kwacha.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F4F5F7",
+  "theme_color": "#0E7A18",
+  "lang": "en-ZM",
+  "categories": ["business", "finance", "productivity"],
+  "icons": [
+    { "src": "brand/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "brand/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "brand/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "brand/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}
