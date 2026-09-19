@@ -1,0 +1,181 @@
+:root {
+  --ink: #16241c;
+  --muted: #5a6b62;
+  --line: #dfe6e1;
+  --bg: #ffffff;
+  --panel: #f4f7f5;
+  --accent: #0B6E4F;
+  --accent-soft: #e6f2eb;
+  --sun: #F6A828;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e8efe9;
+    --muted: #9db0a6;
+    --line: #2a3a32;
+    --bg: #111814;
+    --panel: #18211c;
+    --accent: #6CC79A;
+    --accent-soft: #1b2e24;
+    --sun: #F6A828;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.wrap { width: min(100% - 2rem, 62rem); margin-inline: auto; }
+
+.hero {
+  background: var(--accent-soft);
+  border-bottom: 1px solid var(--line);
+  padding: 3.5rem 0 3rem;
+}
+
+.logo { display:block; height:52px; width:auto; margin:0 0 1.5rem; }
+
+.eyebrow {
+  margin: 0 0 .5rem;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  font-size: .75rem;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+h1 { margin: 0 0 .75rem; font-size: clamp(2rem, 6vw, 3.25rem); line-height: 1.1; }
+h2 { margin: 0 0 .5rem; font-size: 1.35rem; }
+h3 { margin: 0 0 .35rem; font-size: 1rem; }
+
+.lead { margin: 0 0 1.25rem; font-size: 1.1rem; max-width: 46rem; color: var(--muted); }
+.price { margin: 0 0 .5rem; font-size: 1.15rem; }
+
+.dial { margin: 1.25rem 0 0; font-size: 1.05rem; }
+.dial code {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: .4rem;
+  padding: .3rem .6rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+main section { padding: 2.5rem 0; border-bottom: 1px solid var(--line); }
+main section:last-child { border-bottom: 0; }
+
+.muted { color: var(--muted); }
+.small { font-size: .85rem; }
+
+.grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  margin-top: 1.25rem;
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: .6rem;
+  padding: 1rem 1.1rem;
+}
+
+.card p { margin: 0; color: var(--muted); font-size: .95rem; }
+
+.dial code { border-color: var(--sun); }
+
+.card .tag {
+  display: inline-block;
+  margin-bottom: .4rem;
+  font-size: .7rem;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.card .amount { font-size: 1.5rem; font-weight: 700; margin: 0 0 .15rem; color: var(--ink); }
+
+.plain ul { padding-left: 1.1rem; margin: 1rem 0 0; }
+.plain li { margin-bottom: .6rem; color: var(--muted); }
+.plain li strong { color: var(--ink); }
+
+footer {
+  padding: 2rem 0 3rem;
+  background: var(--panel);
+  border-top: 1px solid var(--line);
+  font-size: .9rem;
+  color: var(--muted);
+}
+
+footer p { margin: 0 0 .35rem; }
+
+
+/* ------------------------------------------------- USSD simulator ---- */
+
+.sim {
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: minmax(0, 22rem) minmax(0, 1fr);
+  align-items: start;
+  margin-top: 1.25rem;
+}
+
+@media (max-width: 42rem) { .sim { grid-template-columns: 1fr; } }
+
+.sim-phone {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: .8rem;
+  padding: 1rem;
+}
+
+.sim-screen {
+  margin: 0 0 .75rem;
+  min-height: 9.5rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: .5rem;
+  padding: .75rem .85rem;
+  font: 500 .9rem/1.45 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color: var(--ink);
+}
+
+.sim-row { display: flex; gap: .5rem; flex-wrap: wrap; }
+
+.sim-row input {
+  flex: 1 1 5rem;
+  min-width: 0;
+  padding: .5rem .6rem;
+  border: 1px solid var(--line);
+  border-radius: .45rem;
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+}
+
+.sim-row button {
+  padding: .5rem .8rem;
+  border: 1px solid var(--line);
+  border-radius: .45rem;
+  background: var(--bg);
+  color: var(--ink);
+  font: 600 .9rem/1 inherit;
+  cursor: pointer;
+}
+
+.sim-row button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.sim-row button:disabled { opacity: .45; cursor: not-allowed; }
+
+.sim-path { margin: .6rem 0 0; font-size: .78rem; color: var(--muted); }
+.sim-path code { color: var(--ink); }
+.sim-note p { margin: 0 0 .6rem; }
