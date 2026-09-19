@@ -30,7 +30,11 @@ import com.owenphiri.nchito.ui.NchitoColors
 private const val REFERRAL_CODE = "OWEN260"
 
 @Composable
-fun ProfileScreen(vm: AppViewModel, onOpenWorkRecord: () -> Unit = {}) {
+fun ProfileScreen(
+    vm: AppViewModel,
+    onOpenWorkRecord: () -> Unit = {},
+    onOpenChannelAccess: () -> Unit = {},
+) {
     val context = LocalContext.current
 
     LazyColumn(
@@ -103,6 +107,21 @@ fun ProfileScreen(vm: AppViewModel, onOpenWorkRecord: () -> Unit = {}) {
                             context.startActivity(Intent.createChooser(share, "Share your code"))
                         }) { Text("Share") }
                     }
+                }
+            }
+        }
+        item {
+            Card(Modifier.fillMaxWidth().clickable(onClick = onOpenChannelAccess)) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Phone & USSD access", fontWeight = FontWeight.SemiBold)
+                    Text(if (vm.hasChannelPin) "PIN set" else "Set up",
+                         style = MaterialTheme.typography.bodySmall,
+                         color = if (vm.hasChannelPin) MaterialTheme.colorScheme.primary
+                                 else NchitoColors.Copper)
+                    Text("Use Nchito from any phone by dialling ${AppViewModel.USSD_SHORTCODE}, " +
+                         "with no data needed.",
+                         style = MaterialTheme.typography.labelSmall,
+                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }

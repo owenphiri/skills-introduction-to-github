@@ -85,6 +85,17 @@ struct ProfileView: View {
                 }
 
                 Section {
+                    NavigationLink {
+                        ChannelAccessView()
+                    } label: {
+                        HStack {
+                            Label("Phone & USSD access", systemImage: "phone.fill")
+                            Spacer()
+                            Text(state.hasChannelPIN ? "PIN set" : "Set up")
+                                .font(.caption)
+                                .foregroundStyle(state.hasChannelPIN ? Theme.green : Theme.copper)
+                        }
+                    }
                     Label("Notifications", systemImage: "bell.badge.fill")
                     Label("Low-data mode", systemImage: "antenna.radiowaves.left.and.right")
                     Label("Help & safety", systemImage: "lifepreserver.fill")

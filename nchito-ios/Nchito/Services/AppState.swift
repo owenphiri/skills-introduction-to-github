@@ -148,6 +148,29 @@ final class AppState: ObservableObject {
                                    sharing: workRecordSharing)
     }
 
+    // MARK: - USSD & WhatsApp access (INNOVATION.md §2.1)
+
+    /// Shown wherever the offline channels are mentioned, so the shortcode
+    /// lives in exactly one place.
+    static let ussdShortcode = "*384*62448#"
+
+    @Published private(set) var hasChannelPIN = false
+
+    private static let tooCommonPINs: Set<String> = [
+        "0000", "1111", "2222", "3333", "4444", "5555", "6666", "7777",
+        "8888", "9999", "1234", "4321", "1212", "0123",
+    ]
+
+    /// Production calls `set_channel_pin()`, which hashes with bcrypt and
+    /// applies the same rules. The PIN itself is never stored on the device.
+    @discardableResult
+    func setChannelPIN(_ pin: String) -> Bool {
+        guard pin.count == 4, pin.allSatisfy(\.isNumber),
+              !Self.tooCommonPINs.contains(pin) else { return false }
+        hasChannelPIN = true
+        return true
+    }
+
     // MARK: - Wallet
 
     /// Simulates an instant cash-out to the selected mobile money wallet.

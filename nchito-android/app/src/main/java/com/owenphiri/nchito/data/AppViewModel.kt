@@ -19,7 +19,18 @@ import java.util.UUID
  */
 class AppViewModel : ViewModel() {
 
-    companion object { const val DEMO_OTP = "123456" }
+    companion object {
+        const val DEMO_OTP = "123456"
+
+        /** Lives in one place so the shortcode never drifts between screens. */
+        const val USSD_SHORTCODE = "*384*62448#"
+
+        /** The handful guessed first; refused server-side too. */
+        val TOO_COMMON_PINS = setOf(
+            "0000", "1111", "2222", "3333", "4444", "5555", "6666", "7777",
+            "8888", "9999", "1234", "4321", "1212", "0123",
+        )
+    }
 
     // Auth
     var signedInPhone by mutableStateOf("")
@@ -93,6 +104,20 @@ class AppViewModel : ViewModel() {
         transactions.add(0, WalletTransaction(
             kind = TxKind.CASH_OUT, amountZMW = -amount,
             note = "Cash out to ${payoutProvider.label}"))
+        return true
+    }
+
+    // USSD & WhatsApp access (INNOVATION.md §2.1)
+    var hasChannelPin by mutableStateOf(false)
+        private set
+
+    /**
+     * Production calls `set_channel_pin()`, which hashes with bcrypt and applies
+     * the same rules. The PIN itself is never stored on the device.
+     */
+    fun setChannelPin(pin: String): Boolean {
+        if (pin.length != 4 || !pin.all { it.isDigit() } || pin in TOO_COMMON_PINS) return false
+        hasChannelPin = true
         return true
     }
 

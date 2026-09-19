@@ -25,6 +25,10 @@ Generate one with `openssl rand -base64 48`. Keep it out of the apps and out of 
 
 Rotating this secret invalidates every signature already issued, so treat it as permanent.
 
+## Offline channels
+
+USSD and WhatsApp run as Edge Functions in [`functions/`](functions/) — deployment, secrets and the security model are documented there. They use the service role and therefore bypass RLS, so they go through the `channel_*` RPCs in `0004_offline_channels.sql`, which authorise by phone number themselves.
+
 ## How the pieces map
 
 | Table / function | Used by |

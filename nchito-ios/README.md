@@ -16,6 +16,7 @@ Nchito ("work" in Nyanja) is a hyperlocal marketplace that connects Zambians who
 | **Chats** | In-app messaging between posters and workers, with gig context on every thread; start a chat from any gig's "Message" button. |
 | **Wallet** | Live balance, transaction history, instant cash-out sheet to any of the 3 mobile-money providers. |
 | **Profile** | Ratings, NRC verification tier, skills, the referral engine (K20/friend + 2% of their rewards), and sign-out. |
+| **Phone & USSD** | Reached from Profile — set the PIN that authorises cash-out from any handset by dialling `*384*62448#`, no app and no data needed ([channel functions](supabase/functions/)). |
 | **Work Record** | Reached from Profile — a signed, append-only history of every escrow-settled job, with a reliability score, opt-in share link, and one-tap **CV export as a PDF**. |
 
 Before the tabs, users onboard and **sign in with phone + OTP** — no passwords or email. With `SupabaseConfig.swift` filled in this runs against Supabase GoTrue; left empty the app stays in demo mode (any number, code `123456`).
@@ -66,5 +67,5 @@ No third-party dependencies — pure SwiftUI, so it builds out of the box. The a
 6. ~~Work Record~~ ✅ — signed, append-only work history with CV export and opt-in sharing (`0003_work_record.sql`; set the signing secret per `supabase/README.md`)
 7. Replace `MockDataService` reads/writes with Supabase queries (PostgREST) in `AppState`; upload proof photos to the `proofs` storage bucket.
 8. Mobile-money escrow + disbursements via an aggregator (Flutterwave/Lenco or direct MTN & Airtel APIs) from Edge Functions.
-9. The WhatsApp/USSD layer — the remaining headline item in [INNOVATION.md](INNOVATION.md).
+9. ~~WhatsApp/USSD layer~~ ✅ — Edge Functions in [`supabase/functions/`](supabase/functions/); deploy and register a shortcode per that README
 10. NRC verification (Smile ID), dispute flow, push notifications.

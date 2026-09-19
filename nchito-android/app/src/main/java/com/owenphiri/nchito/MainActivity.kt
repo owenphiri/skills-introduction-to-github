@@ -28,6 +28,7 @@ import androidx.navigation.compose.rememberNavController
 import com.owenphiri.nchito.data.AppViewModel
 import com.owenphiri.nchito.ui.NchitoTheme
 import com.owenphiri.nchito.ui.screens.AuthScreen
+import com.owenphiri.nchito.ui.screens.ChannelAccessScreen
 import com.owenphiri.nchito.ui.screens.ChatListScreen
 import com.owenphiri.nchito.ui.screens.ChatThreadScreen
 import com.owenphiri.nchito.ui.screens.GigDetailScreen
@@ -114,10 +115,17 @@ fun NchitoApp(vm: AppViewModel = viewModel()) {
             }
             composable("wallet") { WalletScreen(vm) }
             composable("profile") {
-                ProfileScreen(vm, onOpenWorkRecord = { navController.navigate("workrecord") })
+                ProfileScreen(
+                    vm,
+                    onOpenWorkRecord = { navController.navigate("workrecord") },
+                    onOpenChannelAccess = { navController.navigate("channelaccess") },
+                )
             }
             composable("workrecord") {
                 WorkRecordScreen(vm, onBack = { navController.popBackStack() })
+            }
+            composable("channelaccess") {
+                ChannelAccessScreen(vm, onBack = { navController.popBackStack() })
             }
         }
     }

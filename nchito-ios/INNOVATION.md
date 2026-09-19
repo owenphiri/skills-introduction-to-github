@@ -136,7 +136,7 @@ Ruthless order, assuming limited engineering:
 |---|---|---|
 | **1** ✅ | Loyalty-decaying commission (1.1) · Proof-of-work (4.1) · Fair-price band (5.1) | Cheap, mostly server-side, immediately defends revenue |
 | **2** 🔨 | ~~Work Record (1.2)~~ ✅ · Guarantees (1.3) · Offline-first (2.3) | The moat. Start accumulating the data asset early — it compounds |
-| **3** | WhatsApp bot then USSD (2.1) · Shareable earnings cards (5.2) | Growth phase; WhatsApp first (far cheaper than USSD shortcode licensing) |
+| **3** 🔨 | ~~WhatsApp bot then USSD (2.1)~~ ✅ · Shareable earnings cards (5.2) | Growth phase; WhatsApp first (far cheaper than USSD shortcode licensing) |
 | **4** | Agent liquidity map (3.1) · EWA (3.2) | Retention and the second revenue line, once transaction volume justifies it |
 | **5** | Self-serve B2B console (3.4) · Digital Chilimba (3.3) · Vernacular voice (2.2) | Scale plays that need a real user base behind them |
 
@@ -169,6 +169,20 @@ Migration `supabase/migrations/0003_work_record.sql` plus full iOS and Android i
 **The reliability score is deliberately explainable.** A transparent weighted sum of volume, punctuality, rating and tenure — anything a lender might price risk from has to be defensible line by line. Punctuality and rating are shrunk toward a neutral prior, because a flawless record over a single job is not evidence of anything; without that correction one perfect gig scored about the same as fifteen good ones.
 
 **The CV export is the payoff.** Both apps render an A4 PDF — standing, main areas of work, and every job with date, pay and rating — shareable straight into WhatsApp, Gmail or Drive. A cleaner or a rider can walk into a formal interview holding a document whose every line is backed by a payment that cleared, with a link the employer can check themselves.
+
+## The offline channels — shipped
+
+Migration `0004_offline_channels.sql` plus Edge Functions in `supabase/functions/`.
+
+**One engine, two transports.** `_shared/menu.ts` holds the whole state machine — gig browsing and applying, wallet and cash-out, quick tasks, work record, and signup for unknown numbers. The USSD and WhatsApp adapters only translate transport, so a feature added once appears on both and the channels cannot drift apart.
+
+**Everything is written to the USSD budget.** One screen is about 182 characters, with no scrolling, no images and no way back except re-dialling. Copy that fits USSD reads fine on WhatsApp; the reverse is not true, so the tighter constraint sets the format for both. The gig list reserves room for its own footer rather than letting a clamp eat it — losing "reply with a number" strands the user with no affordances at all — and it only offers gigs that actually fit, so option 3 can never point at something that never appeared.
+
+**Security had to be rebuilt for this path.** Edge Functions use the service role and bypass Row Level Security entirely, and there is no `auth.uid()` on a USSD call. So every database call goes through a `channel_*` RPC that authorises by phone number itself, and those RPCs are revoked from the client roles so a browser cannot call them with someone else's number. WhatsApp requests are verified against Meta's HMAC over the raw body; Africa's Talking doesn't sign callbacks, so a URL secret plus their IP allow-list stands in.
+
+**Money needs a PIN.** The network asserting a phone number is a decent identity claim, but a stolen handset would otherwise be a drained wallet, and mobile money here always asks for a PIN. It's set in the app, stored only as a bcrypt hash, and verified inside `channel_cash_out()` — never in the Edge Function — with attempt counting and lock-out held on the profile so closing a session cannot reset them.
+
+**Signup works from a feature phone.** An unknown number is walked through name and town and gets a real account, with the auth user created via the admin API and the phone treated as already confirmed, since the network proved they hold it. This is the actual unlock: someone with no smartphone and no data can now join Nchito at all.
 
 ## Sources
 
