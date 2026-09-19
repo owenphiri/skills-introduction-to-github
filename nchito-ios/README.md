@@ -4,6 +4,8 @@
 
 Nchito ("work" in Nyanja) is a hyperlocal marketplace that connects Zambians who need everyday tasks done — deliveries, tutoring, repairs, design, events — with workers who get paid **straight to MTN MoMo, Airtel Money or Zamtel Kwacha**, plus a Quick Tasks feed (surveys, app testing, data labelling) anyone can earn from on day one.
 
+> **Try it now: https://nchito-nu.vercel.app** — the PWA runs the same demo data as this app, installs to a home screen, and works offline.
+>
 > Why this niche, how it monetizes, and the go-to-market plan: see **[STRATEGY.md](STRATEGY.md)**.
 > What to build next so competitors can't copy us: see **[INNOVATION.md](INNOVATION.md)**.
 
@@ -22,6 +24,8 @@ Nchito ("work" in Nyanja) is a hyperlocal marketplace that connects Zambians who
 | **Work Record** | Reached from Profile — a signed, append-only history of every escrow-settled job, with a reliability score, opt-in share link, and one-tap **CV export as a PDF**. |
 
 Before the tabs, users onboard and **sign in with phone + OTP** — no passwords or email. With `SupabaseConfig.swift` filled in this runs against Supabase GoTrue; left empty the app stays in demo mode (any number, code `123456`).
+
+The web PWA at [`../nchito-web/`](../nchito-web/) is the quickest way to see all of this working — no toolchain required.
 
 Key mechanics already modelled in code: **loyalty-decaying commission** (10% → 7% → 5% as a poster and worker build history, so going off-platform stops paying), **proof-of-work capture** gating escrow release, **fair-price bands** from comparable settled gigs, boost monetization, referral earnings, and verification tiers. See [INNOVATION.md](INNOVATION.md) for why each exists.
 
@@ -47,7 +51,7 @@ nchito-ios/
     └── Views/               # Onboarding, auth, tabs, gig detail, post, chat, wallet, profile
 ```
 
-The Android port lives in [`../nchito-android/`](../nchito-android/) — same product spec in Jetpack Compose.
+The Android port lives in [`../nchito-android/`](../nchito-android/) and the web PWA in [`../nchito-web/`](../nchito-web/) — same product spec, three platforms.
 
 ## Build & run
 
@@ -76,7 +80,7 @@ Both go through the same `NchitoRepository` protocol, so demo mode exercises the
 
 ### Going live
 
-1. Apply all five migrations in [`supabase/migrations/`](supabase/migrations/) in order, and set the Work Record signing secret (see [`supabase/README.md`](supabase/README.md)).
+1. Apply all six migrations in [`supabase/migrations/`](supabase/migrations/) in order, and set the Work Record signing secret (see [`supabase/README.md`](supabase/README.md)).
 2. Enable phone auth with an SMS provider that reaches +260.
 3. Create a **`proofs`** storage bucket (private) for proof-of-work photos.
 4. Paste your project URL and anon key into `SupabaseConfig.swift`.

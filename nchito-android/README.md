@@ -1,5 +1,7 @@
 # Nchito Android 🇿🇲
 
+**Try it now: https://nchito-nu.vercel.app** — the [web PWA](../nchito-web/) runs the same demo data in a browser.
+
 Jetpack Compose port of the [Nchito iOS app](../nchito-ios/) — same product spec, same Zambian-flag design language, same mock data, targeting the ~90% of Zambian smartphones that run Android.
 
 ## What's included

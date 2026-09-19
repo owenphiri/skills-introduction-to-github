@@ -13,7 +13,9 @@ cd nchito-web
 python3 -m http.server 8000   # or any static server
 ```
 
-Deployed on Vercel from this directory — see the project README for the live link.
+**Live:** https://nchito-nu.vercel.app
+
+Deployed on Vercel from `nchito-web/` on this branch. Pushing to the branch redeploys it.
 
 ## Why vanilla
 
