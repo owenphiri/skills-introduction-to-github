@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Owen &amp; Beauty — The Bold &amp; The Beautiful | 12.12.2026</title>
+  <meta name="description" content="Join us to celebrate the wedding of Owen Phiri & Beauty Phiri — The Bold & The Beautiful. Kasama Church of Christ, Kasama, Zambia. RSVP, invitation cards & details." />
+  <meta name="theme-color" content="#101830" />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="Owen &amp; Beauty — The Bold &amp; The Beautiful" />
+  <meta property="og:description" content="You are warmly invited to celebrate our wedding at Kasama Church of Christ, Kasama, Zambia. RSVP online." />
+  <meta property="og:type" content="website" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Lato:wght@300;400;700&family=Great+Vibes&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%92%8D%3C/text%3E%3C/svg%3E" />
+
+  <!-- Flutterwave inline checkout (Zambia mobile money) -->
+  <script src="https://checkout.flutterwave.com/v3.js" defer></script>
+
+  <!-- Defined before any <img onerror> can fire: swaps missing photos for styled placeholders -->
+  <script>
+    window.makePlaceholder = function (label) {
+      var div = document.createElement("div");
+      div.className = "ph";
+      div.textContent = label;
+      return div;
+    };
+  </script>
+</head>
+<body>
+
+  <!-- ============ HEADER ============ -->
+  <header class="site-header" id="siteHeader">
+    <nav class="nav container">
+      <a href="#hero" class="nav-brand">O <span class="amp">&amp;</span> B</a>
+      <button class="nav-toggle" id="navToggle" aria-label="Open menu" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="#story">Our Story</a></li>
+        <li><a href="#details">Details</a></li>
+        <li><a href="#cards">Invitations</a></li>
+        <li><a href="#rsvp">RSVP</a></li>
+        <li><a href="#gallery">Gallery</a></li>
+        <li><a href="#contact">Contact</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <!-- ============ HERO ============ -->
+  <section class="hero" id="hero">
+    <div class="hero-overlay"></div>
+    <div class="hero-content container">
+      <p class="hero-eyebrow reveal">Together with their families</p>
+      <h1 class="hero-names reveal">
+        <span class="script-name">Owen</span>
+        <span class="hero-amp">&amp;</span>
+        <span class="script-name">Beauty</span>
+      </h1>
+      <p class="hero-tagline reveal">The Bold <span class="gold">&amp;</span> The Beautiful</p>
+      <p class="hero-date reveal" id="heroDateText">Saturday, 12 December 2026 · Kasama, Zambia</p>
+
+      <div class="countdown reveal" id="countdown" aria-label="Countdown to the wedding">
+        <div class="count-box"><span id="cdDays">--</span><small>Days</small></div>
+        <div class="count-box"><span id="cdHours">--</span><small>Hours</small></div>
+        <div class="count-box"><span id="cdMins">--</span><small>Minutes</small></div>
+        <div class="count-box"><span id="cdSecs">--</span><small>Seconds</small></div>
+      </div>
+
+      <div class="hero-cta reveal">
+        <a href="#rsvp" class="btn btn-gold">RSVP Now</a>
+        <a href="#details" class="btn btn-outline">Wedding Details</a>
+      </div>
+    </div>
+    <a href="#story" class="scroll-hint" aria-label="Scroll down">
+      <span class="chevron"></span>
+    </a>
+  </section>
+
+  <!-- ============ OUR STORY ============ -->
+  <section class="section" id="story">
+    <div class="container narrow">
+      <p class="section-eyebrow reveal">A Love Written in the Stars</p>
+      <h2 class="section-title reveal">Our Story</h2>
+      <div class="flourish reveal"><span></span><em>❦</em><span></span></div>
+      <div class="story-grid">
+        <div class="story-photo reveal">
+          <div class="photo-frame">
+            <img src="img/couple-story.jpg" alt="Owen and Beauty together"
+                 onerror="this.replaceWith(window.makePlaceholder('O ♥ B'))" />
+          </div>
+        </div>
+        <div class="story-text reveal">
+          <p>
+            Some love stories whisper; ours arrived boldly. Owen and Beauty first met at a
+            church fellowship in Kasama — he was the confident voice leading the discussion,
+            she was the radiant smile that made him forget his next point. One conversation
+            after the service turned into hours, and hours turned into a friendship neither
+            of us wanted to end.
+          </p>
+          <p>
+            Through seasons of laughter, prayer, long phone calls and shared dreams, we
+            discovered that we are better, braver and kinder together. Owen brought the
+            boldness; Beauty brought the beauty — and God wove the two into one story.
+          </p>
+          <p>
+            On a quiet evening overlooking the Chishimba Falls, Owen knelt down and asked
+            the question he had carried in his heart for years. Beauty said <em>yes</em>
+            before he could finish. Now we joyfully invite you, our family and friends,
+            to witness the day we become one — <strong>The Bold &amp; The Beautiful</strong>.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ EVENT DETAILS ============ -->
+  <section class="section section-dark" id="details">
+    <div class="container">
+      <p class="section-eyebrow reveal">When &amp; Where</p>
+      <h2 class="section-title reveal">Event Details</h2>
+      <div class="flourish reveal"><span></span><em>❦</em><span></span></div>
+
+      <div class="details-grid">
+        <article class="detail-card reveal">
+          <div class="detail-icon">⛪</div>
+          <h3>Church Ceremony</h3>
+          <p class="detail-time">Saturday, 12 December 2026<br />10:00 – 12:30</p>
+          <p class="detail-venue"><strong>Kasama Church of Christ</strong><br />Kasama, Northern Province, Zambia</p>
+          <a class="detail-link" href="https://www.google.com/maps/search/?api=1&query=Kasama+Church+of+Christ+Kasama+Zambia" target="_blank" rel="noopener">Open in Google Maps →</a>
+        </article>
+
+        <article class="detail-card reveal">
+          <div class="detail-icon">🥂</div>
+          <h3>Reception</h3>
+          <p class="detail-time">Saturday, 12 December 2026<br />14:00 – Late</p>
+          <p class="detail-venue"><strong>Kasama — venue shared with confirmed guests</strong><br />Dinner, speeches &amp; dancing</p>
+          <a class="detail-link" href="#rsvp">RSVP to receive directions →</a>
+        </article>
+
+        <article class="detail-card reveal">
+          <div class="detail-icon">🙏</div>
+          <h3>Church Programme</h3>
+          <ul class="schedule">
+            <li><span>Thu 10 Dec · 18:00</span> Pre-wedding prayer service</li>
+            <li><span>Fri 11 Dec · 16:00</span> Wedding rehearsal &amp; choir practice</li>
+            <li><span>Sat 12 Dec · 09:30</span> Guests seated at the church</li>
+            <li><span>Sun 13 Dec · 09:00</span> Thanksgiving service</li>
+          </ul>
+        </article>
+      </div>
+
+      <p class="dress-code reveal">Dress code — <strong>Bold &amp; Beautiful:</strong> touches of <span class="swatch gold-sw"></span> gold, <span class="swatch ivory-sw"></span> ivory &amp; <span class="swatch navy-sw"></span> deep navy.</p>
+    </div>
+  </section>
+
+  <!-- ============ INVITATION CARDS ============ -->
+  <section class="section" id="cards">
+    <div class="container">
+      <p class="section-eyebrow reveal">Reserve Your Seat</p>
+      <h2 class="section-title reveal">Invitation Cards</h2>
+      <div class="flourish reveal"><span></span><em>❦</em><span></span></div>
+      <p class="section-intro reveal">
+        Seats at the reception are by invitation card. Choose a card below, pay securely with
+        <strong>Airtel Money, MTN MoMo or Zamtel Kwacha</strong>, and your card will be
+        reserved in your name and delivered via WhatsApp.
+      </p>
+
+      <div class="cards-grid" id="cardsGrid">
+        <article class="invite-card reveal" data-tier="single" data-price="150">
+          <div class="invite-ribbon">Classic</div>
+          <h3>Single Card</h3>
+          <p class="invite-price"><span class="currency">K</span>150</p>
+          <ul>
+            <li>Admits <strong>1 guest</strong></li>
+            <li>Church ceremony &amp; reception</li>
+            <li>Three-course dinner</li>
+            <li>Digital card via WhatsApp</li>
+          </ul>
+          <button class="btn btn-navy buy-btn" data-tier="Single Card" data-amount="150">Buy — K150</button>
+        </article>
+
+        <article class="invite-card featured reveal" data-tier="double" data-price="250">
+          <div class="invite-ribbon gold-ribbon">Most Popular</div>
+          <h3>Double Card</h3>
+          <p class="invite-price"><span class="currency">K</span>250</p>
+          <ul>
+            <li>Admits <strong>2 guests</strong></li>
+            <li>Church ceremony &amp; reception</li>
+            <li>Three-course dinner for two</li>
+            <li>Priority seating</li>
+            <li>Digital card via WhatsApp</li>
+          </ul>
+          <button class="btn btn-gold buy-btn" data-tier="Double Card" data-amount="250">Buy — K250</button>
+        </article>
+
+        <article class="invite-card reveal" data-tier="vip" data-price="500">
+          <div class="invite-ribbon">VIP</div>
+          <h3>VIP Couple Card</h3>
+          <p class="invite-price"><span class="currency">K</span>500</p>
+          <ul>
+            <li>Admits <strong>2 guests — VIP table</strong></li>
+            <li>Front-row church seating</li>
+            <li>Premium dinner &amp; drinks</li>
+            <li>Photo with the couple</li>
+            <li>Printed keepsake card</li>
+          </ul>
+          <button class="btn btn-navy buy-btn" data-tier="VIP Couple Card" data-amount="500">Buy — K500</button>
+        </article>
+      </div>
+
+      <div class="momo-badges reveal" aria-label="Accepted mobile money">
+        <span class="momo airtel">Airtel Money</span>
+        <span class="momo mtn">MTN MoMo</span>
+        <span class="momo zamtel">Zamtel Kwacha</span>
+      </div>
+      <p class="secure-note reveal">🔒 Payments are processed securely by Flutterwave over HTTPS. We never see your PIN.</p>
+    </div>
+  </section>
+
+  <!-- ============ RSVP ============ -->
+  <section class="section section-dark" id="rsvp">
+    <div class="container narrow">
+      <p class="section-eyebrow reveal">Kindly Respond</p>
+      <h2 class="section-title reveal">RSVP</h2>
+      <div class="flourish reveal"><span></span><em>❦</em><span></span></div>
+      <p class="section-intro reveal">Please respond by <strong>15 November 2026</strong> so we can prepare a seat for you.</p>
+
+      <form class="rsvp-form reveal" id="rsvpForm" novalidate>
+        <div class="form-row">
+          <div class="form-field">
+            <label for="rsvpName">Full name *</label>
+            <input type="text" id="rsvpName" name="name" required autocomplete="name" placeholder="e.g. Chanda Mwansa" />
+          </div>
+          <div class="form-field">
+            <label for="rsvpPhone">Mobile number *</label>
+            <input type="tel" id="rsvpPhone" name="phone" required inputmode="tel" autocomplete="tel" placeholder="e.g. 0977 123 456" />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-field">
+            <label for="rsvpEmail">Email address</label>
+            <input type="email" id="rsvpEmail" name="email" autocomplete="email" placeholder="you@example.com" />
+          </div>
+          <div class="form-field">
+            <label for="rsvpGuests">Number of guests *</label>
+            <select id="rsvpGuests" name="guests" required>
+              <option value="1">1 guest</option>
+              <option value="2">2 guests</option>
+              <option value="3">3 guests</option>
+              <option value="4">4 guests</option>
+            </select>
+          </div>
+        </div>
+
+        <fieldset class="form-field">
+          <legend>Which events will you attend? *</legend>
+          <div class="check-grid">
+            <label class="check"><input type="checkbox" name="events" value="Church ceremony" checked /> <span>Church ceremony (Sat 10:00)</span></label>
+            <label class="check"><input type="checkbox" name="events" value="Reception" checked /> <span>Reception (Sat 14:00)</span></label>
+            <label class="check"><input type="checkbox" name="events" value="Pre-wedding prayer service" /> <span>Prayer service (Thu 18:00)</span></label>
+            <label class="check"><input type="checkbox" name="events" value="Thanksgiving service" /> <span>Thanksgiving (Sun 09:00)</span></label>
+          </div>
+        </fieldset>
+
+        <div class="form-field">
+          <label for="rsvpMessage">Message for the couple (optional)</label>
+          <textarea id="rsvpMessage" name="message" rows="3" placeholder="A blessing, a song request, dietary needs…"></textarea>
+        </div>
+
+        <p class="form-status" id="rsvpStatus" role="status" aria-live="polite"></p>
+        <button type="submit" class="btn btn-gold btn-block">Send RSVP via WhatsApp</button>
+        <p class="form-hint">Your RSVP opens in WhatsApp so the couple receives it instantly — no account needed on this site.</p>
+      </form>
+    </div>
+  </section>
+
+  <!-- ============ GALLERY ============ -->
+  <section class="section" id="gallery">
+    <div class="container">
+      <p class="section-eyebrow reveal">Moments We Treasure</p>
+      <h2 class="section-title reveal">Gallery</h2>
+      <div class="flourish reveal"><span></span><em>❦</em><span></span></div>
+      <div class="gallery-grid" id="galleryGrid">
+        <figure class="gallery-item reveal"><img src="img/gallery-1.jpg" alt="Owen and Beauty — engagement" loading="lazy" onerror="this.replaceWith(window.makePlaceholder('The Proposal'))" /></figure>
+        <figure class="gallery-item tall reveal"><img src="img/gallery-2.jpg" alt="Owen and Beauty — traditional ceremony" loading="lazy" onerror="this.replaceWith(window.makePlaceholder('Ichilanga Mulilo'))" /></figure>
+        <figure class="gallery-item reveal"><img src="img/gallery-3.jpg" alt="Owen and Beauty at Chishimba Falls" loading="lazy" onerror="this.replaceWith(window.makePlaceholder('Chishimba Falls'))" /></figure>
+        <figure class="gallery-item reveal"><img src="img/gallery-4.jpg" alt="Owen and Beauty — photoshoot" loading="lazy" onerror="this.replaceWith(window.makePlaceholder('Forever Begins'))" /></figure>
+        <figure class="gallery-item tall reveal"><img src="img/gallery-5.jpg" alt="Owen and Beauty laughing together" loading="lazy" onerror="this.replaceWith(window.makePlaceholder('Pure Joy'))" /></figure>
+        <figure class="gallery-item reveal"><img src="img/gallery-6.jpg" alt="Owen and Beauty — sunset" loading="lazy" onerror="this.replaceWith(window.makePlaceholder('Golden Hour'))" /></figure>
+      </div>
+      <p class="gallery-note reveal">Add your photos to <code>wedding/img/</code> as <code>gallery-1.jpg … gallery-6.jpg</code> and <code>couple-story.jpg</code>.</p>
+    </div>
+  </section>
+
+  <!-- ============ CONTACT ============ -->
+  <section class="section section-dark contact" id="contact">
+    <div class="container narrow center">
+      <p class="section-eyebrow reveal">We'd Love to Hear From You</p>
+      <h2 class="section-title reveal">Contact Us</h2>
+      <div class="flourish reveal"><span></span><em>❦</em><span></span></div>
+      <p class="section-intro reveal">
+        Questions about invitations, payments, directions or the programme?
+        Chat with us directly on WhatsApp — it's the fastest way to reach us.
+      </p>
+      <a class="btn btn-whatsapp reveal" id="contactWhatsApp" href="#" target="_blank" rel="noopener">
+        <svg viewBox="0 0 32 32" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M16 3C9.4 3 4 8.4 4 15c0 2.6.8 5 2.3 7L4 29l7.2-2.2c1.9 1 4 1.6 6.3 1.6 6.6 0 12-5.4 12-12S22.6 3 16 3zm0 21.8c-2 0-3.9-.6-5.5-1.6l-.4-.2-4.3 1.3 1.4-4.1-.3-.4C5.7 18.3 5 16.7 5 15 5 9 9.9 4 16 4s11 5 11 11-4.9 9.8-11 9.8zm6-7.3c-.3-.2-1.9-1-2.2-1.1-.3-.1-.5-.2-.7.2-.2.3-.8 1.1-1 1.3-.2.2-.4.2-.7.1-.3-.2-1.4-.5-2.6-1.6-1-.9-1.6-1.9-1.8-2.2-.2-.3 0-.5.1-.7l.5-.6c.2-.2.2-.3.3-.6.1-.2 0-.4 0-.6-.1-.2-.7-1.8-1-2.4-.3-.6-.5-.5-.7-.6h-.6c-.2 0-.6.1-.9.4-.3.3-1.1 1.1-1.1 2.7s1.2 3.1 1.3 3.3c.2.2 2.3 3.6 5.7 5 .8.3 1.4.5 1.9.7.8.2 1.5.2 2.1.1.6-.1 1.9-.8 2.2-1.5.3-.8.3-1.4.2-1.5-.1-.2-.3-.3-.6-.4z"/></svg>
+        Chat on WhatsApp
+      </a>
+      <div class="contact-alt reveal">
+        <p>Owen &amp; Beauty Wedding Committee · Kasama, Zambia</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FOOTER ============ -->
+  <footer class="site-footer">
+    <div class="container center">
+      <p class="footer-names">Owen <span class="amp">&amp;</span> Beauty</p>
+      <p class="footer-tag">The Bold &amp; The Beautiful · 12.12.2026 · Kasama, Zambia</p>
+      <p class="footer-verse">"Therefore what God has joined together, let no one separate." — Mark 10:9</p>
+    </div>
+  </footer>
+
+  <!-- ============ FLOATING WHATSAPP BUTTON ============ -->
+  <a href="#" id="waFloat" class="wa-float" target="_blank" rel="noopener" aria-label="Chat with us on WhatsApp">
+    <svg viewBox="0 0 32 32" width="30" height="30" aria-hidden="true"><path fill="currentColor" d="M16 3C9.4 3 4 8.4 4 15c0 2.6.8 5 2.3 7L4 29l7.2-2.2c1.9 1 4 1.6 6.3 1.6 6.6 0 12-5.4 12-12S22.6 3 16 3zm0 21.8c-2 0-3.9-.6-5.5-1.6l-.4-.2-4.3 1.3 1.4-4.1-.3-.4C5.7 18.3 5 16.7 5 15 5 9 9.9 4 16 4s11 5 11 11-4.9 9.8-11 9.8zm6-7.3c-.3-.2-1.9-1-2.2-1.1-.3-.1-.5-.2-.7.2-.2.3-.8 1.1-1 1.3-.2.2-.4.2-.7.1-.3-.2-1.4-.5-2.6-1.6-1-.9-1.6-1.9-1.8-2.2-.2-.3 0-.5.1-.7l.5-.6c.2-.2.2-.3.3-.6.1-.2 0-.4 0-.6-.1-.2-.7-1.8-1-2.4-.3-.6-.5-.5-.7-.6h-.6c-.2 0-.6.1-.9.4-.3.3-1.1 1.1-1.1 2.7s1.2 3.1 1.3 3.3c.2.2 2.3 3.6 5.7 5 .8.3 1.4.5 1.9.7.8.2 1.5.2 2.1.1.6-.1 1.9-.8 2.2-1.5.3-.8.3-1.4.2-1.5-.1-.2-.3-.3-.6-.4z"/></svg>
+  </a>
+
+  <!-- ============ PAYMENT MODAL ============ -->
+  <div class="modal-backdrop" id="payModal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="payTitle">
+      <button class="modal-close" id="payClose" aria-label="Close">&times;</button>
+      <h3 id="payTitle">Reserve your card</h3>
+      <p class="modal-sub" id="paySummary"></p>
+      <form id="payForm" novalidate>
+        <div class="form-field">
+          <label for="payName">Full name *</label>
+          <input type="text" id="payName" required placeholder="Name on the invitation card" />
+        </div>
+        <div class="form-field">
+          <label for="payPhone">Mobile money number *</label>
+          <input type="tel" id="payPhone" required inputmode="tel" placeholder="e.g. 0977 123 456" />
+          <small>You'll receive a payment prompt on this number — approve it with your PIN.</small>
+        </div>
+        <div class="form-field">
+          <label for="payEmail">Email (for your receipt)</label>
+          <input type="email" id="payEmail" placeholder="you@example.com" />
+        </div>
+        <div class="form-field">
+          <label for="payNetwork">Network *</label>
+          <select id="payNetwork" required>
+            <option value="airtel">Airtel Money</option>
+            <option value="mtn">MTN MoMo</option>
+            <option value="zamtel">Zamtel Kwacha</option>
+          </select>
+        </div>
+        <p class="form-status" id="payStatus" role="status" aria-live="polite"></p>
+        <button type="submit" class="btn btn-gold btn-block" id="payBtn">Pay now</button>
+        <p class="form-hint">Secured by Flutterwave · You will confirm on your phone. Having trouble? <a href="#" id="payWhatsAppFallback" target="_blank" rel="noopener">Pay via WhatsApp instead</a>.</p>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/main.js" defer></script>
+</body>
+</html>

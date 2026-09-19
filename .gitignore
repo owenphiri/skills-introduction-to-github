@@ -41,3 +41,6 @@ node_modules/
 data/*.db
 data/*.db-*
 .env
+
+# Wedding RSVP backup store — contains guest personal data, never commit
+wedding/server-example/rsvps.json
