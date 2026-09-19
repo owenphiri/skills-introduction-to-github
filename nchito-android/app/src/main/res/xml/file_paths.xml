@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Exposes only cache/shared/, where the exported CV is written, so sharing
+     a PDF never grants access to the rest of the app's storage. -->
+<paths>
+    <cache-path name="shared" path="shared/" />
+</paths>

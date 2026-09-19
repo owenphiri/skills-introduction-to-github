@@ -1,5 +1,7 @@
 package com.owenphiri.nchito.data
 
+import java.util.Date
+
 // Same Lusaka/Kitwe/Ndola seed data as the iOS app's MockDataService.
 object MockData {
 
@@ -109,6 +111,52 @@ object MockData {
                 status = GigStatus.PAID)
         }
     }
+
+    /**
+     * A believable four-month history for the demo user, matching the 27
+     * completed gigs on their profile. Signatures are placeholders here;
+     * production values come from `release_escrow()`.
+     */
+    val workRecordEntries: List<WorkRecordEntry> = listOf(
+        Triple("Design 5 social media posters for a salon", GigCategory.DIGITAL, 400.0) to Triple(3, 5.0, true),
+        Triple("Deliver parcel to Chilenje", GigCategory.DELIVERY, 120.0) to Triple(6, 4.5, true),
+        Triple("Serve at a kitchen party in Avondale", GigCategory.EVENTS, 250.0) to Triple(9, 5.0, true),
+        Triple("Menu flyers for a takeaway", GigCategory.DIGITAL, 300.0) to Triple(12, 4.5, true),
+        Triple("Grade 7 maths tutoring, 4 sessions", GigCategory.TUTORING, 480.0) to Triple(16, 5.0, true),
+        Triple("Collect documents from Manda Hill", GigCategory.DELIVERY, 100.0) to Triple(19, 4.0, false),
+        Triple("Logo and business cards for a barber", GigCategory.DIGITAL, 450.0) to Triple(23, 5.0, true),
+        Triple("Deep clean after a move-out", GigCategory.HOME_SERVICES, 500.0) to Triple(27, 4.5, true),
+        Triple("Data entry: 300 customer records", GigCategory.DIGITAL, 350.0) to Triple(31, 4.5, true),
+        Triple("Deliver cake across town", GigCategory.DELIVERY, 150.0) to Triple(35, 5.0, true),
+        Triple("Weekend waiter, corporate function", GigCategory.EVENTS, 300.0) to Triple(40, 4.5, true),
+        Triple("Weed and replant front garden", GigCategory.FARM, 180.0) to Triple(45, 4.0, true),
+        Triple("Grade 9 maths tutoring, 6 sessions", GigCategory.TUTORING, 720.0) to Triple(52, 5.0, true),
+        Triple("Instagram posts for a boutique", GigCategory.DIGITAL, 400.0) to Triple(58, 5.0, true),
+        Triple("Deliver medication to Kabulonga", GigCategory.DELIVERY, 130.0) to Triple(64, 5.0, true),
+        Triple("Office deep clean, 2 floors", GigCategory.HOME_SERVICES, 600.0) to Triple(71, 4.5, true),
+        Triple("Birthday party setup and serving", GigCategory.EVENTS, 280.0) to Triple(78, 4.5, true),
+        Triple("Poster set for a church event", GigCategory.DIGITAL, 320.0) to Triple(85, 5.0, true),
+        Triple("Deliver 3 parcels, Cairo Road run", GigCategory.DELIVERY, 200.0) to Triple(92, 4.5, true),
+        Triple("Primary school English tutoring", GigCategory.TUTORING, 400.0) to Triple(99, 5.0, true),
+        Triple("Vegetable beds prepared for planting", GigCategory.FARM, 200.0) to Triple(106, 4.0, false),
+        Triple("Product photos edited for an online shop", GigCategory.DIGITAL, 380.0) to Triple(112, 4.5, true),
+        Triple("Deliver documents to Longacres", GigCategory.DELIVERY, 110.0) to Triple(118, 5.0, true),
+        Triple("Post-event cleanup crew", GigCategory.HOME_SERVICES, 350.0) to Triple(119, 4.5, true),
+        Triple("Flyers for a hardware shop", GigCategory.DIGITAL, 280.0) to Triple(120, 4.5, true),
+        Triple("Grade 8 maths tutoring, 3 sessions", GigCategory.TUTORING, 360.0) to Triple(121, 5.0, true),
+        Triple("Deliver groceries to Woodlands", GigCategory.DELIVERY, 140.0) to Triple(122, 5.0, true),
+    ).map { (job, meta) ->
+        val (title, category, pay) = job
+        val (daysAgo, rating, onTime) = meta
+        WorkRecordEntry(
+            title = title, category = category, city = "Lusaka", payZMW = pay,
+            completedAt = Date(System.currentTimeMillis() - daysAgo * 86_400_000L),
+            posterRating = rating, onTime = onTime,
+            signature = "demo-unsigned", isVerified = true)
+    }
+
+    /** Roughly four months of tenure, matching the iOS demo profile. */
+    val memberSince: Date = Date(System.currentTimeMillis() - 122L * 86_400_000L)
 
     /**
      * The salon poster gig is mid-flight with a "before" photo already taken,

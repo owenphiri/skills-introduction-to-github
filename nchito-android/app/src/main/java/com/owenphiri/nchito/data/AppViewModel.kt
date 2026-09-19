@@ -96,6 +96,41 @@ class AppViewModel : ViewModel() {
         return true
     }
 
+    // Work Record (INNOVATION.md §1.2)
+    val workRecord = mutableStateListOf<WorkRecordEntry>().apply { addAll(MockData.workRecordEntries) }
+
+    /**
+     * Private until the worker opts in — employment history is sensitive, and
+     * the slug can be rotated to revoke a link already handed out.
+     */
+    var workRecordSharing by mutableStateOf(WorkRecordSharing())
+        private set
+
+    val workRecordSummary: WorkRecordSummary
+        get() = WorkRecordService.summary(workRecord, MockData.memberSince)
+
+    fun setWorkRecordPublic(isPublic: Boolean) {
+        workRecordSharing = workRecordSharing.copy(isPublic = isPublic)
+    }
+
+    /** Issues a new slug, which invalidates any link already shared. */
+    fun rotateWorkRecordLink() {
+        val alphabet = "abcdefghijklmnopqrstuvwxyz0123456789"
+        workRecordSharing = workRecordSharing.copy(
+            slug = (1..8).map { alphabet.random() }.joinToString(""))
+    }
+
+    fun exportWorkRecordCv(context: android.content.Context) = CvExporter.export(
+        context = context,
+        fullName = "Owen Phiri",
+        city = "Lusaka",
+        phone = signedInPhone.ifEmpty { "+260 97 000 0000" },
+        verification = "NRC Verified",
+        entries = workRecord,
+        summary = workRecordSummary,
+        sharing = workRecordSharing,
+    )
+
     // Proof of work (INNOVATION.md §4.1)
     val proofPhotos = mutableStateListOf<ProofPhoto>().apply { addAll(MockData.proofPhotos) }
 

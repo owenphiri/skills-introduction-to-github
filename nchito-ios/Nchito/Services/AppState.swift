@@ -17,6 +17,12 @@ final class AppState: ObservableObject {
     @Published var messages: [ChatMessage] = MockDataService.messages
     @Published var proofPhotos: [ProofPhoto] = MockDataService.proofPhotos
 
+    @Published var workRecord: [WorkRecordEntry] = MockDataService.workRecordEntries
+
+    /// Private until the worker opts in — employment history is sensitive, and
+    /// the slug can be rotated to revoke a link already handed out.
+    @Published var workRecordSharing = WorkRecordSharing(isPublic: false, slug: "k7mq2xrp")
+
     /// Settled gigs kept for price comparison only — never shown in the feed.
     let settledGigs: [Gig] = MockDataService.settledGigs
 
@@ -118,6 +124,28 @@ final class AppState: ObservableObject {
     /// optimistic open listings can't drag the suggested rate around.
     func priceBand(for category: GigCategory, city: String) -> PriceBand? {
         PricingService.band(for: category, city: city, in: settledGigs)
+    }
+
+    // MARK: - Work Record (INNOVATION.md §1.2)
+
+    var workRecordSummary: WorkRecordSummary {
+        WorkRecordService.summary(for: workRecord, memberSince: user.joinedDate)
+    }
+
+    func setWorkRecordPublic(_ isPublic: Bool) {
+        workRecordSharing.isPublic = isPublic
+    }
+
+    /// Issues a new slug, which invalidates any link already shared.
+    func rotateWorkRecordLink() {
+        let alphabet = "abcdefghijklmnopqrstuvwxyz0123456789"
+        workRecordSharing.slug = String((0..<8).map { _ in alphabet.randomElement()! })
+    }
+
+    func exportWorkRecordCV() -> URL? {
+        WorkRecordService.exportCV(user: user, entries: workRecord,
+                                   summary: workRecordSummary,
+                                   sharing: workRecordSharing)
     }
 
     // MARK: - Wallet

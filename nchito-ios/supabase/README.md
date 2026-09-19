@@ -13,6 +13,18 @@ One migration sets up the entire MVP backend: profiles auto-created on phone-OTP
 
 Until you fill those in, both apps run in **demo mode** (any phone number, OTP `123456`, mock data) so the full product remains demoable with zero setup.
 
+## Required: the Work Record signing secret
+
+Work Record entries are HMAC-signed so a shared record can be proven unaltered. Set the secret once, before applying `0003_work_record.sql`:
+
+```sql
+alter database postgres set app.settings.work_record_secret = '<random 32+ byte string>';
+```
+
+Generate one with `openssl rand -base64 48`. Keep it out of the apps and out of version control — it never leaves the database. `release_escrow()` raises rather than writing an unsigned entry if it's missing, because a record that looks verifiable but proves nothing is worse than no record at all.
+
+Rotating this secret invalidates every signature already issued, so treat it as permanent.
+
 ## How the pieces map
 
 | Table / function | Used by |
@@ -21,7 +33,11 @@ Until you fill those in, both apps run in **demo mode** (any phone number, OTP `
 | `gigs`, `gig_applications` | Gig feed, apply flow, poster's applicant review |
 | `micro_tasks`, `task_completions` | Quick Tasks feed; `campaign_sponsor` is the B2B revenue line |
 | `wallet_transactions`, `wallet_balance()` | Wallet screen (append-only ledger — never update balances in place) |
-| `release_escrow(gig_id)` | Poster confirms job done → worker paid `pay × 0.90` via RPC |
+| `release_escrow(gig_id)` | Poster confirms job done → proof checked, commission tiered, worker paid, Work Record entry written |
+| `work_records`, `verify_work_record()` | The Work Record — append-only, signed, one entry per settled gig |
+| `public_work_record(slug)` | What a verifier sees at `nchito.zm/w/<slug>`; granted to `anon` so the table itself stays closed |
+| `set_work_record_sharing()` | Opt in/out of sharing, or rotate the slug to revoke a link |
+| `proof_of_work`, `price_band()` | Proof capture gating release; comparable-gig pricing |
 | `conversations`, `messages` (realtime) | In-app chat; clients subscribe to `postgres_changes` on `messages` |
 
 ## Money movement (important)

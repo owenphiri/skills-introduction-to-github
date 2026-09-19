@@ -16,6 +16,7 @@ Nchito ("work" in Nyanja) is a hyperlocal marketplace that connects Zambians who
 | **Chats** | In-app messaging between posters and workers, with gig context on every thread; start a chat from any gig's "Message" button. |
 | **Wallet** | Live balance, transaction history, instant cash-out sheet to any of the 3 mobile-money providers. |
 | **Profile** | Ratings, NRC verification tier, skills, the referral engine (K20/friend + 2% of their rewards), and sign-out. |
+| **Work Record** | Reached from Profile — a signed, append-only history of every escrow-settled job, with a reliability score, opt-in share link, and one-tap **CV export as a PDF**. |
 
 Before the tabs, users onboard and **sign in with phone + OTP** — no passwords or email. With `SupabaseConfig.swift` filled in this runs against Supabase GoTrue; left empty the app stays in demo mode (any number, code `123456`).
 
@@ -61,8 +62,9 @@ No third-party dependencies — pure SwiftUI, so it builds out of the box. The a
 2. ~~Supabase backend schema~~ ✅ (`supabase/` — apply the migration, enable phone auth, fill in `SupabaseConfig`)
 3. ~~In-app chat~~ ✅ (mock transport; wire to Supabase Realtime per `supabase/README.md`)
 4. ~~Android build~~ ✅ ([`../nchito-android/`](../nchito-android/))
-5. ~~Phase 1 defensibility~~ ✅ — loyalty-decaying commission, proof-of-work capture, fair-price bands (`supabase/migrations/0002_phase1_defensibility.sql`)
-6. Replace `MockDataService` reads/writes with Supabase queries (PostgREST) in `AppState`; upload proof photos to the `proofs` storage bucket.
-7. Mobile-money escrow + disbursements via an aggregator (Flutterwave/Lenco or direct MTN & Airtel APIs) from Edge Functions.
-8. The Work Record and WhatsApp/USSD layer — the two biggest items in [INNOVATION.md](INNOVATION.md).
-9. NRC verification (Smile ID), dispute flow, push notifications.
+5. ~~Phase 1 defensibility~~ ✅ — loyalty-decaying commission, proof-of-work capture, fair-price bands (`0002_phase1_defensibility.sql`)
+6. ~~Work Record~~ ✅ — signed, append-only work history with CV export and opt-in sharing (`0003_work_record.sql`; set the signing secret per `supabase/README.md`)
+7. Replace `MockDataService` reads/writes with Supabase queries (PostgREST) in `AppState`; upload proof photos to the `proofs` storage bucket.
+8. Mobile-money escrow + disbursements via an aggregator (Flutterwave/Lenco or direct MTN & Airtel APIs) from Edge Functions.
+9. The WhatsApp/USSD layer — the remaining headline item in [INNOVATION.md](INNOVATION.md).
+10. NRC verification (Smile ID), dispute flow, push notifications.

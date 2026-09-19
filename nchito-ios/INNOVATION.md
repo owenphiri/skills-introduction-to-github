@@ -135,7 +135,7 @@ Ruthless order, assuming limited engineering:
 | Phase | Ship | Why now |
 |---|---|---|
 | **1** ✅ | Loyalty-decaying commission (1.1) · Proof-of-work (4.1) · Fair-price band (5.1) | Cheap, mostly server-side, immediately defends revenue |
-| **2** | Work Record (1.2) · Guarantees (1.3) · Offline-first (2.3) | The moat. Start accumulating the data asset early — it compounds |
+| **2** 🔨 | ~~Work Record (1.2)~~ ✅ · Guarantees (1.3) · Offline-first (2.3) | The moat. Start accumulating the data asset early — it compounds |
 | **3** | WhatsApp bot then USSD (2.1) · Shareable earnings cards (5.2) | Growth phase; WhatsApp first (far cheaper than USSD shortcode licensing) |
 | **4** | Agent liquidity map (3.1) · EWA (3.2) | Retention and the second revenue line, once transaction volume justifies it |
 | **5** | Self-serve B2B console (3.4) · Digital Chilimba (3.3) · Vernacular voice (2.2) | Scale plays that need a real user base behind them |
@@ -153,6 +153,22 @@ Migration `supabase/migrations/0002_phase1_defensibility.sql` plus matching iOS 
 **Proof of work.** A `proof_of_work` table holds one before and one after photo per gig with device capture time and coordinates (upload time is deliberately not trusted). `has_complete_proof()` gates `release_escrow()`, so payment cannot move without both halves. RLS lets only the assigned worker upload and only the two gig parties read. The apps show a two-slot capture card on gigs the user has taken, with the release state spelled out.
 
 **Fair-price bands.** `price_band()` returns p25/median/p75 over settled gigs in the same category, preferring the same city and widening to nationwide when the local sample is under five. Below five comparables it returns nothing rather than advising from noise. The post-gig form shows the range, the median as a one-tap fill, and — once an amount is typed — whether it reads low, fair or high. All three implementations use linear-interpolation percentiles so the apps and `percentile_cont` in Postgres agree on the same numbers.
+
+## The Work Record — shipped
+
+Migration `supabase/migrations/0003_work_record.sql` plus full iOS and Android implementations.
+
+**It cannot be self-reported.** Entries are written only inside `release_escrow()`, in the same transaction as the payout, so every line represents money that actually cleared. Work settled in cash off-platform simply never appears — which is the anti-leakage property, achieved without any enforcement.
+
+**It cannot be quietly edited.** Each entry carries an HMAC over a canonical serialisation of its contents, keyed by a secret held in database settings and never shipped to a client. `verify_work_record()` recomputes and compares; a `before update or delete` trigger makes the table append-only for everyone, the worker included. A history you can curate is a history nobody should trust.
+
+**Punctuality is measured, not claimed.** On-time is judged against the "after" proof photo's device capture time versus the gig's `due_at` — not against when the poster got round to releasing payment, which the worker doesn't control.
+
+**Sharing is opt-in and revocable.** Employment history is sensitive, so records are private until the worker turns sharing on. The share slug is random rather than derived from name or phone, so it leaks nothing about its owner, and it can be rotated to kill a link already handed out. `public_work_record()` is `SECURITY DEFINER` and granted to `anon`, so the table itself stays closed to anonymous readers and that function is the only way out.
+
+**The reliability score is deliberately explainable.** A transparent weighted sum of volume, punctuality, rating and tenure — anything a lender might price risk from has to be defensible line by line. Punctuality and rating are shrunk toward a neutral prior, because a flawless record over a single job is not evidence of anything; without that correction one perfect gig scored about the same as fifteen good ones.
+
+**The CV export is the payoff.** Both apps render an A4 PDF — standing, main areas of work, and every job with date, pay and rating — shareable straight into WhatsApp, Gmail or Drive. A cleaner or a rider can walk into a formal interview holding a document whose every line is backed by a payment that cleared, with a link the employer can check themselves.
 
 ## Sources
 

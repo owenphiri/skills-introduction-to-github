@@ -14,6 +14,29 @@ struct ProfileView: View {
                         .listRowInsets(EdgeInsets())
                 }
 
+                Section {
+                    NavigationLink {
+                        WorkRecordView()
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "doc.text.fill")
+                                .font(.title3)
+                                .frame(width: 38, height: 38)
+                                .background(Theme.green.opacity(0.12),
+                                            in: RoundedRectangle(cornerRadius: 10))
+                                .foregroundStyle(Theme.green)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("My Work Record").font(.subheadline.weight(.semibold))
+                                Text("\(state.workRecordSummary.totalGigs) verified jobs · export as a CV")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                } footer: {
+                    Text("A work history employers and lenders can verify. Only jobs paid through Nchito count.")
+                }
+
                 Section("Trust & verification") {
                     HStack {
                         Label("Verification", systemImage: "checkmark.seal.fill")

@@ -1,6 +1,7 @@
 package com.owenphiri.nchito.ui.screens
 
 import android.content.Intent
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -29,7 +30,7 @@ import com.owenphiri.nchito.ui.NchitoColors
 private const val REFERRAL_CODE = "OWEN260"
 
 @Composable
-fun ProfileScreen(vm: AppViewModel) {
+fun ProfileScreen(vm: AppViewModel, onOpenWorkRecord: () -> Unit = {}) {
     val context = LocalContext.current
 
     LazyColumn(
@@ -45,6 +46,20 @@ fun ProfileScreen(vm: AppViewModel) {
                 Spacer(Modifier.height(8.dp))
                 Text(vm.signedInPhone, style = MaterialTheme.typography.bodyMedium,
                      color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        item {
+            Card(Modifier.fillMaxWidth().clickable(onClick = onOpenWorkRecord)) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("My Work Record", fontWeight = FontWeight.SemiBold)
+                    Text("${vm.workRecordSummary.totalGigs} verified jobs · export as a CV",
+                         style = MaterialTheme.typography.bodySmall,
+                         color = MaterialTheme.colorScheme.primary)
+                    Text("A work history employers and lenders can verify. Only jobs paid " +
+                         "through Nchito count.",
+                         style = MaterialTheme.typography.labelSmall,
+                         color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }
         item {

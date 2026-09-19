@@ -191,3 +191,53 @@ extension MockDataService {
                    latitude: -15.3875, longitude: 28.3228),
     ]
 }
+
+// MARK: - Work Record seed
+
+extension MockDataService {
+
+    /// A believable four-month history for the demo user, matching the 27
+    /// completed gigs on their profile. Signatures are placeholders here;
+    /// production values come from `release_escrow()` and are checked by
+    /// `verify_work_record()`.
+    static let workRecordEntries: [WorkRecordEntry] = {
+        let history: [(String, GigCategory, String, Double, Int, Double?, Bool)] = [
+            ("Design 5 social media posters for a salon", .digital, "Lusaka", 400, 3, 5.0, true),
+            ("Deliver parcel to Chilenje", .delivery, "Lusaka", 120, 6, 4.5, true),
+            ("Serve at a kitchen party in Avondale", .events, "Lusaka", 250, 9, 5.0, true),
+            ("Menu flyers for a takeaway", .digital, "Lusaka", 300, 12, 4.5, true),
+            ("Grade 7 maths tutoring, 4 sessions", .tutoring, "Lusaka", 480, 16, 5.0, true),
+            ("Collect documents from Manda Hill", .delivery, "Lusaka", 100, 19, 4.0, false),
+            ("Logo and business cards for a barber", .digital, "Lusaka", 450, 23, 5.0, true),
+            ("Deep clean after a move-out", .homeServices, "Lusaka", 500, 27, 4.5, true),
+            ("Data entry: 300 customer records", .digital, "Lusaka", 350, 31, 4.5, true),
+            ("Deliver cake across town", .delivery, "Lusaka", 150, 35, 5.0, true),
+            ("Weekend waiter, corporate function", .events, "Lusaka", 300, 40, 4.5, true),
+            ("Weed and replant front garden", .farm, "Lusaka", 180, 45, 4.0, true),
+            ("Grade 9 maths tutoring, 6 sessions", .tutoring, "Lusaka", 720, 52, 5.0, true),
+            ("Instagram posts for a boutique", .digital, "Lusaka", 400, 58, 5.0, true),
+            ("Deliver medication to Kabulonga", .delivery, "Lusaka", 130, 64, 5.0, true),
+            ("Office deep clean, 2 floors", .homeServices, "Lusaka", 600, 71, 4.5, true),
+            ("Birthday party setup and serving", .events, "Lusaka", 280, 78, 4.5, true),
+            ("Poster set for a church event", .digital, "Lusaka", 320, 85, 5.0, true),
+            ("Deliver 3 parcels, Cairo Road run", .delivery, "Lusaka", 200, 92, 4.5, true),
+            ("Primary school English tutoring", .tutoring, "Lusaka", 400, 99, 5.0, true),
+            ("Vegetable beds prepared for planting", .farm, "Lusaka", 200, 106, 4.0, false),
+            ("Product photos edited for an online shop", .digital, "Lusaka", 380, 112, 4.5, true),
+            ("Deliver documents to Longacres", .delivery, "Lusaka", 110, 118, 5.0, true),
+            ("Post-event cleanup crew", .homeServices, "Lusaka", 350, 119, 4.5, true),
+            ("Flyers for a hardware shop", .digital, "Lusaka", 280, 120, 4.5, true),
+            ("Grade 8 maths tutoring, 3 sessions", .tutoring, "Lusaka", 360, 121, 5.0, true),
+            ("Deliver groceries to Woodlands", .delivery, "Lusaka", 140, 122, 5.0, true),
+        ]
+
+        return history.map { title, category, city, pay, daysAgo, rating, onTime in
+            WorkRecordEntry(
+                id: UUID(), gigID: UUID(), title: title, category: category, city: city,
+                payZMW: pay,
+                completedAt: .now.addingTimeInterval(-Double(daysAgo) * 86400),
+                posterRating: rating, onTime: onTime,
+                signature: "demo-unsigned", isVerified: true)
+        }
+    }()
+}

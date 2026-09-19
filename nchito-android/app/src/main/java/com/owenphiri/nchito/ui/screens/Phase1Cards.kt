@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import com.owenphiri.nchito.data.AppViewModel
 import com.owenphiri.nchito.data.Gig
 import com.owenphiri.nchito.data.ProofKind
+import com.owenphiri.nchito.data.ProofPhoto
 import com.owenphiri.nchito.data.kwacha
 import com.owenphiri.nchito.ui.NchitoColors
 
@@ -146,7 +147,7 @@ fun ProofOfWorkCard(vm: AppViewModel, gig: Gig) {
 @Composable
 private fun ProofSlot(
     kind: ProofKind,
-    photo: com.owenphiri.nchito.data.ProofPhoto?,
+    photo: ProofPhoto?,
     onCapture: () -> Unit,
     modifier: Modifier = Modifier,
 ) {

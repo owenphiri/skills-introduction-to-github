@@ -35,6 +35,7 @@ import com.owenphiri.nchito.ui.screens.HomeScreen
 import com.owenphiri.nchito.ui.screens.ProfileScreen
 import com.owenphiri.nchito.ui.screens.TasksScreen
 import com.owenphiri.nchito.ui.screens.WalletScreen
+import com.owenphiri.nchito.ui.screens.WorkRecordScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -112,7 +113,12 @@ fun NchitoApp(vm: AppViewModel = viewModel()) {
                 )
             }
             composable("wallet") { WalletScreen(vm) }
-            composable("profile") { ProfileScreen(vm) }
+            composable("profile") {
+                ProfileScreen(vm, onOpenWorkRecord = { navController.navigate("workrecord") })
+            }
+            composable("workrecord") {
+                WorkRecordScreen(vm, onBack = { navController.popBackStack() })
+            }
         }
     }
 }
