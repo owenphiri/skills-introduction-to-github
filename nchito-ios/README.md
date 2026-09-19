@@ -5,6 +5,7 @@
 Nchito ("work" in Nyanja) is a hyperlocal marketplace that connects Zambians who need everyday tasks done — deliveries, tutoring, repairs, design, events — with workers who get paid **straight to MTN MoMo, Airtel Money or Zamtel Kwacha**, plus a Quick Tasks feed (surveys, app testing, data labelling) anyone can earn from on day one.
 
 > Why this niche, how it monetizes, and the go-to-market plan: see **[STRATEGY.md](STRATEGY.md)**.
+> What to build next so competitors can't copy us: see **[INNOVATION.md](INNOVATION.md)**.
 
 ## App tour
 
