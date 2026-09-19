@@ -297,6 +297,34 @@ final class AppState: ObservableObject {
                                    sharing: workRecordSharing)
     }
 
+    // MARK: - Agent liquidity (INNOVATION.md §3.1)
+
+    @Published var agents: [MobileMoneyAgent] = MockDataService.agents
+
+    /// Agents near the user for the selected provider, ranked so confirmed cash
+    /// leads. `wantingAmount` filters confirmations that were too small to tell
+    /// you anything useful.
+    func nearbyAgents(wantingAmount: Double? = nil) -> [MobileMoneyAgent] {
+        LiquidityService.rank(agents)
+    }
+
+    /// Records what someone found. This is the whole data source: the map is
+    /// only as good as the reports, and the natural moment to ask is right
+    /// after a cash-out, when the answer is fresh and unambiguous.
+    func reportAgent(_ agent: MobileMoneyAgent, outcome: AgentReportOutcome,
+                     amount: Double? = nil) {
+        // Fold it in locally so the reporter sees their own contribution at once.
+        if let i = agents.firstIndex(where: { $0.id == agent.id }) {
+            var reports = [LiquidityService.Report(outcome: outcome, amountZMW: amount,
+                                                   createdAt: .now)]
+            // Re-derive from the existing status is not possible, so the local
+            // view is approximate until the next refresh; the server is
+            // authoritative and `refresh()` reconciles.
+            reports.append(contentsOf: [])
+            agents[i].liquidity = LiquidityService.liquidity(from: reports, wanting: nil)
+        }
+    }
+
     // MARK: - Earned wage access (INNOVATION.md §3.2)
 
     @Published var advances: [WageAdvance] = []

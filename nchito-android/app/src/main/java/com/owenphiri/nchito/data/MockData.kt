@@ -159,6 +159,67 @@ object MockData {
     val memberSince: Date = Date(System.currentTimeMillis() - 122L * 86_400_000L)
 
     /**
+     * A believable spread of Lusaka agents, deliberately covering every
+     * liquidity state — including "unknown", the most common one in a real
+     * market and the easiest to forget to design for.
+     */
+    val agents: List<MobileMoneyAgent> = run {
+        fun liq(reports: List<Triple<AgentReportOutcome, Double?, Double>>) =
+            LiquidityService.liquidity(reports.map { (outcome, amount, hoursAgo) ->
+                LiquidityService.Report(outcome, amount,
+                    Date(System.currentTimeMillis() - (hoursAgo * 3_600_000).toLong()))
+            })
+
+        listOf(
+            MobileMoneyAgent(
+                name = "Kabulonga Quickpay", area = "Kabulonga",
+                landmark = "next to Melissa Supermarket",
+                latitude = -15.4067, longitude = 28.3419, distanceKm = 0.4,
+                isOperatorVerified = true,
+                liquidity = liq(listOf(
+                    Triple(AgentReportOutcome.CASH_AVAILABLE, 1500.0, 0.3),
+                    Triple(AgentReportOutcome.CASH_AVAILABLE, 800.0, 0.9)))),
+            MobileMoneyAgent(
+                name = "Chibwe Phone Shop", area = "Woodlands",
+                landmark = "opposite the filling station",
+                latitude = -15.4211, longitude = 28.3188, distanceKm = 1.1,
+                isOperatorVerified = false,
+                liquidity = liq(listOf(
+                    Triple(AgentReportOutcome.CASH_AVAILABLE, 300.0, 0.5)))),
+            MobileMoneyAgent(
+                name = "Mulungushi Agent Point", area = "Rhodes Park",
+                landmark = "inside the arcade",
+                latitude = -15.4003, longitude = 28.3077, distanceKm = 1.8,
+                isOperatorVerified = true,
+                liquidity = liq(listOf(
+                    Triple(AgentReportOutcome.NO_CASH, null, 0.4),
+                    Triple(AgentReportOutcome.NO_CASH, null, 1.2)))),
+            MobileMoneyAgent(
+                name = "Cairo Road Money Centre", area = "Cairo Road",
+                landmark = "near the post office",
+                latitude = -15.4194, longitude = 28.2833, distanceKm = 2.6,
+                isOperatorVerified = true,
+                liquidity = liq(listOf(
+                    Triple(AgentReportOutcome.CASH_AVAILABLE, 2000.0, 0.6),
+                    Triple(AgentReportOutcome.NO_CASH, null, 0.8)))),
+            MobileMoneyAgent(
+                name = "Chelstone Corner Kiosk", area = "Chelstone",
+                landmark = "by the market entrance",
+                latitude = -15.3644, longitude = 28.3722, distanceKm = 3.4,
+                isOperatorVerified = false,
+                // Stale on purpose: reads as unknown.
+                liquidity = liq(listOf(
+                    Triple(AgentReportOutcome.CASH_AVAILABLE, 600.0, 9.0)))),
+            MobileMoneyAgent(
+                name = "Northmead Agent", area = "Northmead",
+                landmark = "next to the pharmacy",
+                latitude = -15.3936, longitude = 28.3200, distanceKm = 1.4,
+                isOperatorVerified = false,
+                liquidity = liq(emptyList())),   // never reported
+        )
+    }
+
+    /**
      * The salon poster gig is mid-flight with a "before" photo already taken,
      * so the capture flow and the blocked-release state are both demoable.
      */

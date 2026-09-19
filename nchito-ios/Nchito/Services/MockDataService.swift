@@ -241,3 +241,64 @@ extension MockDataService {
         }
     }()
 }
+
+// MARK: - Agent liquidity seed
+
+extension MockDataService {
+
+    /// A believable spread of Lusaka agents, deliberately covering every
+    /// liquidity state — including "unknown", which is the most common one in
+    /// a real market and the easiest to forget to design for.
+    static let agents: [MobileMoneyAgent] = {
+        func liquidity(_ reports: [(AgentReportOutcome, Double?, Double)]) -> AgentLiquidity {
+            LiquidityService.liquidity(from: reports.map { outcome, amount, hoursAgo in
+                LiquidityService.Report(outcome: outcome, amountZMW: amount,
+                                        createdAt: .now.addingTimeInterval(-hoursAgo * 3600))
+            })
+        }
+
+        return [
+            MobileMoneyAgent(
+                id: UUID(), name: "Kabulonga Quickpay", area: "Kabulonga",
+                landmark: "next to Melissa Supermarket",
+                latitude: -15.4067, longitude: 28.3419, distanceKM: 0.4,
+                isOperatorVerified: true,
+                liquidity: liquidity([(.cashAvailable, 1500, 0.3), (.cashAvailable, 800, 0.9)])),
+
+            MobileMoneyAgent(
+                id: UUID(), name: "Chibwe Phone Shop", area: "Woodlands",
+                landmark: "opposite the filling station",
+                latitude: -15.4211, longitude: 28.3188, distanceKM: 1.1,
+                isOperatorVerified: false,
+                liquidity: liquidity([(.cashAvailable, 300, 0.5)])),
+
+            MobileMoneyAgent(
+                id: UUID(), name: "Mulungushi Agent Point", area: "Rhodes Park",
+                landmark: "inside the arcade",
+                latitude: -15.4003, longitude: 28.3077, distanceKM: 1.8,
+                isOperatorVerified: true,
+                liquidity: liquidity([(.noCash, nil, 0.4), (.noCash, nil, 1.2)])),
+
+            MobileMoneyAgent(
+                id: UUID(), name: "Cairo Road Money Centre", area: "Cairo Road",
+                landmark: "near the post office",
+                latitude: -15.4194, longitude: 28.2833, distanceKM: 2.6,
+                isOperatorVerified: true,
+                liquidity: liquidity([(.cashAvailable, 2000, 0.6), (.noCash, nil, 0.8)])),
+
+            MobileMoneyAgent(
+                id: UUID(), name: "Chelstone Corner Kiosk", area: "Chelstone",
+                landmark: "by the market entrance",
+                latitude: -15.3644, longitude: 28.3722, distanceKM: 3.4,
+                isOperatorVerified: false,
+                liquidity: liquidity([(.cashAvailable, 600, 9)])),   // stale: reads unknown
+
+            MobileMoneyAgent(
+                id: UUID(), name: "Northmead Agent", area: "Northmead",
+                landmark: "next to the pharmacy",
+                latitude: -15.3936, longitude: 28.3200, distanceKM: 1.4,
+                isOperatorVerified: false,
+                liquidity: liquidity([])),                            // never reported
+        ]
+    }()
+}

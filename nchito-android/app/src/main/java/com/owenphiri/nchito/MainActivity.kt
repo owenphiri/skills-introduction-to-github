@@ -28,6 +28,7 @@ import androidx.navigation.compose.rememberNavController
 import com.owenphiri.nchito.data.AppViewModel
 import com.owenphiri.nchito.ui.NchitoTheme
 import com.owenphiri.nchito.ui.screens.AuthScreen
+import com.owenphiri.nchito.ui.screens.AgentMapScreen
 import com.owenphiri.nchito.ui.screens.ChannelAccessScreen
 import com.owenphiri.nchito.ui.screens.ChatListScreen
 import com.owenphiri.nchito.ui.screens.ChatThreadScreen
@@ -113,7 +114,12 @@ fun NchitoApp(vm: AppViewModel = viewModel()) {
                     onBack = { navController.popBackStack() },
                 )
             }
-            composable("wallet") { WalletScreen(vm) }
+            composable("wallet") {
+                WalletScreen(vm, onOpenAgentMap = { navController.navigate("agents") })
+            }
+            composable("agents") {
+                AgentMapScreen(vm, onBack = { navController.popBackStack() })
+            }
             composable("profile") {
                 ProfileScreen(
                     vm,

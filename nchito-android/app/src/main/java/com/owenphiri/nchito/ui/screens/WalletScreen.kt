@@ -1,5 +1,6 @@
 package com.owenphiri.nchito.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -39,7 +40,7 @@ import com.owenphiri.nchito.ui.NchitoColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WalletScreen(vm: AppViewModel) {
+fun WalletScreen(vm: AppViewModel, onOpenAgentMap: () -> Unit = {}) {
     var showCashOut by remember { mutableStateOf(false) }
 
     LazyColumn(
@@ -70,6 +71,20 @@ fun WalletScreen(vm: AppViewModel) {
                         colors = ButtonDefaults.buttonColors(
                             containerColor = NchitoColors.Copper),
                     ) { Text("Cash out to ${vm.payoutProvider.label}") }
+                }
+            }
+        }
+        item {
+            Card(Modifier.fillMaxWidth().clickable(onClick = onOpenAgentMap)) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Find cash near you", fontWeight = FontWeight.SemiBold)
+                    Text("Which agents actually have float right now",
+                         style = MaterialTheme.typography.bodySmall,
+                         color = MaterialTheme.colorScheme.primary)
+                    Text("Reported by other Nchito workers. A balance you can't withdraw " +
+                         "isn't money.",
+                         style = MaterialTheme.typography.labelSmall,
+                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }

@@ -12,6 +12,7 @@ Jetpack Compose port of the [Nchito iOS app](../nchito-ios/) — same product sp
 - **In-app chat** — conversation list + message thread, reachable from any gig's "Message" button
 - **Profile** with referral share sheet (Android share intent → WhatsApp etc.) and sign-out
 - **Phone & USSD access** — set the PIN that authorises cash-out from any handset via `*384*62448#`, no data needed
+- **Find cash near you** — which agents actually have float now, crowdsourced, with report counts and freshness shown so uncertainty is never hidden
 - **Early payment** — on a gig you've started, take up to half your payout now for a flat fee, repaid automatically at settlement
 - **Work Record** — signed, append-only history of every escrow-settled job, with reliability score, opt-in share link and PDF CV export (shared via FileProvider)
 - **Loyalty-decaying commission** (10% → 7% → 5% as a pair builds history), **proof-of-work capture** gating escrow release, and **fair-price bands** on the post form — see [INNOVATION.md](../nchito-ios/INNOVATION.md)

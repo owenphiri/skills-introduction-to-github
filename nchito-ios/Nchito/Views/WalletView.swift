@@ -32,6 +32,29 @@ struct WalletView: View {
                     }
                 }
 
+                Section {
+                    NavigationLink {
+                        AgentMapView(wantingAmount: nil)
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "mappin.and.ellipse")
+                                .font(.title3)
+                                .frame(width: 38, height: 38)
+                                .background(Theme.green.opacity(0.12),
+                                            in: RoundedRectangle(cornerRadius: 10))
+                                .foregroundStyle(Theme.green)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Find cash near you").font(.subheadline.weight(.semibold))
+                                Text("Which agents actually have float right now")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                } footer: {
+                    Text("Reported by other Nchito workers. A balance you can't withdraw isn't money.")
+                }
+
                 Section("Payout method") {
                     Picker("Cash out to", selection: $state.payoutProvider) {
                         ForEach(MobileMoneyProvider.allCases) { p in

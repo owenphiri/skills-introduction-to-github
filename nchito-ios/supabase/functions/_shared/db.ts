@@ -37,6 +37,14 @@ export interface AdvanceOffer {
   max_amount: number;
 }
 
+export interface NearbyAgent {
+  name: string;
+  area: string;
+  distance_km: number;
+  status: string;
+  last_report_at: string | null;
+}
+
 export interface WorkRecordTotals {
   total_gigs: number;
   total_earned: number;
@@ -140,6 +148,14 @@ export class Db {
     });
     if (error) return "Early payment failed. Please try again.";
     return data as string;
+  }
+
+  /** Agents near the caller's city with their current liquidity. */
+  async nearbyAgents(phone: string, provider = "mtn_momo", limit = 3): Promise<NearbyAgent[]> {
+    const { data } = await this.client.rpc("channel_nearby_agents", {
+      p_phone: phone, p_provider: provider, p_limit: limit,
+    });
+    return (data ?? []) as NearbyAgent[];
   }
 
   async openTasks(limit = 3): Promise<MicroTask[]> {

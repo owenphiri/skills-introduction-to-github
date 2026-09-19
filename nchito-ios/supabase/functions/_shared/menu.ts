@@ -293,16 +293,63 @@ export async function handle(
         };
       }
 
+      case "6": {
+        // Agent liquidity (INNOVATION.md §3.1). Someone on a feature phone who
+        // cannot convert their balance is exactly who this exists for.
+        const agents = await db.nearbyAgents(phone);
+        if (agents.length === 0) {
+          return {
+            reply: end("No agents reported near you yet.\nReport one in the Nchito app to help others."),
+            session: { node: "root", data: {} },
+          };
+        }
+        // Freshness is the whole story with float, so it is never dropped for
+        // space — the agent name is shortened instead. Built up line by line so
+        // a clamp can't silently eat the last entry, the way it once ate the
+        // gig list's instruction.
+        const header = "Cash near you:";
+        const footer = "\nFrom other workers.";
+        const shown: string[] = [];
+        for (const a of agents) {
+          const age = a.last_report_at ? `, ${freshness(a.last_report_at)}` : "";
+          const line = `${shortTitle(a.name, 17)} ${a.distance_km}km\n ${statusWord(a.status)}${age}`;
+          if ([header, ...shown, line].join("\n").length + footer.length > USSD_SCREEN_LIMIT) break;
+          shown.push(line);
+        }
+        return {
+          reply: end([header, ...shown].join("\n") + footer),
+          session: { node: "root", data: {} },
+        };
+      }
+
       default:
         return { reply: con(mainMenu()), session: { node: "root", data: {} } };
     }
   }
 }
 
+/** Plain words, because "unknown" must not read as "probably fine". */
+function statusWord(status: string): string {
+  switch (status) {
+    case "has_cash": return "had cash";
+    case "no_cash": return "NO cash";
+    case "mixed": return "mixed";
+    default: return "not reported yet";
+  }
+}
+
+function freshness(isoDate: string): string {
+  const minutes = Math.floor((Date.now() - new Date(isoDate).getTime()) / 60000);
+  if (minutes < 2) return "just now";
+  if (minutes < 60) return `${minutes}min ago`;
+  if (minutes < 1440) return `${Math.floor(minutes / 60)}h ago`;
+  return "over a day";
+}
+
 // --- Screens ---------------------------------------------------------------
 
 export function mainMenu(): string {
-  return "Nchito 🇿🇲\n1. Find gigs\n2. My wallet\n3. Quick tasks\n4. My work record\n5. Get paid early";
+  return "Nchito 🇿🇲\n1. Find gigs\n2. My wallet\n3. Quick tasks\n4. My work record\n5. Get paid early\n6. Find cash near me";
 }
 
 function categoryMenu(): string {

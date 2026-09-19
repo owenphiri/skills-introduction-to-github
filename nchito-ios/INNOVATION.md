@@ -137,7 +137,7 @@ Ruthless order, assuming limited engineering:
 | **1** ✅ | Loyalty-decaying commission (1.1) · Proof-of-work (4.1) · Fair-price band (5.1) | Cheap, mostly server-side, immediately defends revenue |
 | **2** 🔨 | ~~Work Record (1.2)~~ ✅ · Guarantees (1.3) · Offline-first (2.3) | The moat. Start accumulating the data asset early — it compounds |
 | **3** 🔨 | ~~WhatsApp bot then USSD (2.1)~~ ✅ · Shareable earnings cards (5.2) | Growth phase; WhatsApp first (far cheaper than USSD shortcode licensing) |
-| **4** 🔨 | Agent liquidity map (3.1) · ~~EWA (3.2)~~ ✅ | Retention and the second revenue line, once transaction volume justifies it |
+| **4** ✅ | ~~Agent liquidity map (3.1)~~ ✅ · ~~EWA (3.2)~~ ✅ | Retention and the second revenue line, once transaction volume justifies it |
 | **5** | Self-serve B2B console (3.4) · Digital Chilimba (3.3) · Vernacular voice (2.2) | Scale plays that need a real user base behind them |
 
 **The two that matter most:** the *Work Record* (§1.2) is the thing that makes Nchito infrastructure rather than an app, and the *WhatsApp/USSD layer* (§2.1) is the thing that makes it reach everyone rather than the smartphone minority. If only two things get built this year, build those.
@@ -199,6 +199,26 @@ Migration `0005_wage_advances.sql`, both apps, and a "Get paid early" option on 
 **Every number is on one screen before committing** — what arrives now, the fee, and what is left at the end — on all three surfaces. A surprise at settlement is how trust in early payment dies. On USSD the fee is quoted before the PIN prompt, so nobody enters a PIN against a number they have not seen.
 
 **Two features had to exist first**, which is why this sits in Phase 4 rather than Phase 1: proof-of-work supplies the evidence that work started, and the Work Record supplies the standing check. Neither could be faked by a worker, which is what makes underwriting from them defensible.
+
+## The agent liquidity map — shipped
+
+Migration `0006_agent_liquidity.sql`, both apps, and a "Find cash near me" option on USSD and WhatsApp.
+
+**The governing constraint is that a false positive costs someone a trip.** Bus fare to an agent who turns out to be dry is real money to a worker earning K150 a day, and a wasted journey destroys trust faster than showing nothing at all. Every design decision below follows from that.
+
+**Reports decay fast — a three-hour half-life.** Agent float turns over across a day, not a week: a report from this morning says little about this afternoon, and one from yesterday is worth almost nothing. Short by design, because stale optimism is exactly what sends people on wasted journeys. Anything over a day is excluded outright.
+
+**"Unknown" is a first-class answer.** Below a minimum evidence threshold the map says nobody has reported recently, rather than guessing. On USSD, where there is no colour to lean on, that reads as "not reported yet" — never anything that could be mistaken for reassurance.
+
+**One fresh report is enough to claim cash, deliberately.** Demanding two would leave the map blank in a thin market, exactly when it most needs to earn trust. The risk is bounded: a reporter must have actually cashed out through Nchito, may report a given agent only once an hour, and a wrong claim self-corrects within minutes once the next visitor reports otherwise. The honest compensation is that every surface shows *how many* people reported and *how long ago*, so "1 person, 10 minutes ago" reads differently from "4 people in the last hour" and the user decides whether it's worth the fare.
+
+**A confirmation is only good up to its own amount.** An agent who paid out K200 this morning may still not have K2000. Reports carry the amount withdrawn, and a request for more than anyone has confirmed getting out shows a caveat rather than a green light.
+
+**Known-dry agents stay on the list.** One reported dry an hour ago may have been restocked since, so hiding it would be its own kind of false claim — it just sorts last.
+
+**Reports are never readable row by row.** They would reveal where a person was and when, which nobody needs; only the aggregate is useful, and that is all the API exposes.
+
+This is also the feature people open when they aren't working, which makes it the retention play in Phase 4 — and it is genuinely useful to someone who has never posted a gig.
 
 ## Sources
 

@@ -15,6 +15,7 @@ Nchito ("work" in Nyanja) is a hyperlocal marketplace that connects Zambians who
 | **Quick Tasks** | Micro-tasks paying K10–K70 each — the zero-skill entry point and passive-earning feed. |
 | **Chats** | In-app messaging between posters and workers, with gig context on every thread; start a chat from any gig's "Message" button. |
 | **Wallet** | Live balance, transaction history, any outstanding early payment, and an instant cash-out sheet to all 3 mobile-money providers. |
+| **Find cash near you** | From Wallet — which mobile-money agents actually have float right now, crowdsourced from other workers, with how fresh each report is. |
 | **Early payment** | On a gig you've started — take up to half your payout now for a flat fee, repaid automatically at settlement ([why it isn't a loan](INNOVATION.md)). |
 | **Profile** | Ratings, NRC verification tier, skills, the referral engine (K20/friend + 2% of their rewards), and sign-out. |
 | **Phone & USSD** | Reached from Profile — set the PIN that authorises cash-out from any handset by dialling `*384*62448#`, no app and no data needed ([channel functions](supabase/functions/)). |
@@ -94,4 +95,5 @@ Writes that carry rules — applying, taking an advance, setting a PIN, sharing 
 8. Mobile-money escrow + disbursements via an aggregator (Flutterwave/Lenco or direct MTN & Airtel APIs) from Edge Functions.
 9. ~~WhatsApp/USSD layer~~ ✅ — Edge Functions in [`supabase/functions/`](supabase/functions/); deploy and register a shortcode per that README
 10. ~~Earned wage access~~ ✅ — advances against escrow, gated on proof-of-work and Work Record standing (`0005_wage_advances.sql`)
-11. NRC verification (Smile ID), dispute flow, push notifications.
+11. ~~Agent liquidity map~~ ✅ — crowdsourced agent float with time-decayed confidence (`0006_agent_liquidity.sql`)
+12. NRC verification (Smile ID), dispute flow, push notifications.

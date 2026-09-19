@@ -263,6 +263,28 @@ class AppViewModel : ViewModel() {
         return true
     }
 
+    // Agent liquidity (INNOVATION.md §3.1)
+    val agents = mutableStateListOf<MobileMoneyAgent>().apply { addAll(MockData.agents) }
+
+    /** Ranked so confirmed cash leads; known-dry agents stay listed, not hidden. */
+    fun nearbyAgents(): List<MobileMoneyAgent> = LiquidityService.rank(agents)
+
+    /**
+     * Records what someone found. This is the whole data source: the map is only
+     * as good as its reports, and the natural moment to ask is right after a
+     * cash-out, when the answer is fresh and unambiguous.
+     */
+    fun reportAgent(agent: MobileMoneyAgent, outcome: AgentReportOutcome,
+                    amount: Double? = null) {
+        val i = agents.indexOfFirst { it.id == agent.id }
+        if (i < 0) return
+        // Folded in locally so the reporter sees their own contribution at once;
+        // the server is authoritative and refresh() reconciles.
+        agents[i] = agents[i].copy(
+            liquidity = LiquidityService.liquidity(
+                listOf(LiquidityService.Report(outcome, amount, Date()))))
+    }
+
     // Earned wage access (INNOVATION.md §3.2)
     val advances = mutableStateListOf<WageAdvance>()
 

@@ -70,6 +70,8 @@ WhatsApp is the cheaper and faster of the two to launch — no operator approval
 
 **Early payment is PIN-gated like cash-out**, and the fee is quoted on screen before the PIN prompt — nobody should enter a PIN against a number they haven't seen. The 4%-minimum-K5 fee shown by the menu is the same formula `advance_fee()` charges.
 
+**The agent finder states uncertainty in words**, since USSD has no colour: an unreported agent reads "not reported yet", never anything that could pass for reassurance. Like the gig list, it reserves room for its trailing line rather than letting a clamp eat it.
+
 **Sessions expire after 30 minutes**, so an abandoned cash-out can't be resumed later from a different context.
 
 ## Testing before a shortcode exists
