@@ -117,9 +117,34 @@ function render(size) {
   return encodePng(size, px);
 }
 
+/**
+ * Wrap a PNG in an ICO container. Browsers still request /favicon.ico
+ * unprompted, and a 404 on every page load is noise in the logs and a missed
+ * icon in the tabs of anything that does not read the SVG link.
+ */
+function ico(pngBuffer, size) {
+  const header = Buffer.alloc(6);
+  header.writeUInt16LE(0, 0);           // reserved
+  header.writeUInt16LE(1, 2);           // type: icon
+  header.writeUInt16LE(1, 4);           // one image
+  const entry = Buffer.alloc(16);
+  entry[0] = size === 256 ? 0 : size;   // width  (0 means 256)
+  entry[1] = size === 256 ? 0 : size;   // height
+  entry[2] = 0;                         // palette size
+  entry[3] = 0;                         // reserved
+  entry.writeUInt16LE(1, 4);            // colour planes
+  entry.writeUInt16LE(32, 6);           // bits per pixel
+  entry.writeUInt32LE(pngBuffer.length, 8);
+  entry.writeUInt32LE(header.length + entry.length, 12);
+  return Buffer.concat([header, entry, pngBuffer]);
+}
+
 const out = path.join(__dirname, '..', 'public', 'assets');
 fs.mkdirSync(out, { recursive: true });
-for (const s of [192, 512, ...(process.argv.includes('--preview') ? [640] : [])]) {
+for (const s of [32, 180, 192, 512, ...(process.argv.includes('--preview') ? [640] : [])]) {
   fs.writeFileSync(path.join(out, `icon-${s}.png`), render(s));
   console.log(`wrote icon-${s}.png`);
 }
+const fav = render(32);
+fs.writeFileSync(path.join(__dirname, '..', 'public', 'favicon.ico'), ico(fav, 32));
+console.log('wrote favicon.ico');
