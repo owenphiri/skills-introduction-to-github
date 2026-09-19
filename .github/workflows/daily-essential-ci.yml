@@ -1,0 +1,69 @@
+name: Daily Essential — CI
+
+on:
+  push:
+    branches: ["**"]
+    paths: ["daily-essential/**", ".github/workflows/daily-essential-ci.yml"]
+  pull_request:
+    paths: ["daily-essential/**", ".github/workflows/daily-essential-ci.yml"]
+
+# Cancel superseded runs on the same ref to save minutes.
+concurrency:
+  group: daily-essential-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: daily-essential
+    steps:
+      - uses: actions/checkout@v4
+
+      # node:sqlite needs Node 22.5+; the service targets 22.x.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run test suite
+        run: npm test
+        env:
+          NODE_ENV: test
+
+      - name: Seed and run the daily billing job
+        # A smoke test that the whole pipeline — seed, charge, compose,
+        # deliver — still runs end to end, not just its units.
+        run: |
+          npm run seed
+          npm run billing
+
+  secrets:
+    name: No credentials in the tree
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # A service-role key or PSP token committed here is an incident, not a
+      # code-review comment. Fail the build rather than rely on noticing it.
+      - name: Scan for committed secrets
+        run: |
+          set -euo pipefail
+          if git ls-files 'daily-essential/**' | grep -E '(^|/)\.env$'; then
+            echo "::error::A .env file is committed under daily-essential/"
+            exit 1
+          fi
+          # Supabase service-role JWTs, and any key pasted into a source file.
+          if git grep -nE 'service_role|SUPABASE_SERVICE_ROLE_KEY=[A-Za-z0-9._-]{20,}|eyJ[A-Za-z0-9_-]{30,}\.[A-Za-z0-9_-]{30,}' \
+               -- daily-essential ':!daily-essential/.env.example' \
+                                 ':!daily-essential/docs' \
+                                 ':!daily-essential/supabase/migrations/0002_rls.sql'; then
+            echo "::error::Possible credential committed under daily-essential/"
+            exit 1
+          fi
+          echo "No credentials found."
