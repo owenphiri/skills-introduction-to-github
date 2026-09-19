@@ -1,0 +1,1023 @@
+//@version=5
+// ============================================================================
+//  ULTIMATE PURE PRICE ACTION ULTIMATUM  (UPPAU)
+// ============================================================================
+//
+//  PHILOSOPHY
+//  ----------
+//  100% pure price action. Every decision in this script is derived from
+//  raw OHLC structure only:
+//    • Market structure ......... HH / HL / LH / LL, BOS, CHoCH
+//    • Key levels ............... swing highs/lows, order blocks (OB),
+//                                 fair value gaps (FVG), liquidity pools
+//                                 (equal highs/lows) and liquidity sweeps
+//    • Candlestick patterns ..... engulfing, pin bars, inside-bar breakouts
+//                                 (always evaluated WITH structural context)
+//    • Momentum ................. price displacement & velocity (body/range
+//                                 expansion measured against ATR)
+//
+//  NO moving averages, NO oscillators, NO volume, NO lagging indicators.
+//  ATR is used ONLY as a volatility yardstick to normalise distances so the
+//  script adapts to ANY instrument (forex, indices, stocks, crypto,
+//  commodities, metals, futures) and ANY volatility regime.
+//
+//  SCRIPT MODE
+//  -----------
+//  This file is published as a STRATEGY so the built-in Strategy Tester can
+//  compute win-rate, drawdown, etc. It is fully convertible to a pure
+//  indicator:
+//    1. Replace the strategy() declaration below with:
+//         indicator("Ultimate Pure Price Action Ultimatum", "UPPAU",
+//                   overlay = true, max_lines_count = 500,
+//                   max_boxes_count = 500, max_labels_count = 500)
+//    2. Delete (or comment out) the single block marked
+//         "SECTION 15 — STRATEGY ORDERS"  at the bottom of the file.
+//    3. In the dashboard's stats row, replace the win-rate expression that
+//       reads strategy.wintrades / strategy.closedtrades with `float wr = na`
+//       (those built-ins only exist in strategy scripts).
+//    4. Optionally uncomment the alertcondition() lines in SECTION 16 —
+//       they only work in indicator scripts (strategies use alert() instead).
+//    5. In the prop-firm module (Section 12), replace
+//       `float eqNow = strategy.equity` with `float eqNow = na` — the
+//       daily-loss / max-DD locks then disable cleanly.
+//  Everything else — visuals, alerts, dashboard, trade-management lines —
+//  is computed independently of the broker emulator.
+//
+//  PROP-FIRM COMPLIANCE (enforced in code, Section 12)
+//  ----------------------------------------------------
+//  • NO MARTINGALE: size is always riskCash / 1R of a static account input —
+//    it never grows after losses. pyramiding = 0 forbids adding to positions.
+//  • DAILY LOSS LOCK: new entries blocked once the day is down `dailyLossPct`
+//    (default 3%, set it below the firm's real daily limit).
+//  • MAX-DD LOCK: new entries stop once equity is `maxDDPct` under its peak
+//    (default 8% vs a typical 10% rule). A backtest that ever triggers this
+//    lock has failed the evaluation — treat it as a red flag.
+//  • Daily signal cap + cooldown keep the profit distribution flat enough
+//    for "consistency" rules.
+//
+//  ANTI-OVERFITTING NOTES (prop-firm focus)
+//  ----------------------------------------
+//  • PARAMETER BUDGET: when optimising, you may tune AT MOST FOUR inputs —
+//    swing pivot length, volatility multiplier, min confluence score, strong
+//    displacement. Everything else stays at defaults. More degrees of freedom
+//    than that and the backtest stops meaning anything.
+//  • Every default below is a ROUND, structural number (e.g. swing length 8,
+//    RR ladder 1/2/3/5/8). Resist the urge to tune to 2 decimal places on a
+//    single symbol — that is curve fitting, not edge.
+//  • All thresholds are expressed in ATR multiples — and auto-scaled by the
+//    volatility percentile (Section 2) — never absolute points, so one
+//    setting set generalises across symbols, volatility regimes, timeframes.
+//  • The signal engine is intentionally strict (confluence gate + regime
+//    filter + ULTIMATE gate + daily cap + cooldown). If you loosen it to get
+//    "more trades", you are trading noise. Target ≈ 1–3 signals/day on 24/7
+//    markets (LTF) or a few per week on H1+.
+//
+//  THE ULTIMATE GATE (group ⑤, on top of the confluence score)
+//  ------------------------------------------------------------
+//  1. MTF STRUCTURE ALIGNMENT — the HTF swing structure (same BOS state
+//     machine, run on the HTF) must agree with the trade direction AND price
+//     must sit on the right side of the HTF range mid.
+//  2. STRONG DISPLACEMENT — the signal bar itself must be a conviction
+//     candle: body > strongDispX × ATR, closing in the far 30% of its range.
+//  3. REJECTION AT KEY LEVEL — within the last few bars, price must have
+//     tapped an OB / FVG / broken level and closed back on the right side of
+//     its own range, proving the level held.
+//  Calibrating frequency to ≈2–3 signals/day on liquid symbols (EURUSD,
+//  NAS100) at M5–M15: if too FEW signals, lower "Strong displacement" toward
+//  1.2, widen "Rejection freshness" to 5, or set "Min confluence score" to 5.
+//  If too MANY, raise displacement to 1.8–2.0 and min score to 6.
+//
+//  NEWS FILTER (group ⑤b) — Pine has no economic-calendar feed, so this is a
+//  time-window blackout: new entries are blocked inside up to three
+//  user-defined windows (defaults bracket the usual US 08:30 / 10:00 / 14:00
+//  ET release slots). Open trades keep being managed during blackouts.
+//  • See the accompanying BACKTESTING_PROTOCOL.md for the full validation
+//    workflow (in-sample / out-of-sample / walk-forward / forward demo).
+//
+// ============================================================================
+// Declaration notes: pyramiding=0 is a prop-firm rule (one position at a
+// time); initial_capital should be kept equal to the "Account size" input;
+// commission + slippage simulate real costs (never backtest at zero cost);
+// process_orders_on_close=false fills on next bar open, which is realistic.
+strategy(
+     title                    = "Ultimate Pure Price Action Ultimatum",
+     shorttitle               = "UPPAU",
+     overlay                  = true,
+     pyramiding               = 0,
+     initial_capital          = 10000,
+     commission_type          = strategy.commission.percent,
+     commission_value         = 0.02,
+     slippage                 = 2,
+     calc_on_every_tick       = false,
+     process_orders_on_close  = false,
+     max_lines_count          = 500,
+     max_boxes_count          = 500,
+     max_labels_count         = 500)
+
+// ============================================================================
+//  SECTION 1 — INPUTS
+// ============================================================================
+
+// ---- 1a. Structure ---------------------------------------------------------
+grpS  = "① Market Structure"
+swingLen      = input.int(8,    "Swing pivot length",            minval = 2, maxval = 50,  group = grpS, tooltip = "Bars left/right of a pivot. Higher = bigger structure.")
+structWindow  = input.int(30,   "Structure break freshness (bars)", minval = 5, maxval = 200, group = grpS, tooltip = "A BOS/CHoCH counts toward confluence only while younger than this.")
+showSwings    = input.bool(true,  "Show HH / HL / LH / LL labels", group = grpS)
+showStruct    = input.bool(true,  "Show BOS / CHoCH lines",        group = grpS)
+
+// ---- 1b. Volatility engine --------------------------------------------------
+grpV  = "② Volatility Engine (instrument-adaptive)"
+atrLen        = input.int(14,     "ATR length",                  minval = 5,   maxval = 100, group = grpV)
+volMult       = input.float(1.0,  "Volatility multiplier",       minval = 0.2, maxval = 5.0, step = 0.1, group = grpV, tooltip = "Global scaler for every ATR-based distance (stops, buffers, displacement). Raise for jumpy instruments, lower for slow ones.")
+autoVolScale  = input.bool(true,  "Auto-scale with volatility percentile", group = grpV, tooltip = "Multiplies every ATR distance by 0.75×–1.25× depending on where current ATR sits in its own 200-bar history: tighter in dead-calm conditions, wider in volatile ones. Stops, buffers, displacement thresholds and the RR-based targets built on them all adapt automatically.")
+slBufMult     = input.float(0.5,  "SL buffer (× ATR)",           minval = 0.0, maxval = 3.0, step = 0.1, group = grpV, tooltip = "Volatility buffer added beyond the protective swing.")
+maxSLatr      = input.float(3.0,  "Max initial risk (× ATR)",    minval = 0.5, maxval = 10,  step = 0.5, group = grpV, tooltip = "If the protective swing is farther than this, the stop is capped to keep risk sane.")
+
+// ---- 1c. Zones & liquidity ---------------------------------------------------
+grpZ  = "③ Zones & Liquidity"
+showOB        = input.bool(true,  "Order blocks",                group = grpZ)
+maxZones      = input.int(6,      "Max zones kept per side",     minval = 1, maxval = 20, group = grpZ)
+obLookback    = input.int(12,     "OB search lookback (bars)",   minval = 3, maxval = 30, group = grpZ)
+showFVG       = input.bool(true,  "Fair value gaps",             group = grpZ)
+fvgMinMult    = input.float(0.25, "Min FVG size (× ATR)",        minval = 0.0, maxval = 3.0, step = 0.05, group = grpZ)
+showLiq       = input.bool(true,  "Liquidity pools & sweeps",    group = grpZ)
+eqTol         = input.float(0.15, "Equal high/low tolerance (× ATR)", minval = 0.01, maxval = 1.0, step = 0.01, group = grpZ)
+
+// ---- 1d. Momentum -------------------------------------------------------------
+grpM  = "④ Momentum (displacement / velocity)"
+dispMult      = input.float(1.2,  "Displacement body (× ATR)",   minval = 0.3, maxval = 5.0, step = 0.1, group = grpM)
+velMult       = input.float(2.0,  "Velocity: 3-bar travel (× ATR)", minval = 0.5, maxval = 8.0, step = 0.1, group = grpM)
+
+// ---- 1e. Signal engine ---------------------------------------------------------
+grpX  = "⑤ Signal Engine (confluence)"
+minScore      = input.int(5,      "Min confluence score (max 7)", minval = 3, maxval = 7, group = grpX, tooltip = "Structure break = 2 pts. Zone retest, candle, displacement, sweep, HTF bias = 1 pt each.")
+requireZone   = input.bool(true,  "REQUIRE zone / level retest",  group = grpX)
+requireCandle = input.bool(true,  "REQUIRE candle confirmation",  group = grpX)
+requireDisp   = input.bool(true,  "REQUIRE displacement",         group = grpX)
+useHTF        = input.bool(true,  "Use HTF bias filter",          group = grpX)
+htfTF         = input.timeframe("240", "HTF timeframe",           group = grpX)
+htfLen        = input.int(10,     "HTF range length",             minval = 3, maxval = 50, group = grpX, tooltip = "Bias = price vs midpoint of the HTF high/low range (pure price, no MA).")
+maxPerDay     = input.int(3,      "Max signals per day",          minval = 1, maxval = 20, group = grpX)
+cooldown      = input.int(15,     "Cooldown between signals (bars)", minval = 0, maxval = 200, group = grpX)
+dirMode       = input.string("Both", "Trade direction",           options = ["Both", "Long only", "Short only"], group = grpX)
+allowLowVol   = input.bool(false, "Allow signals in LOW-VOL regime", group = grpX, tooltip = "Compression usually precedes expansion — default is to stand aside.")
+// ---- Ultimate gate: strictest high-quality-only refinements ----------------
+reqHTFStruct  = input.bool(true,  "REQUIRE MTF structure alignment", group = grpX, tooltip = "Longs only when the HTF swing STRUCTURE is bullish AND price sits above the HTF range mid (and mirrored for shorts). This is a hard gate on top of the HTF-bias confluence point.")
+htfSwing      = input.int(5,      "HTF swing length (MTF gate)",    minval = 2, maxval = 20, group = grpX)
+reqStrongDisp = input.bool(true,  "REQUIRE strong displacement bar", group = grpX, tooltip = "The signal bar itself must be a conviction candle: directional body larger than the threshold below AND closing in the far 30% of its range.")
+strongDispX   = input.float(1.5,  "Strong displacement (× ATR)",    minval = 0.5, maxval = 6.0, step = 0.1, group = grpX)
+reqRejection  = input.bool(true,  "REQUIRE rejection at key level",  group = grpX, tooltip = "A bar within the freshness window must have tapped an OB/FVG/broken level and closed back in the top (long) / bottom (short) half of its range — proof the level actually held.")
+rejectWindow  = input.int(3,      "Rejection freshness (bars)",      minval = 1, maxval = 10, group = grpX)
+
+// ---- 1e-bis. News / high-impact time filter ---------------------------------
+grpN  = "⑤b News / Time Filter"
+useNewsFilter = input.bool(true,  "Block entries during news windows", group = grpN, tooltip = "Pine has no economic-calendar feed, so the blackout windows are time-based: set them around the scheduled releases you care about. Defaults bracket the usual US 08:30 / 10:00 / 14:00 ET slots (NFP, CPI, retail sales, ISM, FOMC). Open positions are still managed — only NEW entries are blocked.")
+newsTZ        = input.string("America/New_York", "News timezone",     group = grpN, tooltip = "IANA timezone the windows are defined in, e.g. America/New_York, Europe/London, UTC.")
+newsWin1      = input.session("0820-0850", "Blackout window 1",       group = grpN)
+newsWin2      = input.session("0955-1015", "Blackout window 2",       group = grpN)
+newsWin3      = input.session("1350-1430", "Blackout window 3",       group = grpN)
+
+// ---- 1f. Trade management --------------------------------------------------------
+grpT  = "⑥ Trade Management"
+rr1 = input.float(1.0, "TP1 (R:R)", minval = 0.2, step = 0.1, group = grpT, inline = "rr1")
+rr2 = input.float(2.0, "TP2",       minval = 0.2, step = 0.1, group = grpT, inline = "rr1")
+rr3 = input.float(3.0, "TP3",       minval = 0.2, step = 0.1, group = grpT, inline = "rr2")
+rr4 = input.float(5.0, "TP4",       minval = 0.2, step = 0.1, group = grpT, inline = "rr2")
+rr5 = input.float(8.0, "TP5",       minval = 0.2, step = 0.1, group = grpT, inline = "rr3")
+tpPct1 = input.float(25, "TP1 exit %", minval = 0, maxval = 100, group = grpT, inline = "q1")
+tpPct2 = input.float(25, "TP2 %",      minval = 0, maxval = 100, group = grpT, inline = "q1")
+tpPct3 = input.float(20, "TP3 %",      minval = 0, maxval = 100, group = grpT, inline = "q2")
+tpPct4 = input.float(15, "TP4 %",      minval = 0, maxval = 100, group = grpT, inline = "q2")
+tpPct5 = input.float(15, "TP5 %",      minval = 0, maxval = 100, group = grpT, inline = "q3", tooltip = "The five percentages should sum to 100.")
+beEnable      = input.bool(true,   "Move stop to breakeven after TP1", group = grpT)
+trailMode     = input.string("ATR", "Trailing stop mode", options = ["Off", "ATR", "Swing"], group = grpT)
+trailAfter    = input.int(2,       "Trail activates after TP #", minval = 1, maxval = 4, group = grpT)
+trailMult     = input.float(2.0,   "ATR trail distance (× ATR)", minval = 0.5, maxval = 8.0, step = 0.1, group = grpT)
+showTradeLines= input.bool(true,   "Show entry/SL/TP lines",     group = grpT)
+
+// ---- 1g. Risk ----------------------------------------------------------------------
+grpR  = "⑦ Risk (prop-firm)"
+acctSize      = input.float(10000, "Account size",               minval = 1, group = grpR)
+riskPct       = input.float(0.5,   "Risk per trade (%)",         minval = 0.05, maxval = 5.0, step = 0.05, group = grpR, tooltip = "0.25–1.0% recommended for prop-firm consistency rules. Size is ALWAYS riskCash / 1R — it never increases after a loss (no martingale).")
+useLocks      = input.bool(true,   "Enforce daily-loss & max-DD locks", group = grpR, tooltip = "Hard compliance locks that block NEW entries (open trades keep being managed). Set the thresholds BELOW your prop firm's actual limits to leave a safety margin.")
+dailyLossPct  = input.float(3.0,   "Daily loss lock (%)",        minval = 0.5, maxval = 10.0, step = 0.5, group = grpR, tooltip = "New entries stop for the rest of the day once equity is down this % from the day's starting equity. Set below the firm's daily limit (e.g. 3% vs a 5% rule).")
+maxDDPct      = input.float(8.0,   "Max drawdown lock (%)",      minval = 1.0, maxval = 20.0, step = 0.5, group = grpR, tooltip = "New entries stop permanently once equity is this % below its all-time peak. If a backtest ever triggers this, the settings FAIL the prop test — fix the strategy, not the lock.")
+
+// ---- 1h. Dashboard & visuals --------------------------------------------------------
+grpD  = "⑧ Dashboard & Visuals"
+showDash      = input.bool(true,  "Show dashboard",              group = grpD)
+dashPosIn     = input.string("Top Right", "Position", options = ["Top Right", "Bottom Right", "Top Left", "Bottom Left"], group = grpD)
+dashSizeIn    = input.string("Small", "Text size", options = ["Tiny", "Small", "Normal"], group = grpD)
+dashRegime    = input.bool(true,  "Row: regime & volatility",    group = grpD)
+dashSignal    = input.bool(true,  "Row: signal & position",      group = grpD)
+dashLevels    = input.bool(true,  "Row: entry / SL / TP",        group = grpD)
+dashRisk      = input.bool(true,  "Row: risk & PnL projection",  group = grpD)
+dashStats     = input.bool(true,  "Row: win-rate & counters",    group = grpD)
+cBull         = input.color(color.new(#26a69a, 0), "Bull color", group = grpD, inline = "col")
+cBear         = input.color(color.new(#ef5350, 0), "Bear color", group = grpD, inline = "col")
+enableAlerts  = input.bool(true,  "Dynamic alert() messages",    group = grpD, tooltip = "Create one alert with condition 'Any alert() function call' to receive entries, TP/SL hits and regime changes.")
+
+// ---- 1i. Strategy engine --------------------------------------------------------------
+grpG  = "⑨ Strategy Engine"
+tradeOn       = input.bool(true,  "Send orders to Strategy Tester", group = grpG, tooltip = "Turn off to use the script purely as a signal indicator while keeping strategy() mode.")
+
+// ============================================================================
+//  SECTION 2 — CORE PRICE / VOLATILITY ENGINE
+// ============================================================================
+atrRaw  = ta.atr(atrLen)
+// Volatility percentile: where the current ATR sits inside its own last 200
+// bars (0 = dead calm, 100 = most volatile seen). This one number drives both
+// the automatic distance scaling below and the volatility-regime classifier.
+volPctRaw = ta.percentrank(atrRaw, 200)
+volPct01  = na(volPctRaw) ? 0.5 : volPctRaw / 100.0
+// Adaptive scale: 0.75× at the calm extreme -> 1.25× at the volatile extreme,
+// so every level, filter and risk distance in the script breathes with the
+// instrument. Disable via the input to use the fixed multiplier only.
+adaptFactor = autoVolScale ? 0.75 + 0.5 * volPct01 : 1.0
+atrVal  = atrRaw * volMult * adaptFactor         // globally scaled volatility unit
+body    = math.abs(close - open)
+rng     = high - low
+
+// ============================================================================
+//  SECTION 3 — HELPER FUNCTIONS
+// ============================================================================
+
+// Distance formatter: points (ticks) + percent of price — instrument agnostic.
+f_dist(float d) =>
+    str.tostring(d / syminfo.mintick, "#") + " pts (" + str.tostring(d / close * 100, "#.##") + "%)"
+
+f_px(float p) =>
+    str.tostring(p, format.mintick)
+
+// Signal-strength stars (0-5), built char by char (str.repeat(s, 0) is na).
+f_stars(int n) =>
+    int nn = math.max(0, math.min(5, n))
+    string s = ""
+    int i = 0
+    while i < 5
+        s := s + (i < nn ? "★" : "☆")
+        i += 1
+    s
+
+// Does the current bar trade back INTO a bullish demand zone (without closing through it)?
+f_touchBull(array<box> bxs) =>
+    bool hit = false
+    int i = 0
+    while i < array.size(bxs)
+        box b = array.get(bxs, i)
+        if low <= box.get_top(b) and close >= box.get_bottom(b)
+            hit := true
+        i += 1
+    hit
+
+// Does the current bar trade back INTO a bearish supply zone?
+f_touchBear(array<box> bxs) =>
+    bool hit = false
+    int i = 0
+    while i < array.size(bxs)
+        box b = array.get(bxs, i)
+        if high >= box.get_bottom(b) and close <= box.get_top(b)
+            hit := true
+        i += 1
+    hit
+
+// Remove zones the market has closed through (mitigated / invalidated).
+f_purge(array<box> bxs, bool isBull) =>
+    int i = array.size(bxs) - 1
+    while i >= 0
+        box b = array.get(bxs, i)
+        bool dead = isBull ? close < box.get_bottom(b) : close > box.get_top(b)
+        if dead
+            box.delete(b)
+            array.remove(bxs, i)
+        i -= 1
+    true
+
+// Liquidity lines: detect sweeps (wick through, close back) and clean breaks.
+f_sweepLines(array<line> lns, bool isHighSide) =>
+    bool swept = false
+    int i = array.size(lns) - 1
+    while i >= 0
+        line ln  = array.get(lns, i)
+        float lvl = line.get_y1(ln)
+        bool sweepHit = isHighSide ? (high > lvl and close < lvl) : (low < lvl and close > lvl)
+        bool broken   = isHighSide ? close > lvl : close < lvl
+        if sweepHit or broken
+            if sweepHit
+                swept := true
+            line.delete(ln)
+            array.remove(lns, i)
+        i -= 1
+    swept
+
+// Cap an array of drawings to a max size (oldest out first).
+f_capBoxes(array<box> bxs, int mx) =>
+    while array.size(bxs) > mx
+        box.delete(array.shift(bxs))
+    true
+
+f_capLines(array<line> lns, int mx) =>
+    while array.size(lns) > mx
+        line.delete(array.shift(lns))
+    true
+
+// ============================================================================
+//  SECTION 4 — SWINGS  (HH / HL / LH / LL)
+// ============================================================================
+ph = ta.pivothigh(high, swingLen, swingLen)
+pl = ta.pivotlow(low,  swingLen, swingLen)
+
+var float swHi     = na
+var float prevSwHi = na
+var float swLo     = na
+var float prevSwLo = na
+var int   swHiBar  = na
+var int   swLoBar  = na
+var bool  hiTaken  = false                       // has the latest swing high been broken?
+var bool  loTaken  = false
+
+if not na(ph)
+    prevSwHi := swHi
+    swHi     := ph
+    swHiBar  := bar_index - swingLen
+    hiTaken  := false
+    if showSwings
+        string t = na(prevSwHi) ? "H" : ph > prevSwHi ? "HH" : "LH"
+        label.new(swHiBar, ph, t, style = label.style_none, textcolor = ph > nz(prevSwHi, ph) ? cBull : cBear, size = size.small)
+
+if not na(pl)
+    prevSwLo := swLo
+    swLo     := pl
+    swLoBar  := bar_index - swingLen
+    loTaken  := false
+    if showSwings
+        string t = na(prevSwLo) ? "L" : pl > prevSwLo ? "HL" : "LL"
+        label.new(swLoBar, pl, t, style = label.style_none, textcolor = pl > nz(prevSwLo, pl) ? cBull : cBear, size = size.small)
+
+// ============================================================================
+//  SECTION 5 — STRUCTURE BREAKS  (BOS / CHoCH)  +  ORDER BLOCKS
+// ============================================================================
+var int   structDir        = 0                   // 1 bullish, -1 bearish, 0 undefined
+var int   lastBullBreakBar = -100000
+var int   lastBearBreakBar = -100000
+var float lastBullBreakLvl = na
+var float lastBearBreakLvl = na
+
+var array<box> bullOBs  = array.new<box>()
+var array<box> bearOBs  = array.new<box>()
+var array<box> bullFVGs = array.new<box>()
+var array<box> bearFVGs = array.new<box>()
+
+// ---- Bullish break: close above the last untouched swing high -------------
+if not na(swHi) and not hiTaken and close > swHi
+    hiTaken          := true
+    bool isChoch      = structDir == -1          // trend flip = Change of Character
+    structDir        := 1
+    lastBullBreakBar := bar_index
+    lastBullBreakLvl := swHi
+    if showStruct
+        line.new(swHiBar, swHi, bar_index, swHi, color = cBull, width = 1, style = isChoch ? line.style_dashed : line.style_solid)
+        label.new(math.round(math.avg(swHiBar, bar_index)), swHi, isChoch ? "CHoCH" : "BOS", style = label.style_none, textcolor = cBull, size = size.small)
+    // Bullish order block = last bearish candle before the impulse.
+    if showOB
+        int obIdx = na
+        for j = 1 to obLookback
+            if close[j] < open[j]
+                obIdx := j
+                break
+        if not na(obIdx)
+            array.push(bullOBs, box.new(bar_index - obIdx, high[obIdx], bar_index, low[obIdx], border_color = color.new(cBull, 60), bgcolor = color.new(cBull, 85), extend = extend.right))
+            f_capBoxes(bullOBs, maxZones)
+
+// ---- Bearish break: close below the last untouched swing low --------------
+if not na(swLo) and not loTaken and close < swLo
+    loTaken          := true
+    bool isChoch      = structDir == 1
+    structDir        := -1
+    lastBearBreakBar := bar_index
+    lastBearBreakLvl := swLo
+    if showStruct
+        line.new(swLoBar, swLo, bar_index, swLo, color = cBear, width = 1, style = isChoch ? line.style_dashed : line.style_solid)
+        label.new(math.round(math.avg(swLoBar, bar_index)), swLo, isChoch ? "CHoCH" : "BOS", style = label.style_none, textcolor = cBear, size = size.small)
+    if showOB
+        int obIdx = na
+        for j = 1 to obLookback
+            if close[j] > open[j]
+                obIdx := j
+                break
+        if not na(obIdx)
+            array.push(bearOBs, box.new(bar_index - obIdx, high[obIdx], bar_index, low[obIdx], border_color = color.new(cBear, 60), bgcolor = color.new(cBear, 85), extend = extend.right))
+            f_capBoxes(bearOBs, maxZones)
+
+// ============================================================================
+//  SECTION 6 — FAIR VALUE GAPS
+// ============================================================================
+bool newBullFVG = showFVG and low > high[2] and (low - high[2]) >= atrVal * fvgMinMult and close[1] > open[1]
+bool newBearFVG = showFVG and high < low[2] and (low[2] - high) >= atrVal * fvgMinMult and close[1] < open[1]
+
+if newBullFVG
+    array.push(bullFVGs, box.new(bar_index - 1, low, bar_index, high[2], border_color = color.new(cBull, 70), bgcolor = color.new(cBull, 90), extend = extend.right))
+    f_capBoxes(bullFVGs, maxZones)
+if newBearFVG
+    array.push(bearFVGs, box.new(bar_index - 1, low[2], bar_index, high, border_color = color.new(cBear, 70), bgcolor = color.new(cBear, 90), extend = extend.right))
+    f_capBoxes(bearFVGs, maxZones)
+
+// Purge zones the market has closed through.
+f_purge(bullOBs,  true)
+f_purge(bearOBs,  false)
+f_purge(bullFVGs, true)
+f_purge(bearFVGs, false)
+
+// ============================================================================
+//  SECTION 7 — LIQUIDITY POOLS & SWEEPS
+// ============================================================================
+var array<line> liqHi = array.new<line>()
+var array<line> liqLo = array.new<line>()
+var int lastBullSweepBar = -100000               // sweep of lows  -> long fuel
+var int lastBearSweepBar = -100000               // sweep of highs -> short fuel
+
+// Equal highs / equal lows = resting liquidity.
+if showLiq and not na(ph) and not na(prevSwHi) and math.abs(ph - prevSwHi) <= atrRaw * eqTol
+    array.push(liqHi, line.new(swHiBar, math.max(ph, prevSwHi), bar_index, math.max(ph, prevSwHi), extend = extend.right, color = color.new(cBear, 40), style = line.style_dotted, width = 2))
+    f_capLines(liqHi, 8)
+if showLiq and not na(pl) and not na(prevSwLo) and math.abs(pl - prevSwLo) <= atrRaw * eqTol
+    array.push(liqLo, line.new(swLoBar, math.min(pl, prevSwLo), bar_index, math.min(pl, prevSwLo), extend = extend.right, color = color.new(cBull, 40), style = line.style_dotted, width = 2))
+    f_capLines(liqLo, 8)
+
+// Sweep of an equal-high/low pool.
+bool poolSweepHi = f_sweepLines(liqHi, true)
+bool poolSweepLo = f_sweepLines(liqLo, false)
+
+// Sweep of the latest swing pivot (classic stop-hunt: wick through, close back).
+bool pivotSweepLo = not na(swLo) and not loTaken and low < swLo and close > swLo
+bool pivotSweepHi = not na(swHi) and not hiTaken and high > swHi and close < swHi
+
+if poolSweepLo or pivotSweepLo
+    lastBullSweepBar := bar_index
+    if showLiq
+        label.new(bar_index, low, "sweep", style = label.style_label_up, color = color.new(cBull, 70), textcolor = color.white, size = size.tiny)
+if poolSweepHi or pivotSweepHi
+    lastBearSweepBar := bar_index
+    if showLiq
+        label.new(bar_index, high, "sweep", style = label.style_label_down, color = color.new(cBear, 70), textcolor = color.white, size = size.tiny)
+
+// ============================================================================
+//  SECTION 8 — CANDLESTICK PATTERNS (contextual, ATR-normalised)
+// ============================================================================
+// Engulfing: real-body engulfing with a meaningful body.
+bullEngulf = close > open and close[1] < open[1] and close >= math.max(open[1], close[1]) and open <= math.min(open[1], close[1]) and body >= 0.5 * atrVal
+bearEngulf = close < open and close[1] > open[1] and close <= math.min(open[1], close[1]) and open >= math.max(open[1], close[1]) and body >= 0.5 * atrVal
+
+// Pin bars: dominant rejection wick, close in the far third.
+loWick  = math.min(open, close) - low
+hiWick  = high - math.max(open, close)
+bullPin = rng > 0 and loWick >= 2 * body and loWick >= 0.6 * rng and (close - low) / rng >= 0.6 and rng >= 0.7 * atrVal
+bearPin = rng > 0 and hiWick >= 2 * body and hiWick >= 0.6 * rng and (high - close) / rng >= 0.6 and rng >= 0.7 * atrVal
+
+// Inside-bar breakout: previous bar was inside its parent, this bar breaks out.
+wasInside   = high[1] <= high[2] and low[1] >= low[2]
+bullIBBreak = wasInside and close > high[2]
+bearIBBreak = wasInside and close < low[2]
+
+// ============================================================================
+//  SECTION 9 — MOMENTUM: DISPLACEMENT & VELOCITY
+// ============================================================================
+bullDisp = (close > open and body >= dispMult * atrVal) or (close - close[3]) >= velMult * atrVal
+bearDisp = (close < open and body >= dispMult * atrVal) or (close[3] - close) >= velMult * atrVal
+
+// ============================================================================
+//  SECTION 10 — MARKET REGIME DETECTION v2 (100% pure price)
+// ============================================================================
+// Three independent price-action reads are fused into one classifier:
+//   (a) Swing Directional Index — the ADX alternative. Built purely from
+//       swing progression: of the last few swing highs and swing lows, what
+//       fraction stair-step in one direction? +1 = perfect HH/HL ladder,
+//       -1 = perfect LH/LL ladder, ~0 = overlapping chop.
+//   (b) Efficiency ratio — net travel / gross travel over N bars (how much
+//       of the movement actually went somewhere).
+//   (c) Range expansion — is the recent 5-bar range budget expanding vs the
+//       typical 5-bar budget of the last 20 bars? (breakout conditions)
+
+// ---- (a) Swing Directional Index -------------------------------------------
+var array<float> regHi = array.new<float>()
+var array<float> regLo = array.new<float>()
+if not na(ph)
+    array.push(regHi, ph)
+    if array.size(regHi) > 5
+        array.shift(regHi)
+if not na(pl)
+    array.push(regLo, pl)
+    if array.size(regLo) > 5
+        array.shift(regLo)
+
+// Count rising vs falling consecutive pairs in a chronological pivot list.
+f_swingPairs(array<float> pts) =>
+    int upN = 0
+    int dnN = 0
+    int i = 1
+    while i < array.size(pts)
+        if array.get(pts, i) > array.get(pts, i - 1)
+            upN += 1
+        else
+            dnN += 1
+        i += 1
+    [upN, dnN]
+
+[hiUp, hiDn] = f_swingPairs(regHi)
+[loUp, loDn] = f_swingPairs(regLo)
+int   sdPairs  = hiUp + hiDn + loUp + loDn
+float swingDir = sdPairs > 0 ? (hiUp + loUp - hiDn - loDn) / (sdPairs * 1.0) : 0.0
+
+// ---- (b) Efficiency ratio (Kaufman) -----------------------------------------
+erLen       = 20
+grossTravel = math.sum(math.abs(close - close[1]), erLen)
+float erNum = math.abs(close - close[erLen])
+float er    = na(grossTravel) or grossTravel == 0 or na(erNum) ? 0.0 : erNum / grossTravel
+
+// ---- (c) Range expansion ------------------------------------------------------
+float win5     = math.sum(rng, 5)
+float win20avg = math.sum(rng, 20) / 4.0
+bool rangeExpanding = not na(win20avg) and win20avg > 0 and win5 / win20avg >= 1.25
+
+// ---- Fusion: trend strength 0-100 (read it like ADX) --------------------------
+// 60%+ = clean trend, <=40 = chop. Swing progression carries more weight than
+// travel efficiency because structure is the primary object of this system.
+float trendStrength = 100.0 * math.min(1.0, 0.6 * math.abs(swingDir) + 0.4 * math.min(er / 0.4, 1.0))
+
+int dirBias  = swingDir > 0.15 ? 1 : swingDir < -0.15 ? -1 : structDir
+int regTrend = trendStrength >= 60 ? (dirBias != 0 ? dirBias : (close > nz(close[erLen], close) ? 1 : -1)) :
+     trendStrength <= 40 and not rangeExpanding ? 0 : structDir
+
+// ---- Volatility state: percentile-based (see Section 2) -----------------------
+int volState = na(volPctRaw) ? 0 : volPctRaw >= 80 ? 1 : volPctRaw <= 20 ? -1 : 0
+
+string regimeStr = (regTrend == 1 ? "TRENDING ▲" : regTrend == -1 ? "TRENDING ▼" : "RANGING") + (volState == 1 ? " · HIGH VOL" : volState == -1 ? " · LOW VOL" : "")
+color  regCol    = regTrend == 1 ? cBull : regTrend == -1 ? cBear : color.new(color.orange, 0)
+
+// ============================================================================
+//  SECTION 11 — HTF BIAS & MULTI-TIMEFRAME STRUCTURE ALIGNMENT (pure price)
+// ============================================================================
+// Non-repainting form: [1] + lookahead_on returns the last CONFIRMED HTF value.
+htfMid  = request.security(syminfo.tickerid, htfTF, math.avg(ta.highest(high, htfLen), ta.lowest(low, htfLen))[1], lookahead = barmerge.lookahead_on)
+htfBull = close > htfMid
+htfBear = close < htfMid
+
+// HTF swing-structure direction: the same pivot-break (BOS) state machine that
+// drives the chart timeframe, evaluated inside the HTF context. Returns
+// 1 = bullish structure, -1 = bearish, 0 = undefined (young data).
+f_structDir() =>
+    var int   sd = 0
+    var float sh = na
+    var float sl = na
+    var bool  hT = false
+    var bool  lT = false
+    float p_h = ta.pivothigh(high, htfSwing, htfSwing)
+    float p_l = ta.pivotlow(low,  htfSwing, htfSwing)
+    if not na(p_h)
+        sh := p_h
+        hT := false
+    if not na(p_l)
+        sl := p_l
+        lT := false
+    if not na(sh) and not hT and close > sh
+        hT := true
+        sd := 1
+    if not na(sl) and not lT and close < sl
+        lT := true
+        sd := -1
+    sd
+
+htfStruct = request.security(syminfo.tickerid, htfTF, f_structDir()[1], lookahead = barmerge.lookahead_on)
+
+// Full MTF alignment = HTF swing structure AND HTF range position agree.
+htfAlignBull = htfStruct == 1  and htfBull
+htfAlignBear = htfStruct == -1 and htfBear
+
+// ============================================================================
+//  SECTION 12 — CONFLUENCE SCORING & SIGNAL GATE
+// ============================================================================
+// Component booleans (long side)
+bullStructOk = (bar_index - lastBullBreakBar) <= structWindow
+bullLvlRetest = not na(lastBullBreakLvl) and low <= lastBullBreakLvl + atrVal * 0.25 and close >= lastBullBreakLvl - atrVal * 0.25
+bullZoneOk   = f_touchBull(bullOBs) or f_touchBull(bullFVGs) or bullLvlRetest
+bullCandleOk = bullEngulf or bullPin or bullIBBreak
+bullSweepOk  = (bar_index - lastBullSweepBar) <= 15
+
+// Component booleans (short side)
+bearStructOk = (bar_index - lastBearBreakBar) <= structWindow
+bearLvlRetest = not na(lastBearBreakLvl) and high >= lastBearBreakLvl - atrVal * 0.25 and close <= lastBearBreakLvl + atrVal * 0.25
+bearZoneOk   = f_touchBear(bearOBs) or f_touchBear(bearFVGs) or bearLvlRetest
+bearCandleOk = bearEngulf or bearPin or bearIBBreak
+bearSweepOk  = (bar_index - lastBearSweepBar) <= 15
+
+// Scores: structure carries double weight — no structure, no trade.
+int scoreBull = (bullStructOk ? 2 : 0) + (bullZoneOk ? 1 : 0) + (bullCandleOk ? 1 : 0) + (bullDisp ? 1 : 0) + (bullSweepOk ? 1 : 0) + (useHTF and htfBull ? 1 : 0)
+int scoreBear = (bearStructOk ? 2 : 0) + (bearZoneOk ? 1 : 0) + (bearCandleOk ? 1 : 0) + (bearDisp ? 1 : 0) + (bearSweepOk ? 1 : 0) + (useHTF and htfBear ? 1 : 0)
+
+// Hard confluence requirements (break + retest + candle + displacement).
+bool reqBull = bullStructOk and (not requireZone or bullZoneOk) and (not requireCandle or bullCandleOk) and (not requireDisp or bullDisp) and (not useHTF or htfBull)
+bool reqBear = bearStructOk and (not requireZone or bearZoneOk) and (not requireCandle or bearCandleOk) and (not requireDisp or bearDisp) and (not useHTF or htfBear)
+
+// Regime gate: aggressive with trend, patient (sweep + extra score) in ranges,
+// stand aside in dead low-volatility unless the user opts in.
+bool regimeBull = regTrend == 1 ? true : regTrend == -1 ? false : (bullSweepOk and scoreBull >= minScore + 1)
+bool regimeBear = regTrend == -1 ? true : regTrend == 1 ? false : (bearSweepOk and scoreBear >= minScore + 1)
+bool volOk      = volState != -1 or allowLowVol
+
+// ---------------------------------------------------------------------------
+// ULTIMATE GATE — the strictest layer, all three legs individually togglable.
+// Typical winning sequence it encodes: price taps a key level and REJECTS it
+// (wick holds, close back on the right side), then within a few bars a STRONG
+// DISPLACEMENT bar fires in the direction of full MULTI-TIMEFRAME alignment.
+// ---------------------------------------------------------------------------
+// Leg 1 — rejection at a key level (OB / FVG / broken structure level):
+//         the tap bar must close back in the top (long) / bottom (short) half
+//         of its own range, proving the level actually held.
+bool bullRejectNow = bullZoneOk and rng > 0 and (close - low)  / rng >= 0.55
+bool bearRejectNow = bearZoneOk and rng > 0 and (high - close) / rng >= 0.55
+var int lastBullRejBar = -100000
+var int lastBearRejBar = -100000
+if bullRejectNow
+    lastBullRejBar := bar_index
+if bearRejectNow
+    lastBearRejBar := bar_index
+bool bullRejectOk = (bar_index - lastBullRejBar) <= rejectWindow
+bool bearRejectOk = (bar_index - lastBearRejBar) <= rejectWindow
+
+// Leg 2 — strong displacement on the signal bar itself: conviction body
+//         (> strongDispX × ATR) closing in the far 30% of its range.
+bool bullStrongDisp = close > open and body >= strongDispX * atrVal and rng > 0 and (close - low)  / rng >= 0.7
+bool bearStrongDisp = close < open and body >= strongDispX * atrVal and rng > 0 and (high - close) / rng >= 0.7
+
+// Leg 3 — multi-timeframe structure alignment (computed in Section 11).
+bool ultBull = (not reqHTFStruct or htfAlignBull) and (not reqStrongDisp or bullStrongDisp) and (not reqRejection or bullRejectOk)
+bool ultBear = (not reqHTFStruct or htfAlignBear) and (not reqStrongDisp or bearStrongDisp) and (not reqRejection or bearRejectOk)
+
+// ---------------------------------------------------------------------------
+// News / high-impact time filter: block NEW entries inside the blackout
+// windows (open positions keep being managed). time() returns na outside
+// the session, a timestamp inside it.
+// ---------------------------------------------------------------------------
+bool inNews1 = not na(time(timeframe.period, newsWin1, newsTZ))
+bool inNews2 = not na(time(timeframe.period, newsWin2, newsTZ))
+bool inNews3 = not na(time(timeframe.period, newsWin3, newsTZ))
+bool newsBlock = useNewsFilter and (inNews1 or inNews2 or inNews3)
+
+// Overtrading guards: daily cap + cooldown.
+bool newDay = ta.change(time("D")) != 0
+var int daySignals = 0
+if newDay
+    daySignals := 0
+var int lastSigBar = -100000
+bool paceOk = (bar_index - lastSigBar) >= cooldown and daySignals < maxPerDay
+
+// ---------------------------------------------------------------------------
+// PROP-FIRM COMPLIANCE MODULE (risk discipline enforced in code)
+//   • NO MARTINGALE / NO GRID: position size is always riskCash / 1R of the
+//     static account input. It never scales up after a loss, and
+//     pyramiding = 0 in the declaration forbids adding to a position.
+//   • DAILY LOSS LOCK: once equity drops `dailyLossPct` below the day's
+//     starting equity, new entries are blocked until the next day.
+//   • MAX-DRAWDOWN LOCK: once equity sits `maxDDPct` below its all-time
+//     peak, new entries stop entirely. A backtest that triggers this lock
+//     has already failed the evaluation — treat it as a red flag, not a fix.
+//   • Set both thresholds BELOW the firm's real limits (e.g. 3% lock vs a 5%
+//     daily rule) so slippage on the final losing trade cannot breach them.
+//   Indicator conversion note: strategy.equity only exists in strategies —
+//   replace `eqNow = strategy.equity` with `eqNow = na` and the locks
+//   disable cleanly.
+// ---------------------------------------------------------------------------
+float eqNow = strategy.equity
+var float dayStartEq = na
+var float peakEq     = na
+if na(dayStartEq) or newDay
+    dayStartEq := eqNow
+peakEq := na(eqNow) ? peakEq : na(peakEq) ? eqNow : math.max(peakEq, eqNow)
+float dayPnLPct = na(eqNow) or na(dayStartEq) or dayStartEq <= 0 ? 0.0 : (eqNow - dayStartEq) / dayStartEq * 100
+float ddPct     = na(eqNow) or na(peakEq)     or peakEq     <= 0 ? 0.0 : (peakEq - eqNow) / peakEq * 100
+bool dailyLock  = useLocks and dayPnLPct <= -dailyLossPct
+bool ddLock     = useLocks and ddPct >= maxDDPct
+bool propOk     = not dailyLock and not ddLock
+
+bool longSignalRaw  = reqBull and scoreBull >= minScore and regimeBull and volOk and ultBull and not newsBlock and propOk and paceOk and dirMode != "Short only" and barstate.isconfirmed
+bool shortSignalRaw = reqBear and scoreBear >= minScore and regimeBear and volOk and ultBear and not newsBlock and propOk and paceOk and dirMode != "Long only"  and barstate.isconfirmed
+
+// ============================================================================
+//  SECTION 13 — TRADE STATE MACHINE (visual manager: SL / BE / TRAIL / TP1-5)
+// ============================================================================
+var int   tDir    = 0                            // 1 long, -1 short, 0 flat
+var float tEntry  = na
+var float tCurSL  = na                           // live stop (initial -> BE -> trail)
+var float tRisk   = na                           // 1R in price units
+var float tQty    = na
+var int   tTpHits = 0
+var array<float> tTPs = array.new<float>()
+
+// Drawing handles for the active trade.
+var line  lnEntry = na
+var line  lnSL    = na
+var array<line>  lnTPs = array.new<line>()
+var label lbEntry = na
+var label lbSL    = na
+var array<label> lbTPs = array.new<label>()
+
+// Per-bar event flags (consumed by alerts / strategy section).
+bool longFired  = false
+bool shortFired = false
+bool tpEvent    = false
+bool exitNow    = false
+bool slEvent    = false
+string exitTag  = ""
+float  exitPx   = na
+int    tpHitNum = 0
+
+riskCash = acctSize * riskPct / 100.0
+
+// ---------------------------------------------------------------------------
+// 13a. Manage the open trade: stop first (conservative), then targets,
+//      then update BE/trail for the NEXT bar (no same-bar lookahead).
+// ---------------------------------------------------------------------------
+if tDir != 0
+    bool stopHit = tDir == 1 ? low <= tCurSL : high >= tCurSL
+    if stopHit
+        exitNow := true
+        exitPx  := tCurSL
+        slEvent := true
+        bool protStop = tDir == 1 ? tCurSL >= tEntry : tCurSL <= tEntry
+        exitTag := tTpHits > 0 ? (protStop ? "BE / TRAIL STOP" : "TRAIL STOP") : "STOP LOSS"
+    else
+        // Ladder through untouched targets hit on this bar.
+        bool scan = true
+        while scan
+            if tTpHits >= 5
+                scan := false
+            else
+                float nxt = array.get(tTPs, tTpHits)
+                bool hitTp = tDir == 1 ? high >= nxt : low <= nxt
+                if hitTp
+                    tTpHits  += 1
+                    tpEvent  := true
+                    tpHitNum := tTpHits
+                    if array.size(lnTPs) >= tTpHits
+                        line.set_style(array.get(lnTPs, tTpHits - 1), line.style_dotted)
+                else
+                    scan := false
+        if tTpHits >= 5
+            exitNow := true
+            exitPx  := array.get(tTPs, 4)
+            exitTag := "ALL TARGETS HIT"
+    // Update protective stop for the next bar.
+    if not exitNow
+        if beEnable and tTpHits >= 1
+            tCurSL := tDir == 1 ? math.max(tCurSL, tEntry) : math.min(tCurSL, tEntry)
+        if trailMode != "Off" and tTpHits >= trailAfter
+            float trailLvl = na
+            if trailMode == "ATR"
+                trailLvl := tDir == 1 ? close - atrVal * trailMult : close + atrVal * trailMult
+            else                                   // Swing-based trail
+                trailLvl := tDir == 1 ? (na(swLo) ? tCurSL : swLo - atrVal * slBufMult * 0.5) : (na(swHi) ? tCurSL : swHi + atrVal * slBufMult * 0.5)
+            tCurSL := tDir == 1 ? math.max(tCurSL, trailLvl) : math.min(tCurSL, trailLvl)
+        // Refresh the SL line/label to follow BE / trail.
+        if not na(lnSL)
+            line.set_y1(lnSL, tCurSL)
+            line.set_y2(lnSL, tCurSL)
+            bool protNow = tDir == 1 ? tCurSL >= tEntry : tCurSL <= tEntry
+            line.set_color(lnSL, protNow ? color.new(color.teal, 0) : cBear)
+        if not na(lbSL)
+            bool protNow2 = tDir == 1 ? tCurSL >= tEntry : tCurSL <= tEntry
+            string slName = trailMode != "Off" and tTpHits >= trailAfter ? "TRAIL" : protNow2 ? "BE" : "SL"
+            label.set_text(lbSL, slName + " " + f_px(tCurSL) + " · " + f_dist(math.abs(tEntry - tCurSL)))
+            label.set_y(lbSL, tCurSL)
+            label.set_x(lbSL, bar_index + 6)
+            label.set_textcolor(lbSL, protNow2 ? color.teal : cBear)
+        if not na(lbEntry)
+            label.set_x(lbEntry, bar_index + 6)
+        int k = 0
+        while k < array.size(lbTPs)
+            label.set_x(array.get(lbTPs, k), bar_index + 6)
+            k += 1
+
+// ---------------------------------------------------------------------------
+// 13b. Close the trade: freeze lines, drop floating labels, stamp the exit.
+// ---------------------------------------------------------------------------
+if exitNow
+    label.new(bar_index, exitPx, exitTag + " @ " + f_px(exitPx), style = tDir == 1 ? label.style_label_down : label.style_label_up, color = slEvent ? color.new(cBear, 20) : color.new(cBull, 20), textcolor = color.white, size = size.small)
+    if not na(lnEntry)
+        line.set_extend(lnEntry, extend.none)
+        line.set_x2(lnEntry, bar_index)
+    if not na(lnSL)
+        line.set_extend(lnSL, extend.none)
+        line.set_x2(lnSL, bar_index)
+    int k = 0
+    while k < array.size(lnTPs)
+        line.set_extend(array.get(lnTPs, k), extend.none)
+        line.set_x2(array.get(lnTPs, k), bar_index)
+        k += 1
+    if not na(lbEntry)
+        label.delete(lbEntry)
+    if not na(lbSL)
+        label.delete(lbSL)
+    while array.size(lbTPs) > 0
+        label.delete(array.pop(lbTPs))
+    array.clear(lnTPs)
+    array.clear(tTPs)
+    lnEntry := na
+    lnSL    := na
+    lbEntry := na
+    lbSL    := na
+    tDir    := 0
+    tTpHits := 0
+
+// ---------------------------------------------------------------------------
+// 13c. Open a new trade on a qualified signal (only when flat).
+// ---------------------------------------------------------------------------
+if tDir == 0 and (longSignalRaw or shortSignalRaw)
+    int dirNew = longSignalRaw ? 1 : -1
+    // ---- Initial stop: protective swing + volatility buffer, ATR-capped ----
+    float slNew = na
+    if dirNew == 1
+        float baseLo = na(swLo) ? low : math.min(swLo, low)
+        slNew := baseLo - atrVal * slBufMult
+        if close - slNew > atrVal * maxSLatr
+            slNew := close - atrVal * maxSLatr
+    else
+        float baseHi = na(swHi) ? high : math.max(swHi, high)
+        slNew := baseHi + atrVal * slBufMult
+        if slNew - close > atrVal * maxSLatr
+            slNew := close + atrVal * maxSLatr
+    float riskNew = math.abs(close - slNew)
+    if riskNew > syminfo.mintick                  // sanity: refuse zero-risk setups
+        tDir    := dirNew
+        tEntry  := close
+        tCurSL  := slNew
+        tRisk   := riskNew
+        tTpHits := 0
+        array.clear(tTPs)
+        array.push(tTPs, tEntry + tDir * tRisk * rr1)
+        array.push(tTPs, tEntry + tDir * tRisk * rr2)
+        array.push(tTPs, tEntry + tDir * tRisk * rr3)
+        array.push(tTPs, tEntry + tDir * tRisk * rr4)
+        array.push(tTPs, tEntry + tDir * tRisk * rr5)
+        // ---- Position size: risk cash / (1R × point value) -----------------
+        tQty := riskCash / (tRisk * syminfo.pointvalue)
+        // ---- Pace counters --------------------------------------------------
+        daySignals += 1
+        lastSigBar := bar_index
+        longFired  := dirNew == 1
+        shortFired := dirNew == -1
+        // ---- Entry arrow -----------------------------------------------------
+        int stars = math.max(1, math.min(5, (dirNew == 1 ? scoreBull : scoreBear) - 2))
+        string starStr = f_stars(stars)
+        label.new(bar_index, dirNew == 1 ? low - atrVal * 0.4 : high + atrVal * 0.4, (dirNew == 1 ? "▲ LONG @ " : "▼ SHORT @ ") + f_px(tEntry) + "\n" + starStr, style = dirNew == 1 ? label.style_label_up : label.style_label_down, color = dirNew == 1 ? cBull : cBear, textcolor = color.white, size = size.small)
+        // ---- Management lines & right-edge labels ------------------------------
+        if showTradeLines
+            lnEntry := line.new(bar_index, tEntry, bar_index + 1, tEntry, extend = extend.right, color = color.new(color.gray, 20), style = line.style_solid, width = 1)
+            lbEntry := label.new(bar_index + 6, tEntry, "ENTRY " + f_px(tEntry) + " · qty " + str.tostring(tQty, "#.####") + " · risk " + str.tostring(riskCash, "#.##"), style = label.style_none, textcolor = color.gray, size = size.small)
+            lnSL    := line.new(bar_index, tCurSL, bar_index + 1, tCurSL, extend = extend.right, color = cBear, style = line.style_solid, width = 2)
+            lbSL    := label.new(bar_index + 6, tCurSL, "SL " + f_px(tCurSL) + " · " + f_dist(tRisk), style = label.style_none, textcolor = cBear, size = size.small)
+            int k = 0
+            while k < 5
+                float tpPx = array.get(tTPs, k)
+                float rrK  = k == 0 ? rr1 : k == 1 ? rr2 : k == 2 ? rr3 : k == 3 ? rr4 : rr5
+                array.push(lnTPs, line.new(bar_index, tpPx, bar_index + 1, tpPx, extend = extend.right, color = color.new(cBull, 20 + k * 12), style = line.style_solid, width = 1))
+                array.push(lbTPs, label.new(bar_index + 6, tpPx, "TP" + str.tostring(k + 1) + " · 1:" + str.tostring(rrK, "#.#") + " · " + f_dist(math.abs(tpPx - tEntry)), style = label.style_none, textcolor = color.new(cBull, 20), size = size.small))
+                k += 1
+
+// ============================================================================
+//  SECTION 14 — DASHBOARD
+// ============================================================================
+dashPos = switch dashPosIn
+    "Top Right"    => position.top_right
+    "Bottom Right" => position.bottom_right
+    "Top Left"     => position.top_left
+    "Bottom Left"  => position.bottom_left
+    => position.top_right
+dashTxtSize = dashSizeIn == "Tiny" ? size.tiny : dashSizeIn == "Small" ? size.small : size.normal
+
+var table dash = table.new(dashPos, 2, 18, bgcolor = color.new(color.black, 25), frame_color = color.new(color.gray, 55), frame_width = 1, border_color = color.new(color.gray, 75), border_width = 1)
+
+f_row(int r, string k, string v, color vc) =>
+    table.cell(dash, 0, r, k, text_color = color.new(color.white, 30), text_size = dashTxtSize, text_halign = text.align_left)
+    table.cell(dash, 1, r, v, text_color = vc, text_size = dashTxtSize, text_halign = text.align_right)
+    true
+
+// Render on the last confirmed historical bar (instant on chart load) and on
+// every realtime calculation. This avoids barstate.islast, which triggers a
+// compiler warning in strategies that calculate only on confirmed bars —
+// enabling calc_on_every_tick instead would make realtime order fills diverge
+// from the backtest, which is worse than the warning.
+bool dashTick = barstate.islastconfirmedhistory or barstate.isrealtime
+if showDash and dashTick
+    table.clear(dash, 0, 0, 1, 17)
+    int r = 0
+    table.cell(dash, 0, r, "UPPAU", text_color = color.new(color.white, 0), text_size = dashTxtSize, text_halign = text.align_left)
+    table.cell(dash, 1, r, syminfo.ticker + " · " + timeframe.period, text_color = color.new(color.white, 30), text_size = dashTxtSize, text_halign = text.align_right)
+    r += 1
+    if dashRegime
+        f_row(r, "Regime", regimeStr + " · " + str.tostring(trendStrength, "#") + "/100", regCol)
+        r += 1
+        f_row(r, "Volatility", "ATR " + f_px(atrRaw) + " (" + str.tostring(atrRaw / close * 100, "#.##") + "% · P" + (na(volPctRaw) ? "—" : str.tostring(volPctRaw, "#")) + ")", volState == 1 ? color.orange : volState == -1 ? color.new(color.gray, 20) : color.new(color.white, 20))
+        r += 1
+        if useHTF
+            f_row(r, "HTF bias (" + htfTF + ")", htfBull ? "BULLISH" : "BEARISH", htfBull ? cBull : cBear)
+            r += 1
+    if dashSignal
+        int liveScore = math.max(scoreBull, scoreBear)
+        int liveStars = math.max(0, math.min(5, liveScore - 2))
+        f_row(r, "Setup strength", f_stars(liveStars) + (scoreBull >= scoreBear ? " (bull)" : " (bear)"), liveStars >= 3 ? cBull : color.new(color.gray, 20))
+        r += 1
+        f_row(r, "Position", tDir == 1 ? "LONG" : tDir == -1 ? "SHORT" : "FLAT", tDir == 1 ? cBull : tDir == -1 ? cBear : color.new(color.gray, 20))
+        r += 1
+        string mtfTxt  = not reqHTFStruct ? "off" : htfAlignBull ? "aligned ▲" : htfAlignBear ? "aligned ▼" : "not aligned"
+        string newsTxt = not useNewsFilter ? "off" : newsBlock ? "BLACKOUT ⛔" : "clear"
+        f_row(r, "MTF / News", mtfTxt + " · " + newsTxt, newsBlock ? color.orange : color.new(color.white, 20))
+        r += 1
+    if dashLevels and tDir != 0
+        f_row(r, "Entry", f_px(tEntry), color.new(color.white, 10))
+        r += 1
+        f_row(r, "Stop", f_px(tCurSL) + " · " + f_dist(math.abs(close - tCurSL)), cBear)
+        r += 1
+        f_row(r, "Targets hit", str.tostring(tTpHits) + " / 5" + (tTpHits < 5 and array.size(tTPs) == 5 ? " · next " + f_px(array.get(tTPs, tTpHits)) : ""), cBull)
+        r += 1
+    if dashRisk
+        f_row(r, "Risk / trade", str.tostring(riskPct, "#.##") + "% = " + str.tostring(riskCash, "#.##"), color.new(color.white, 20))
+        r += 1
+        f_row(r, "Day PnL / locks", str.tostring(dayPnLPct, "#.##") + "% · " + (dailyLock ? "DAY LOCK ⛔" : ddLock ? "DD LOCK ⛔" : "locks ok"), dailyLock or ddLock ? color.orange : dayPnLPct >= 0 ? cBull : cBear)
+        r += 1
+        if tDir != 0
+            float liveR = tDir == 1 ? (close - tEntry) / tRisk : (tEntry - close) / tRisk
+            f_row(r, "Live PnL", str.tostring(liveR, "#.##") + " R ≈ " + str.tostring(liveR * riskCash, "#.##"), liveR >= 0 ? cBull : cBear)
+            r += 1
+            f_row(r, "Max reward", "1:" + str.tostring(rr5, "#.#") + " = " + str.tostring(rr5 * riskCash, "#.##"), cBull)
+            r += 1
+    if dashStats
+        float wr = strategy.closedtrades > 0 ? strategy.wintrades * 100.0 / strategy.closedtrades : na
+        f_row(r, "Win rate (tester)", na(wr) ? "—" : str.tostring(wr, "#.#") + "%  (" + str.tostring(strategy.closedtrades) + " trades)", na(wr) ? color.new(color.gray, 20) : wr >= 50 ? cBull : color.orange)
+        r += 1
+        f_row(r, "Signals today", str.tostring(daySignals) + " / " + str.tostring(maxPerDay), daySignals >= maxPerDay ? color.orange : color.new(color.white, 20))
+        r += 1
+
+// ============================================================================
+//  SECTION 15 — STRATEGY ORDERS
+//  (Delete or comment out this whole section when converting to indicator().)
+// ============================================================================
+if tradeOn and longFired
+    strategy.entry("L", strategy.long, qty = tQty)
+if tradeOn and shortFired
+    strategy.entry("S", strategy.short, qty = tQty)
+
+// Laddered exits: fixed-quantity tranches at TP1-TP5 + one shared protective
+// stop that follows tCurSL (initial -> breakeven -> trail). Re-issued every
+// bar so the broker emulator always holds the freshest stop.
+if tradeOn and tDir == 1 and strategy.position_size > 0 and array.size(tTPs) == 5
+    strategy.exit("L-TP1", from_entry = "L", qty = tQty * tpPct1 / 100, limit = array.get(tTPs, 0), stop = tCurSL)
+    strategy.exit("L-TP2", from_entry = "L", qty = tQty * tpPct2 / 100, limit = array.get(tTPs, 1), stop = tCurSL)
+    strategy.exit("L-TP3", from_entry = "L", qty = tQty * tpPct3 / 100, limit = array.get(tTPs, 2), stop = tCurSL)
+    strategy.exit("L-TP4", from_entry = "L", qty = tQty * tpPct4 / 100, limit = array.get(tTPs, 3), stop = tCurSL)
+    strategy.exit("L-TP5", from_entry = "L", qty = tQty * tpPct5 / 100, limit = array.get(tTPs, 4), stop = tCurSL)
+if tradeOn and tDir == -1 and strategy.position_size < 0 and array.size(tTPs) == 5
+    strategy.exit("S-TP1", from_entry = "S", qty = tQty * tpPct1 / 100, limit = array.get(tTPs, 0), stop = tCurSL)
+    strategy.exit("S-TP2", from_entry = "S", qty = tQty * tpPct2 / 100, limit = array.get(tTPs, 1), stop = tCurSL)
+    strategy.exit("S-TP3", from_entry = "S", qty = tQty * tpPct3 / 100, limit = array.get(tTPs, 2), stop = tCurSL)
+    strategy.exit("S-TP4", from_entry = "S", qty = tQty * tpPct4 / 100, limit = array.get(tTPs, 3), stop = tCurSL)
+    strategy.exit("S-TP5", from_entry = "S", qty = tQty * tpPct5 / 100, limit = array.get(tTPs, 4), stop = tCurSL)
+
+// Safety net: if the visual manager is flat but the emulator still holds a
+// position (edge case on gap bars), square it so both stay in sync.
+if tradeOn and tDir == 0 and strategy.position_size != 0
+    strategy.close_all(comment = "sync")
+
+// ============================================================================
+//  SECTION 16 — ALERTS
+// ============================================================================
+// NOTE: alertcondition() has NO effect inside strategy() scripts — TradingView
+// ignores it there. In strategy mode, alerts are delivered by the alert()
+// calls below: create ONE alert on this script with the condition
+// "Any alert() function call" and you will receive entries, TP hits, stop
+// hits and regime changes with full dynamic detail.
+//
+// If you convert this script to indicator() (see header), uncomment the five
+// alertcondition() lines below to get individually selectable alert types in
+// the alert dialog:
+// alertcondition(longFired,  "UPPAU: Long entry",      "UPPAU long entry signal")
+// alertcondition(shortFired, "UPPAU: Short entry",     "UPPAU short entry signal")
+// alertcondition(tpEvent,    "UPPAU: Take-profit hit", "UPPAU take-profit level hit")
+// alertcondition(slEvent,    "UPPAU: Stop hit",        "UPPAU stop-loss / trail stop hit")
+// alertcondition(regimeStr != regimeStr[1], "UPPAU: Regime change", "UPPAU market regime changed")
+
+// Dynamic alert() messages (create ONE alert on "Any alert() function call"):
+if enableAlerts and barstate.isconfirmed
+    if longFired
+        alert("UPPAU LONG " + syminfo.ticker + " @ " + f_px(tEntry) + " | SL " + f_px(tCurSL) + " | TP1 " + f_px(array.get(tTPs, 0)) + " | qty " + str.tostring(tQty, "#.####"), alert.freq_once_per_bar)
+    if shortFired
+        alert("UPPAU SHORT " + syminfo.ticker + " @ " + f_px(tEntry) + " | SL " + f_px(tCurSL) + " | TP1 " + f_px(array.get(tTPs, 0)) + " | qty " + str.tostring(tQty, "#.####"), alert.freq_once_per_bar)
+    if tpEvent
+        alert("UPPAU " + syminfo.ticker + " TP" + str.tostring(tpHitNum) + " hit", alert.freq_once_per_bar)
+    if slEvent
+        alert("UPPAU " + syminfo.ticker + " " + exitTag + " @ " + f_px(exitPx), alert.freq_once_per_bar)
+    if regimeStr != regimeStr[1]
+        alert("UPPAU " + syminfo.ticker + " regime -> " + regimeStr, alert.freq_once_per_bar)
+    if dailyLock and not dailyLock[1]
+        alert("UPPAU " + syminfo.ticker + " DAILY-LOSS LOCK engaged (" + str.tostring(dayPnLPct, "#.##") + "%) — new entries halted until next day", alert.freq_once_per_bar)
+    if ddLock and not ddLock[1]
+        alert("UPPAU " + syminfo.ticker + " MAX-DRAWDOWN LOCK engaged (" + str.tostring(ddPct, "#.##") + "%) — trading halted", alert.freq_once_per_bar)
