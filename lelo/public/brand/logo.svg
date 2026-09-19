@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 232 64" role="img" aria-label="Lelo">
+  <title>Lelo — know today, today</title>
+  <style>
+    .wm { fill: #0B6E4F; }
+    .tl { fill: #5A6B62; }
+    @media (prefers-color-scheme: dark) {
+      .wm { fill: #E8EFE9; }
+      .tl { fill: #9DB0A6; }
+    }
+  </style>
+  <rect width="64" height="64" rx="14" fill="#0B6E4F"/>
+  <path d="M10.35 29.5 A25 25 0 0 1 53.65 29.5" fill="none" stroke="#FFFFFF"
+        stroke-width="3" stroke-linecap="round" opacity=".55"/>
+  <path d="M15.55 32.5 A19 19 0 0 1 48.45 32.5" fill="none" stroke="#FFFFFF"
+        stroke-width="3.25" stroke-linecap="round" opacity=".85"/>
+  <path d="M20 42 A12 12 0 0 1 44 42 Z" fill="#F6A828"/>
+  <path d="M16 46 H48" stroke="#F6A828" stroke-width="3.5" stroke-linecap="round"/>
+  <!--
+    The wordmark is live text so this file stays editable. Before any print or
+    signage use, convert it to outlines: a missing font turns a logo into a
+    fallback serif.
+  -->
+  <text class="wm" x="80" y="37" font-family="system-ui,-apple-system,'Segoe UI',Roboto,sans-serif"
+        font-size="34" font-weight="700" letter-spacing="-.5">Lelo</text>
+  <text class="tl" x="81" y="52" font-family="system-ui,-apple-system,'Segoe UI',Roboto,sans-serif"
+        font-size="10.5" font-weight="500" letter-spacing="1.6">KNOW TODAY, TODAY</text>
+</svg>

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lelo — know today, today</title>
+<meta name="description" content="Weather, market prices, mining, transport, health, money and encouragement — one short message a day, for K1. On any phone in Zambia.">
+<meta name="theme-color" content="#0B6E4F">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta property="og:title" content="Lelo — know today, today">
+<meta property="og:description" content="One short message a day with what actually changes what you do today. K1 a day, on any phone in Zambia.">
+<meta property="og:image" content="assets/icon-512.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <img class="logo" src="brand/logo.svg" alt="Lelo — know today, today" width="232" height="64">
+    <p class="eyebrow">Zambia · USSD · SMS · WhatsApp</p>
+    <h1>Know today, today.</h1>
+    <p class="lead">
+      One short message a day with the things that change what you do today —
+      the weather on your field, the price at your market, the copper price,
+      the fuel price, a health reminder, a fraud warning, a word of
+      encouragement.
+    </p>
+    <p class="price"><strong>K1 a day.</strong> First 7 days free. Stop any time.</p>
+    <p class="dial">Dial <code id="shortcode">*2255#</code> on any phone</p>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="plain">
+    <h2>Why "Lelo"</h2>
+    <p class="muted">
+      <strong>Lelo</strong> means <strong>today</strong> in Bemba and Nyanja — and
+      that is the whole promise. Not yesterday's news, not a newsletter you will
+      read at the weekend. The one thing that changes what you do today: the rain
+      coming to your field, the price at your market, the copper price, the fuel
+      price, the deadline that closes on Friday.
+    </p>
+  </section>
+
+  <section>
+    <h2>Choose what you receive</h2>
+    <p class="muted">
+      Turn topics on and off from the menu. You are never sent something you
+      did not ask for.
+    </p>
+    <div id="verticals" class="grid"><p class="muted">Loading…</p></div>
+  </section>
+
+  <section>
+    <h2>Buy days, not subscriptions</h2>
+    <p class="muted">
+      You pay in advance for the days you want, and K1 is taken for each day
+      you are actually sent a bulletin. No credit means no charge — never a
+      debt, never a surprise deduction.
+    </p>
+    <div id="bundles" class="grid"></div>
+  </section>
+
+  <section id="try">
+    <h2>Try the USSD menu</h2>
+    <p class="muted">
+      This is the real menu, running against the real billing engine — the same
+      code a gateway would call. Type a number and press Send, exactly as you
+      would on a handset.
+    </p>
+    <div class="sim">
+      <div class="sim-phone">
+        <pre id="sim-screen" class="sim-screen">Press Dial to start.</pre>
+        <div class="sim-row">
+          <input id="sim-input" inputmode="numeric" autocomplete="off"
+                 placeholder="Reply" aria-label="USSD reply" disabled>
+          <button id="sim-send" disabled>Send</button>
+          <button id="sim-dial" class="primary">Dial <span id="sim-code">*2255#</span></button>
+        </div>
+        <p id="sim-path" class="sim-path"></p>
+      </div>
+      <div class="sim-note">
+        <p class="muted small">
+          Each step sends the whole accumulated path (for example
+          <code>2*3</code>), which is how USSD gateways actually work — the menu
+          holds no session state, so nothing breaks when a session drops.
+        </p>
+        <p class="muted small">
+          The demo runs on an in-memory database that resets whenever the server
+          goes cold. Nothing you type here is kept.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Works on the phone you already have</h2>
+    <div class="grid">
+      <article class="card">
+        <h3>Any phone — USSD</h3>
+        <p>Dial the short code. No internet, no app, no smartphone needed. Works on a K150 handset.</p>
+      </article>
+      <article class="card">
+        <h3>Any phone — SMS</h3>
+        <p>The daily bulletin arrives as a normal text message each morning.</p>
+      </article>
+      <article class="card">
+        <h3>Smartphone — WhatsApp</h3>
+        <p>Message us to get the same bulletin, plus ask for your balance or change topics by replying.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="plain">
+    <h2>What we will not do</h2>
+    <ul>
+      <li><strong>We do not message you without permission.</strong> Nothing is sent until you opt in, and STOP ends it the same day.</li>
+      <li><strong>We do not sell your number.</strong> Your number and district stay with us.</li>
+      <li><strong>We do not give medical advice.</strong> Health messages are general public-health information from the Ministry of Health. For anything about your own body, see a clinic.</li>
+      <li><strong>We never ask for your PIN.</strong> Nobody from Lelo will ever ask for it. Anyone who does is a thief.</li>
+    </ul>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>Lelo · Lusaka, Zambia · <span id="support"></span></p>
+    <p class="muted small">
+      Mobile-money collections are handled by a licensed payment service
+      provider. Prices include applicable taxes.
+    </p>
+  </div>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

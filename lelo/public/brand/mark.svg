@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Lelo">
+  <title>Lelo</title>
+  <!--
+    The mark is a sunrise whose rays are also broadcast arcs: the day breaks,
+    the message arrives. Two colours, no gradients, no thin detail — it has to
+    survive a 16px favicon, a one-colour screen print on a golf shirt, and a
+    black-and-white newspaper advert.
+  -->
+  <rect width="64" height="64" rx="14" fill="#0B6E4F"/>
+  <!-- signal arcs, widest first -->
+  <path d="M10.35 29.5 A25 25 0 0 1 53.65 29.5" fill="none" stroke="#FFFFFF"
+        stroke-width="3" stroke-linecap="round" opacity=".55"/>
+  <path d="M15.55 32.5 A19 19 0 0 1 48.45 32.5" fill="none" stroke="#FFFFFF"
+        stroke-width="3.25" stroke-linecap="round" opacity=".85"/>
+  <!-- rising sun -->
+  <path d="M20 42 A12 12 0 0 1 44 42 Z" fill="#F6A828"/>
+  <!-- horizon -->
+  <path d="M16 46 H48" stroke="#F6A828" stroke-width="3.5" stroke-linecap="round"/>
+</svg>

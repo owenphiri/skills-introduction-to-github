@@ -1,0 +1,13 @@
+{
+  "name": "Lelo — know today, today",
+  "short_name": "Lelo",
+  "description": "One short message a day with what matters today. K1 a day, on any phone in Zambia.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0B6E4F",
+  "icons": [
+    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}
