@@ -96,6 +96,41 @@ class AppViewModel : ViewModel() {
         return true
     }
 
+    // Proof of work (INNOVATION.md §4.1)
+    val proofPhotos = mutableStateListOf<ProofPhoto>().apply { addAll(MockData.proofPhotos) }
+
+    fun proofStatus(gig: Gig): ProofStatus {
+        val forGig = proofPhotos.filter { it.gigId == gig.id }
+        return ProofStatus(
+            before = forGig.firstOrNull { it.kind == ProofKind.BEFORE },
+            after = forGig.firstOrNull { it.kind == ProofKind.AFTER },
+        )
+    }
+
+    /**
+     * Records a capture. Demo mode simulates the photo and stamps Lusaka
+     * coordinates; production uploads to the `proofs` bucket and reads the real
+     * device location and capture time.
+     */
+    fun captureProof(kind: ProofKind, gig: Gig) {
+        if (proofPhotos.any { it.gigId == gig.id && it.kind == kind }) return
+        val now = SimpleDateFormat("d MMM HH:mm", Locale.getDefault()).format(Date())
+        proofPhotos.add(ProofPhoto(gigId = gig.id, kind = kind, capturedAtLabel = now,
+                                   latitude = -15.3875, longitude = 28.3228))
+    }
+
+    /** Mirrors the guard inside `release_escrow()`: no complete proof, no payment. */
+    fun canReleaseEscrow(gig: Gig): Boolean = proofStatus(gig).isComplete
+
+    // Pricing (INNOVATION.md §5.1)
+
+    /**
+     * Bands come from settled gigs only, so a flood of optimistic open listings
+     * can't drag the suggested rate around.
+     */
+    fun priceBand(category: GigCategory, city: String): PriceBand? =
+        PricingService.band(category, city, MockData.settledGigs)
+
     // Chat
     val conversations = mutableStateListOf<Conversation>().apply { addAll(MockData.conversations) }
     val messages = mutableStateListOf<ChatMessage>().apply { addAll(MockData.messages) }

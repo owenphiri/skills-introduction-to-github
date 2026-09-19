@@ -15,6 +15,10 @@ final class AppState: ObservableObject {
     @Published var payoutProvider: MobileMoneyProvider = .mtnMomo
     @Published var conversations: [Conversation] = MockDataService.conversations
     @Published var messages: [ChatMessage] = MockDataService.messages
+    @Published var proofPhotos: [ProofPhoto] = MockDataService.proofPhotos
+
+    /// Settled gigs kept for price comparison only — never shown in the feed.
+    let settledGigs: [Gig] = MockDataService.settledGigs
 
     var walletBalance: Double {
         transactions.reduce(0) { $0 + $1.amountZMW }
@@ -83,6 +87,37 @@ final class AppState: ObservableObject {
         if let i = conversations.firstIndex(where: { $0.id == conversation.id }) {
             conversations[i].lastActivity = .now
         }
+    }
+
+    // MARK: - Proof of work (INNOVATION.md §4.1)
+
+    func proofStatus(for gig: Gig) -> ProofStatus {
+        let forGig = proofPhotos.filter { $0.gigID == gig.id }
+        return ProofStatus(before: forGig.first { $0.kind == .before },
+                           after: forGig.first { $0.kind == .after })
+    }
+
+    /// Records a capture. Demo mode simulates the photo and stamps Lusaka
+    /// coordinates; production uploads to the `proofs` bucket and reads the
+    /// real device location and capture time.
+    func captureProof(_ kind: ProofPhoto.Kind, for gig: Gig) {
+        guard !proofPhotos.contains(where: { $0.gigID == gig.id && $0.kind == kind }) else { return }
+        proofPhotos.append(ProofPhoto(id: UUID(), gigID: gig.id, kind: kind,
+                                      storagePath: "", capturedAt: .now,
+                                      latitude: -15.3875, longitude: 28.3228))
+    }
+
+    /// Mirrors the guard inside `release_escrow()`: no complete proof, no payment.
+    func canReleaseEscrow(for gig: Gig) -> Bool {
+        proofStatus(for: gig).isComplete
+    }
+
+    // MARK: - Pricing (INNOVATION.md §5.1)
+
+    /// Price bands are computed from settled gigs only, so a flood of
+    /// optimistic open listings can't drag the suggested rate around.
+    func priceBand(for category: GigCategory, city: String) -> PriceBand? {
+        PricingService.band(for: category, city: city, in: settledGigs)
     }
 
     // MARK: - Wallet

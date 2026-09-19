@@ -79,6 +79,12 @@ fun GigDetailScreen(
                 }
             }
 
+            LoyaltyCard(gig)
+
+            if (applied) {
+                ProofOfWorkCard(vm, gig)
+            }
+
             Text("Details", style = MaterialTheme.typography.titleMedium)
             Text(gig.details, style = MaterialTheme.typography.bodyMedium)
 
@@ -113,7 +119,10 @@ fun GigDetailScreen(
                          tint = MaterialTheme.colorScheme.primary)
                     Column(Modifier.padding(start = 10.dp)) {
                         Text("Escrow protected", fontWeight = FontWeight.SemiBold)
-                        Text("The poster's payment of ${gig.payZMW.kwacha()} is held by Nchito and released to your wallet when they confirm the job is done. A 10% service fee applies.",
+                        Text("The poster's payment of ${gig.payZMW.kwacha()} is held by Nchito " +
+                             "and released once they confirm the job is done and both proof photos " +
+                             "are attached. Your ${gig.commissionTier.ratePercent} service fee is " +
+                             gig.commissionAmount.kwacha() + ".",
                              style = MaterialTheme.typography.bodySmall)
                     }
                 }

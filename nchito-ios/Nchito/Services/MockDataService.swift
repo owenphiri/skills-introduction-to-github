@@ -32,7 +32,8 @@ enum MockDataService {
             category: .digital, payZMW: 400, city: "Lusaka", area: "Remote",
             posterName: "Beauty Haven", posterRating: 4.7,
             postedAt: .now.addingTimeInterval(-7200), status: .open,
-            isUrgent: false, isBoosted: true, applicants: 8),
+            isUrgent: false, isBoosted: true, applicants: 8,
+            completedWithPoster: 4),
 
         Gig(id: UUID(), title: "Grade 9 Maths tutoring, 3 sessions per week",
             details: "Looking for a patient tutor for my daughter preparing for Grade 9 exams. Sessions at our home in Riverside, Kitwe. K120 per 90-minute session, paid weekly.",
@@ -53,7 +54,8 @@ enum MockDataService {
             category: .events, payZMW: 250, city: "Lusaka", area: "Avondale",
             posterName: "Events by Mutale", posterRating: 4.8,
             postedAt: .now.addingTimeInterval(-21600), status: .open,
-            isUrgent: false, isBoosted: false, applicants: 11),
+            isUrgent: false, isBoosted: false, applicants: 11,
+            completedWithPoster: 12),
 
         Gig(id: UUID(), title: "Weed and prepare 2 vegetable beds",
             details: "Backyard garden in Chelstone needs weeding and two beds prepared for rape and tomato planting. Tools provided.",
@@ -138,5 +140,54 @@ extension MockDataService {
         ChatMessage(id: UUID(), conversationID: conversationChanda.id, isMine: true,
                     body: "Yes, I can pick up by 13:30 and deliver to Woodlands within the hour.",
                     date: .now.addingTimeInterval(-5400)),
+    ]
+}
+
+// MARK: - Settled gig history
+
+extension MockDataService {
+
+    /// Gigs that have already been paid out. These never appear in the open
+    /// feed — they exist so price bands (INNOVATION.md §5.1) have real
+    /// comparables, exactly as production queries `status = 'paid'` rows.
+    static let settledGigs: [Gig] = {
+        let priced: [(GigCategory, String, [Double])] = [
+            (.delivery,     "Lusaka", [80, 100, 120, 150, 150, 180, 200, 250]),
+            (.delivery,     "Kitwe",  [70, 90, 110, 140, 160]),
+            (.homeServices, "Lusaka", [250, 300, 350, 400, 450, 500, 600]),
+            (.tutoring,     "Lusaka", [200, 250, 300, 350, 400, 480]),
+            (.tutoring,     "Kitwe",  [180, 240, 300, 340, 360]),
+            (.digital,      "Lusaka", [150, 250, 300, 400, 450, 600, 800]),
+            (.events,       "Lusaka", [150, 200, 250, 250, 300, 400]),
+            (.farm,         "Lusaka", [100, 120, 150, 180, 200, 220]),
+            (.beauty,       "Kitwe",  [200, 280, 350, 400, 450, 500]),
+            (.repairs,      "Ndola",  [120, 150, 200, 220, 280, 300]),
+        ]
+
+        return priced.flatMap { category, city, amounts in
+            amounts.enumerated().map { index, amount in
+                Gig(id: UUID(),
+                    title: "Completed \(category.rawValue) gig",
+                    details: "Settled gig retained for price comparison.",
+                    category: category, payZMW: amount, city: city, area: "—",
+                    posterName: "—", posterRating: 4.5,
+                    postedAt: .now.addingTimeInterval(-Double(86400 * (index + 7))),
+                    status: .paid,
+                    isUrgent: false, isBoosted: false, applicants: 0)
+            }
+        }
+    }()
+}
+
+// MARK: - Proof-of-work seed
+
+extension MockDataService {
+
+    /// The salon poster gig is mid-flight with a "before" photo already taken,
+    /// so the capture flow and the blocked-release state are both demoable.
+    static let proofPhotos: [ProofPhoto] = [
+        ProofPhoto(id: UUID(), gigID: gigs[1].id, kind: .before,
+                   storagePath: "", capturedAt: .now.addingTimeInterval(-5400),
+                   latitude: -15.3875, longitude: 28.3228),
     ]
 }

@@ -45,6 +45,7 @@ struct PostGigView: View {
                         TextField("Amount in Kwacha", text: $pay)
                             .keyboardType(.decimalPad)
                     }
+                    priceGuidance
                     Picker("City", selection: $city) {
                         ForEach(cities, id: \.self) { Text($0) }
                     }
@@ -95,6 +96,44 @@ struct PostGigView: View {
                     Button("Cancel") { dismiss() }
                 }
             }
+        }
+    }
+
+    /// Fair-price band (INNOVATION.md §5.1). Quoting what comparable work
+    /// actually settled at stops lowballing and makes posting quicker. When
+    /// there isn't enough history we show nothing rather than invent a figure.
+    @ViewBuilder
+    private var priceGuidance: some View {
+        if let band = state.priceBand(for: category, city: city) {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Label("Similar gigs pay", systemImage: "chart.bar.fill")
+                        .font(.caption.weight(.semibold))
+                    Spacer()
+                    Text(band.rangeText)
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(Theme.green)
+                }
+
+                Text("Typically \(band.median.kwacha), based on \(band.sourceText).")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+
+                if let value = payValue, value > 0 {
+                    let verdict = band.verdict(for: value)
+                    Label(verdict.message, systemImage: verdict.icon)
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(verdict == .low ? Theme.red
+                                         : verdict == .high ? Theme.copper : Theme.green)
+                } else {
+                    Button("Use \(band.median.kwacha)") {
+                        pay = String(format: "%.0f", band.median)
+                    }
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(Theme.copper)
+                }
+            }
+            .padding(.vertical, 4)
         }
     }
 }

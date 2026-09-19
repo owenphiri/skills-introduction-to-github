@@ -134,7 +134,7 @@ Ruthless order, assuming limited engineering:
 
 | Phase | Ship | Why now |
 |---|---|---|
-| **1** | Loyalty-decaying commission (1.1) · Proof-of-work (4.1) · Fair-price band (5.1) | Cheap, mostly server-side, immediately defends revenue |
+| **1** ✅ | Loyalty-decaying commission (1.1) · Proof-of-work (4.1) · Fair-price band (5.1) | Cheap, mostly server-side, immediately defends revenue |
 | **2** | Work Record (1.2) · Guarantees (1.3) · Offline-first (2.3) | The moat. Start accumulating the data asset early — it compounds |
 | **3** | WhatsApp bot then USSD (2.1) · Shareable earnings cards (5.2) | Growth phase; WhatsApp first (far cheaper than USSD shortcode licensing) |
 | **4** | Agent liquidity map (3.1) · EWA (3.2) | Retention and the second revenue line, once transaction volume justifies it |
@@ -143,6 +143,16 @@ Ruthless order, assuming limited engineering:
 **The two that matter most:** the *Work Record* (§1.2) is the thing that makes Nchito infrastructure rather than an app, and the *WhatsApp/USSD layer* (§2.1) is the thing that makes it reach everyone rather than the smartphone minority. If only two things get built this year, build those.
 
 ---
+
+## Phase 1 — shipped
+
+Migration `supabase/migrations/0002_phase1_defensibility.sql` plus matching iOS and Android implementations.
+
+**Loyalty-decaying commission.** `commission_rate()` reads `pair_completed_count()` and returns 10% / 7% / 5% at 0–2, 3–9 and 10+ settled gigs between the same poster and worker. Only gigs that reached `paid` count, so the discount is earned through completed work rather than through gigs merely posted. `release_escrow()` computes the rate from history *before* the current gig settles, so the tier shown in the app while the gig was open is the tier actually charged. Both apps surface the current tier, progress toward the next, and what the next tier is worth in kwacha on a gig that size — the point is to make the discount visible enough to be worth staying for.
+
+**Proof of work.** A `proof_of_work` table holds one before and one after photo per gig with device capture time and coordinates (upload time is deliberately not trusted). `has_complete_proof()` gates `release_escrow()`, so payment cannot move without both halves. RLS lets only the assigned worker upload and only the two gig parties read. The apps show a two-slot capture card on gigs the user has taken, with the release state spelled out.
+
+**Fair-price bands.** `price_band()` returns p25/median/p75 over settled gigs in the same category, preferring the same city and widening to nationwide when the local sample is under five. Below five comparables it returns nothing rather than advising from noise. The post-gig form shows the range, the median as a one-tap fill, and — once an amount is typed — whether it reads low, fair or high. All three implementations use linear-interpolation percentiles so the apps and `percentile_cont` in Postgres agree on the same numbers.
 
 ## Sources
 

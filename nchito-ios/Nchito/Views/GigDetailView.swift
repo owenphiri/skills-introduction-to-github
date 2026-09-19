@@ -31,6 +31,12 @@ struct GigDetailView: View {
                 .padding(.vertical, 12)
                 .background(Theme.card, in: RoundedRectangle(cornerRadius: 16))
 
+                loyaltyCard
+
+                if hasApplied {
+                    ProofOfWorkCard(gig: gig)
+                }
+
                 section("Details") {
                     Text(gig.details)
                 }
@@ -89,6 +95,47 @@ struct GigDetailView: View {
         }
     }
 
+    /// Loyalty-decaying commission (INNOVATION.md §1.1). Showing the rate and
+    /// what the next tier is worth is the whole point: it makes staying with
+    /// this poster on Nchito visibly cheaper than settling in cash.
+    private var loyaltyCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Label(gig.commissionTier.label, systemImage: gig.commissionTier.badge)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Theme.green)
+                Spacer()
+                Text("\(gig.commissionTier.ratePercent) fee")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(Theme.green)
+            }
+
+            if gig.completedWithPoster > 0 {
+                Text("You've completed \(gig.completedWithPoster) gig\(gig.completedWithPoster == 1 ? "" : "s") with \(gig.posterName).")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            if let remaining = gig.commissionTier.gigsToNextTier(completedTogether: gig.completedWithPoster),
+               let next = gig.commissionTier.next,
+               let nextPayout = gig.payoutAtNextTier {
+                ProgressView(value: Double(gig.completedWithPoster),
+                             total: Double(gig.completedWithPoster + remaining))
+                    .tint(Theme.copper)
+                Text("\(remaining) more gig\(remaining == 1 ? "" : "s") with this poster drops your fee to \(next.ratePercent) — you'd keep \(nextPayout.kwacha) on a gig this size.")
+                    .font(.caption)
+                    .foregroundStyle(Theme.copper)
+            } else {
+                Text("You're on our lowest fee with this poster. Keep working together on Nchito to stay protected by escrow.")
+                    .font(.caption)
+                    .foregroundStyle(Theme.copper)
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.green.opacity(0.08), in: RoundedRectangle(cornerRadius: 16))
+    }
+
     private var escrowNotice: some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: "lock.shield.fill")
@@ -96,7 +143,7 @@ struct GigDetailView: View {
                 .foregroundStyle(Theme.green)
             VStack(alignment: .leading, spacing: 4) {
                 Text("Escrow protected").font(.subheadline.weight(.semibold))
-                Text("The poster's payment of \(gig.payZMW.kwacha) is held by Nchito and released to your wallet the moment they confirm the job is done. A 10% service fee applies.")
+                Text("The poster's payment of \(gig.payZMW.kwacha) is held by Nchito and released once they confirm the job is done and both proof photos are attached. Your \(gig.commissionTier.ratePercent) service fee is \(gig.commissionAmount.kwacha).")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

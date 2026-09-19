@@ -98,10 +98,28 @@ struct Gig: Identifiable, Codable {
     var isBoosted: Bool
     var applicants: Int
 
-    /// Platform commission held in escrow until the gig is confirmed complete.
-    static let commissionRate = 0.10
+    /// Gigs this poster and the current user have already settled together.
+    /// Drives the commission tier (INNOVATION.md §1.1); the backend recomputes
+    /// it authoritatively in `commission_rate()` at release time.
+    var completedWithPoster: Int = 0
 
-    var workerPayout: Double { payZMW * (1 - Self.commissionRate) }
+    var commissionTier: CommissionTier {
+        CommissionTier(completedTogether: completedWithPoster)
+    }
+
+    /// Commission is held in escrow and only taken when the gig settles.
+    var commissionRate: Double { commissionTier.rate }
+
+    var commissionAmount: Double { payZMW * commissionRate }
+
+    var workerPayout: Double { payZMW - commissionAmount }
+
+    /// What the worker would keep at the next tier, for showing what staying
+    /// on-platform with this poster is worth.
+    var payoutAtNextTier: Double? {
+        guard let next = commissionTier.next else { return nil }
+        return payZMW * (1 - next.rate)
+    }
 }
 
 // MARK: - Micro-tasks (passive earning feed)

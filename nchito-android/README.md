@@ -11,6 +11,7 @@ Jetpack Compose port of the [Nchito iOS app](../nchito-ios/) — same product sp
 - **Wallet** with balance card, provider picker (MTN MoMo / Airtel Money / Zamtel Kwacha) and cash-out sheet
 - **In-app chat** — conversation list + message thread, reachable from any gig's "Message" button
 - **Profile** with referral share sheet (Android share intent → WhatsApp etc.) and sign-out
+- **Loyalty-decaying commission** (10% → 7% → 5% as a pair builds history), **proof-of-work capture** gating escrow release, and **fair-price bands** on the post form — see [INNOVATION.md](../nchito-ios/INNOVATION.md)
 
 ## Build & run
 

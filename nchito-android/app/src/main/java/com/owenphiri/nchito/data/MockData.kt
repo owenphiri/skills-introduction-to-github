@@ -13,7 +13,8 @@ object MockData {
             details = "New salon in Kabulonga needs 5 Canva/Photoshop posters for Facebook and TikTok. Brand colours provided. Deliver as PNG within 2 days.",
             category = GigCategory.DIGITAL, payZMW = 400.0, city = "Lusaka",
             area = "Remote", posterName = "Beauty Haven", posterRating = 4.7,
-            minutesAgo = 120, isBoosted = true, applicants = 8),
+            minutesAgo = 120, isBoosted = true, applicants = 8,
+            completedWithPoster = 4),
         Gig(title = "Grade 9 Maths tutoring, 3 sessions per week",
             details = "Looking for a patient tutor for my daughter preparing for Grade 9 exams. Sessions at our home in Riverside, Kitwe. K120 per 90-minute session, paid weekly.",
             category = GigCategory.TUTORING, payZMW = 360.0, city = "Kitwe",
@@ -28,7 +29,8 @@ object MockData {
             details = "Need 2 smart, experienced servers for a kitchen party in Avondale, 12:00–18:00. Uniform provided. Meal included. Payment same day via MoMo.",
             category = GigCategory.EVENTS, payZMW = 250.0, city = "Lusaka",
             area = "Avondale", posterName = "Events by Mutale", posterRating = 4.8,
-            minutesAgo = 360, applicants = 11),
+            minutesAgo = 360, applicants = 11,
+            completedWithPoster = 12),
         Gig(title = "Deep-clean 3-bedroom house before move-in",
             details = "Full clean of an empty house in Ibex Hill: floors, windows, bathrooms, kitchen. Cleaning materials provided. Can be a 2-person team.",
             category = GigCategory.HOME_SERVICES, payZMW = 500.0, city = "Lusaka",
@@ -80,5 +82,41 @@ object MockData {
                     body = "Are you available today before 15:00? It's a sealed envelope, Cairo Road pickup.", time = "08:02"),
         ChatMessage(conversationId = convoChanda.id, isMine = true,
                     body = "Yes, I can pick up by 13:30 and deliver to Woodlands within the hour.", time = "08:31"),
+    )
+
+    /**
+     * Gigs already paid out. These never appear in the open feed — they exist
+     * so price bands have real comparables, exactly as production queries
+     * `status = 'paid'` rows.
+     */
+    val settledGigs: List<Gig> = listOf(
+        Triple(GigCategory.DELIVERY, "Lusaka", listOf(80.0, 100.0, 120.0, 150.0, 150.0, 180.0, 200.0, 250.0)),
+        Triple(GigCategory.DELIVERY, "Kitwe", listOf(70.0, 90.0, 110.0, 140.0, 160.0)),
+        Triple(GigCategory.HOME_SERVICES, "Lusaka", listOf(250.0, 300.0, 350.0, 400.0, 450.0, 500.0, 600.0)),
+        Triple(GigCategory.TUTORING, "Lusaka", listOf(200.0, 250.0, 300.0, 350.0, 400.0, 480.0)),
+        Triple(GigCategory.TUTORING, "Kitwe", listOf(180.0, 240.0, 300.0, 340.0, 360.0)),
+        Triple(GigCategory.DIGITAL, "Lusaka", listOf(150.0, 250.0, 300.0, 400.0, 450.0, 600.0, 800.0)),
+        Triple(GigCategory.EVENTS, "Lusaka", listOf(150.0, 200.0, 250.0, 250.0, 300.0, 400.0)),
+        Triple(GigCategory.FARM, "Lusaka", listOf(100.0, 120.0, 150.0, 180.0, 200.0, 220.0)),
+        Triple(GigCategory.BEAUTY, "Kitwe", listOf(200.0, 280.0, 350.0, 400.0, 450.0, 500.0)),
+        Triple(GigCategory.REPAIRS, "Ndola", listOf(120.0, 150.0, 200.0, 220.0, 280.0, 300.0)),
+    ).flatMap { (category, city, amounts) ->
+        amounts.map { amount ->
+            Gig(title = "Completed ${category.label} gig",
+                details = "Settled gig retained for price comparison.",
+                category = category, payZMW = amount, city = city, area = "—",
+                posterName = "—", posterRating = 4.5, minutesAgo = 10_000,
+                status = GigStatus.PAID)
+        }
+    }
+
+    /**
+     * The salon poster gig is mid-flight with a "before" photo already taken,
+     * so the capture flow and the blocked-release state are both demoable.
+     */
+    val proofPhotos: List<ProofPhoto> = listOf(
+        ProofPhoto(gigId = gigs[1].id, kind = ProofKind.BEFORE,
+                   capturedAtLabel = "Today 09:12",
+                   latitude = -15.3875, longitude = 28.3228),
     )
 }

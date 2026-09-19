@@ -13,6 +13,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
@@ -33,6 +35,9 @@ import androidx.compose.ui.unit.dp
 import com.owenphiri.nchito.data.AppViewModel
 import com.owenphiri.nchito.data.Gig
 import com.owenphiri.nchito.data.GigCategory
+import com.owenphiri.nchito.data.PriceBand
+import com.owenphiri.nchito.data.kwacha
+import com.owenphiri.nchito.ui.NchitoColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,6 +81,43 @@ fun PostGigSheet(vm: AppViewModel, onDismiss: () -> Unit) {
                 label = { Text("Pay (Kwacha)") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 modifier = Modifier.fillMaxWidth())
+
+            // Fair-price band (nchito-ios/INNOVATION.md §5.1). Quoting what
+            // comparable work actually settled at stops lowballing and speeds up
+            // posting. Nothing is shown when history is too thin to advise on.
+            vm.priceBand(category, city)?.let { band ->
+                Card(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(12.dp),
+                           verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Similar gigs pay",
+                                 style = MaterialTheme.typography.labelLarge)
+                            Spacer(Modifier.weight(1f))
+                            Text(band.rangeText, fontWeight = FontWeight.Bold,
+                                 color = MaterialTheme.colorScheme.primary)
+                        }
+                        Text("Typically ${band.median.kwacha()}, based on ${band.sourceText}.",
+                             style = MaterialTheme.typography.bodySmall,
+                             color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+                        val value = payValue
+                        if (value != null && value > 0) {
+                            val verdict = band.verdictFor(value)
+                            Text(verdict.message,
+                                 style = MaterialTheme.typography.bodySmall,
+                                 color = when (verdict) {
+                                     PriceBand.Verdict.LOW -> NchitoColors.Red
+                                     PriceBand.Verdict.HIGH -> NchitoColors.Copper
+                                     PriceBand.Verdict.FAIR -> MaterialTheme.colorScheme.primary
+                                 })
+                        } else {
+                            TextButton(onClick = { pay = band.median.toInt().toString() }) {
+                                Text("Use ${band.median.kwacha()}")
+                            }
+                        }
+                    }
+                }
+            }
             OutlinedTextField(value = city, onValueChange = { city = it },
                 label = { Text("City") }, modifier = Modifier.fillMaxWidth())
             OutlinedTextField(value = area, onValueChange = { area = it },

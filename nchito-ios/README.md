@@ -19,7 +19,7 @@ Nchito ("work" in Nyanja) is a hyperlocal marketplace that connects Zambians who
 
 Before the tabs, users onboard and **sign in with phone + OTP** — no passwords or email. With `SupabaseConfig.swift` filled in this runs against Supabase GoTrue; left empty the app stays in demo mode (any number, code `123456`).
 
-Key mechanics already modelled in code: **10% platform commission** with escrow-protected payouts (`Gig.workerPayout`), boost monetization, referral earnings, and verification tiers.
+Key mechanics already modelled in code: **loyalty-decaying commission** (10% → 7% → 5% as a poster and worker build history, so going off-platform stops paying), **proof-of-work capture** gating escrow release, **fair-price bands** from comparable settled gigs, boost monetization, referral earnings, and verification tiers. See [INNOVATION.md](INNOVATION.md) for why each exists.
 
 ## Project structure
 
@@ -61,6 +61,8 @@ No third-party dependencies — pure SwiftUI, so it builds out of the box. The a
 2. ~~Supabase backend schema~~ ✅ (`supabase/` — apply the migration, enable phone auth, fill in `SupabaseConfig`)
 3. ~~In-app chat~~ ✅ (mock transport; wire to Supabase Realtime per `supabase/README.md`)
 4. ~~Android build~~ ✅ ([`../nchito-android/`](../nchito-android/))
-5. Replace `MockDataService` reads/writes with Supabase queries (PostgREST) in `AppState`.
-6. Mobile-money escrow + disbursements via an aggregator (Flutterwave/Lenco or direct MTN & Airtel APIs) from Edge Functions.
-7. NRC verification (Smile ID), dispute flow, push notifications.
+5. ~~Phase 1 defensibility~~ ✅ — loyalty-decaying commission, proof-of-work capture, fair-price bands (`supabase/migrations/0002_phase1_defensibility.sql`)
+6. Replace `MockDataService` reads/writes with Supabase queries (PostgREST) in `AppState`; upload proof photos to the `proofs` storage bucket.
+7. Mobile-money escrow + disbursements via an aggregator (Flutterwave/Lenco or direct MTN & Airtel APIs) from Edge Functions.
+8. The Work Record and WhatsApp/USSD layer — the two biggest items in [INNOVATION.md](INNOVATION.md).
+9. NRC verification (Smile ID), dispute flow, push notifications.
