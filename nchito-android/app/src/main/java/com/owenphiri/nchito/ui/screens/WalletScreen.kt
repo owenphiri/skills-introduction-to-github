@@ -82,6 +82,28 @@ fun WalletScreen(vm: AppViewModel) {
                 }
             }
         }
+        vm.outstandingAdvance?.let { advance ->
+            item {
+                Card(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(14.dp),
+                           verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(advance.totalDueZMW.kwacha(),
+                                 fontWeight = FontWeight.Bold, color = NchitoColors.Copper)
+                            Spacer(Modifier.weight(1f))
+                            Text(advance.status.label,
+                                 style = MaterialTheme.typography.labelSmall,
+                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Text("${advance.amountZMW.kwacha()} advanced on ${advance.gigTitle}, " +
+                             "plus a ${advance.feeZMW.kwacha()} fee.",
+                             style = MaterialTheme.typography.bodySmall,
+                             color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+        }
+
         item {
             Text("Recent activity", style = MaterialTheme.typography.titleMedium)
         }

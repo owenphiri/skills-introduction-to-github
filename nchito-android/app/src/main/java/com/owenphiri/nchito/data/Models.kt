@@ -162,6 +162,9 @@ enum class TxKind(val label: String) {
     TASK_REWARD("Task Reward"),
     REFERRAL_BONUS("Referral Bonus"),
     CASH_OUT("Cash Out"),
+    WAGE_ADVANCE("Early Payment"),
+    ADVANCE_REPAYMENT("Early Payment Repaid"),
+    ADVANCE_RECOVERY("Early Payment Owed Back"),
 }
 
 data class WalletTransaction(

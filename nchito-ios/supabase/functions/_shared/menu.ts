@@ -163,6 +163,49 @@ export async function handle(
       };
     }
 
+    case "advance_pick": {
+      const ids = (data.ids ?? "").split(",").filter(Boolean);
+      const caps = (data.caps ?? "").split(",").filter(Boolean);
+      const index = Number(choice) - 1;
+      if (!ids[index]) {
+        return { reply: con("Invalid choice.\nReply with the number, or 0 for menu."), session };
+      }
+      return {
+        reply: con(`Up to ${kwacha(Number(caps[index]))} available.\n\nHow much do you want now?\nEnter amount in kwacha:`),
+        session: {
+          node: "advance_amount",
+          data: { gigId: ids[index], cap: caps[index] },
+        },
+      };
+    }
+
+    case "advance_amount": {
+      const amount = Number(choice);
+      const cap = Number(data.cap ?? 0);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        return { reply: con("Enter a valid amount in kwacha:"), session };
+      }
+      if (amount > cap) {
+        return { reply: con(`Most you can take is ${kwacha(cap)}.\nEnter a smaller amount:`), session };
+      }
+      // The fee is quoted here, before the PIN, so nobody agrees to a number
+      // they have not seen.
+      const fee = Math.max(Math.round(amount * 0.04 * 100) / 100, 5);
+      return {
+        reply: con(clamp(
+          `Take ${kwacha(amount)} now.\nFee ${kwacha(fee)}. ${kwacha(amount + fee)} comes off when the gig settles.\n\nEnter your 4-digit PIN:`)),
+        session: { node: "advance_pin", data: { ...data, amount: String(amount) } },
+      };
+    }
+
+    case "advance_pin": {
+      // Taking an advance moves money, so the PIN is checked in the database,
+      // which also counts failed attempts and applies the lock-out.
+      const result = await db.takeAdvance(
+        phone, data.gigId ?? "", Number(data.amount ?? 0), choice);
+      return { reply: end(result), session: { node: "root", data: {} } };
+    }
+
     case "cashout_pin": {
       // The PIN is checked in the database, which also counts failed attempts
       // and applies the lock-out — closing the session cannot reset either.
@@ -223,6 +266,33 @@ export async function handle(
         };
       }
 
+      case "5": {
+        // Earned wage access (INNOVATION.md §3.2). This is the channel where it
+        // matters most: someone on a feature phone needing cash today is exactly
+        // who would otherwise take a cash job instead.
+        const offers = await db.advanceOffers(phone);
+        if (offers.length === 0) {
+          return {
+            reply: end(clamp(
+              "No early payment available.\nYou need a gig in progress with your 'before' photo taken, " +
+              "and 3 completed jobs.")),
+            session: { node: "root", data: {} },
+          };
+        }
+        const lines = offers.map((o, i) =>
+          `${i + 1}. up to ${kwacha(o.max_amount)} - ${shortTitle(o.title, 26)}`);
+        return {
+          reply: con(clamp("Get paid early:\n" + lines.join("\n") + "\nReply with a number. 0=menu")),
+          session: {
+            node: "advance_pick",
+            data: {
+              ids: offers.map((o) => o.gig_id).join(","),
+              caps: offers.map((o) => String(o.max_amount)).join(","),
+            },
+          },
+        };
+      }
+
       default:
         return { reply: con(mainMenu()), session: { node: "root", data: {} } };
     }
@@ -232,7 +302,7 @@ export async function handle(
 // --- Screens ---------------------------------------------------------------
 
 export function mainMenu(): string {
-  return "Nchito 🇿🇲\n1. Find gigs\n2. My wallet\n3. Quick tasks\n4. My work record";
+  return "Nchito 🇿🇲\n1. Find gigs\n2. My wallet\n3. Quick tasks\n4. My work record\n5. Get paid early";
 }
 
 function categoryMenu(): string {

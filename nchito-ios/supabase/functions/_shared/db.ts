@@ -31,6 +31,12 @@ export interface Profile {
   city: string;
 }
 
+export interface AdvanceOffer {
+  gig_id: string;
+  title: string;
+  max_amount: number;
+}
+
 export interface WorkRecordTotals {
   total_gigs: number;
   total_earned: number;
@@ -118,6 +124,23 @@ export class Db {
   }
 
   // --- Other ----------------------------------------------------------------
+
+  // --- Earned wage access ---------------------------------------------------
+
+  /** Gigs the caller could take an advance on right now, with each cap. */
+  async advanceOffers(phone: string): Promise<AdvanceOffer[]> {
+    const { data } = await this.client.rpc("channel_advance_offer", { p_phone: phone });
+    return (data ?? []) as AdvanceOffer[];
+  }
+
+  /** The PIN is verified inside the database, never here. */
+  async takeAdvance(phone: string, gigId: string, amount: number, pin: string): Promise<string> {
+    const { data, error } = await this.client.rpc("channel_take_advance", {
+      p_phone: phone, p_gig_id: gigId, p_amount: amount, p_pin: pin,
+    });
+    if (error) return "Early payment failed. Please try again.";
+    return data as string;
+  }
 
   async openTasks(limit = 3): Promise<MicroTask[]> {
     const { data } = await this.client.rpc("channel_open_tasks", { p_limit: limit });

@@ -160,6 +160,9 @@ enum TransactionKind: String, Codable {
     case referralBonus = "Referral Bonus"
     case cashOut = "Cash Out"
     case boostPurchase = "Boost Purchase"
+    case wageAdvance = "Early Payment"
+    case advanceRepayment = "Early Payment Repaid"
+    case advanceRecovery = "Early Payment Owed Back"
 }
 
 struct WalletTransaction: Identifiable, Codable {

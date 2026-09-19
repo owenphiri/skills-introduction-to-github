@@ -68,6 +68,8 @@ WhatsApp is the cheaper and faster of the two to launch — no operator approval
 
 **Meta retries anything that isn't a prompt 200.** The webhook acknowledges first and returns 200 even on error, because a 500 makes Meta resend a message we may already have acted on.
 
+**Early payment is PIN-gated like cash-out**, and the fee is quoted on screen before the PIN prompt — nobody should enter a PIN against a number they haven't seen. The 4%-minimum-K5 fee shown by the menu is the same formula `advance_fee()` charges.
+
 **Sessions expire after 30 minutes**, so an abandoned cash-out can't be resumed later from a different context.
 
 ## Testing before a shortcode exists

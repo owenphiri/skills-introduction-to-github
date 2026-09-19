@@ -35,6 +35,7 @@ struct GigDetailView: View {
 
                 if hasApplied {
                     ProofOfWorkCard(gig: gig)
+                    WageAdvanceCard(gig: gig)
                 }
 
                 section("Details") {

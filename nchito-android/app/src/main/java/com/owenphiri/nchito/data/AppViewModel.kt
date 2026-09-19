@@ -107,6 +107,79 @@ class AppViewModel : ViewModel() {
         return true
     }
 
+    // Earned wage access (INNOVATION.md §3.2)
+    val advances = mutableStateListOf<WageAdvance>()
+
+    /**
+     * Whatever the worker still owes, if anything. Surfaced plainly so a
+     * balance never quietly goes negative with no explanation.
+     */
+    val outstandingAdvance: WageAdvance?
+        get() = advances.firstOrNull {
+            it.status == AdvanceStatus.OUTSTANDING || it.status == AdvanceStatus.RECOVERING
+        }
+
+    /**
+     * Mirrors `advance_eligibility()`. The server re-checks on request, since
+     * eligibility can change between drawing the screen and tapping confirm.
+     */
+    fun advanceOffer(gig: Gig): AdvanceOffer {
+        if (gig.id !in appliedGigIds) {
+            return AdvanceOffer.ineligible("Advances are only available once a gig is assigned to you.")
+        }
+        if (advances.any { it.gigId == gig.id && it.status != AdvanceStatus.WRITTEN_OFF }) {
+            return AdvanceOffer.ineligible("You have already taken an advance on this gig.")
+        }
+
+        // Work must demonstrably have started. The "before" photo carries a
+        // device capture time and location, so this is evidence, not a claim —
+        // and it is why proof-of-work had to exist before this feature could.
+        if (proofStatus(gig).before == null) {
+            return AdvanceOffer.ineligible(
+                "Take your \"before\" photo on this gig first — that is what shows the work has started.")
+        }
+
+        val summary = workRecordSummary
+        if (summary.totalGigs < AdvanceTerms.MINIMUM_COMPLETED_JOBS) {
+            return AdvanceOffer.ineligible(
+                "Complete ${AdvanceTerms.MINIMUM_COMPLETED_JOBS} jobs through Nchito to unlock early payment.")
+        }
+        if ((summary.onTimeRate ?: 0.0) < AdvanceTerms.MINIMUM_ON_TIME_RATE) {
+            return AdvanceOffer.ineligible(
+                "Early payment needs most of your recent jobs delivered on time.")
+        }
+
+        // One at a time. Stacking advances across gigs is how a worker ends up
+        // owing more than they are about to earn.
+        if (outstandingAdvance != null) {
+            return AdvanceOffer.ineligible("Finish the gig you already took an advance on first.")
+        }
+
+        val cap = AdvanceTerms.maxAdvance(gig.workerPayout)
+        if (cap < AdvanceTerms.MINIMUM_ADVANCE) {
+            return AdvanceOffer.ineligible("This gig is too small for an early payment.")
+        }
+
+        return AdvanceOffer(true, cap, "You can take up to ${cap.kwacha()} now.")
+    }
+
+    /**
+     * Credits the full amount requested; the fee comes off at settlement, so
+     * what lands in the wallet is exactly what was quoted.
+     */
+    fun takeAdvance(gig: Gig, amount: Double): Boolean {
+        val offer = advanceOffer(gig)
+        if (!offer.isEligible || amount <= 0 || amount > offer.maxAmount) return false
+
+        val fee = AdvanceTerms.fee(amount)
+        advances.add(0, WageAdvance(gigId = gig.id, gigTitle = gig.title,
+                                    amountZMW = amount, feeZMW = fee))
+        transactions.add(0, WalletTransaction(
+            kind = TxKind.WAGE_ADVANCE, amountZMW = amount,
+            note = "Early payment on ${gig.title}"))
+        return true
+    }
+
     // USSD & WhatsApp access (INNOVATION.md §2.1)
     var hasChannelPin by mutableStateOf(false)
         private set

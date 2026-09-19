@@ -137,7 +137,7 @@ Ruthless order, assuming limited engineering:
 | **1** ✅ | Loyalty-decaying commission (1.1) · Proof-of-work (4.1) · Fair-price band (5.1) | Cheap, mostly server-side, immediately defends revenue |
 | **2** 🔨 | ~~Work Record (1.2)~~ ✅ · Guarantees (1.3) · Offline-first (2.3) | The moat. Start accumulating the data asset early — it compounds |
 | **3** 🔨 | ~~WhatsApp bot then USSD (2.1)~~ ✅ · Shareable earnings cards (5.2) | Growth phase; WhatsApp first (far cheaper than USSD shortcode licensing) |
-| **4** | Agent liquidity map (3.1) · EWA (3.2) | Retention and the second revenue line, once transaction volume justifies it |
+| **4** 🔨 | Agent liquidity map (3.1) · ~~EWA (3.2)~~ ✅ | Retention and the second revenue line, once transaction volume justifies it |
 | **5** | Self-serve B2B console (3.4) · Digital Chilimba (3.3) · Vernacular voice (2.2) | Scale plays that need a real user base behind them |
 
 **The two that matter most:** the *Work Record* (§1.2) is the thing that makes Nchito infrastructure rather than an app, and the *WhatsApp/USSD layer* (§2.1) is the thing that makes it reach everyone rather than the smartphone minority. If only two things get built this year, build those.
@@ -183,6 +183,22 @@ Migration `0004_offline_channels.sql` plus Edge Functions in `supabase/functions
 **Money needs a PIN.** The network asserting a phone number is a decent identity claim, but a stolen handset would otherwise be a drained wallet, and mobile money here always asks for a PIN. It's set in the app, stored only as a bcrypt hash, and verified inside `channel_cash_out()` — never in the Edge Function — with attempt counting and lock-out held on the profile so closing a session cannot reset them.
 
 **Signup works from a feature phone.** An unknown number is walked through name and town and gets a real account, with the auth user created via the admin API and the phone treated as already confirmed, since the network proved they hold it. This is the actual unlock: someone with no smartphone and no data can now join Nchito at all.
+
+## Earned wage access — shipped
+
+Migration `0005_wage_advances.sql`, both apps, and a "Get paid early" option on USSD and WhatsApp.
+
+**It is structurally not a loan, and that matters.** The poster has already funded escrow, so Nchito is holding this worker's money. An advance is early release of funds already deposited against work already started — no credit is extended, nothing accrues, there is no interest, and the flat fee is quoted in kwacha before the worker agrees. This framing is worth protecting: it is the difference between a service fee on your own money and a consumer lending product, which in Zambia is a different regulatory conversation entirely. **Have a Zambian financial-services lawyer confirm the characterisation before launch** — the structure is designed to support it, but the structure is not the ruling.
+
+**The exposure is narrow and bounded four ways.** The only real risk is a worker taking an advance and then abandoning the gig, leaving Nchito to refund the poster from money already paid out. So: work must demonstrably have started (the "before" proof photo, with its device capture time and location — this is the feature proof-of-work was laying groundwork for); the advance is capped at half the payout, which leaves the repayment covered with wide headroom at every gig size; the worker needs standing read from their Work Record (three settled jobs, most delivered on time); and only one advance runs at a time, because stacking across gigs is how someone ends up owing more than they are about to earn.
+
+**Settlement repays before crediting.** `release_escrow()` now deducts the advance and its fee from the payout and credits the worker the net, so the wallet never shows money that is already spoken for. An assertion guards the case where terms are ever changed such that the advance could exceed the payout, rather than silently paying out a negative.
+
+**Abandonment converts to a recoverable obligation** rather than a collections problem: the balance is recovered from future earnings, and a worker who keeps working repays without anyone having to chase them.
+
+**Every number is on one screen before committing** — what arrives now, the fee, and what is left at the end — on all three surfaces. A surprise at settlement is how trust in early payment dies. On USSD the fee is quoted before the PIN prompt, so nobody enters a PIN against a number they have not seen.
+
+**Two features had to exist first**, which is why this sits in Phase 4 rather than Phase 1: proof-of-work supplies the evidence that work started, and the Work Record supplies the standing check. Neither could be faked by a worker, which is what makes underwriting from them defensible.
 
 ## Sources
 

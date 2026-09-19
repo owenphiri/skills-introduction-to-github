@@ -83,6 +83,7 @@ fun GigDetailScreen(
 
             if (applied) {
                 ProofOfWorkCard(vm, gig)
+                WageAdvanceCard(vm, gig)
             }
 
             Text("Details", style = MaterialTheme.typography.titleMedium)

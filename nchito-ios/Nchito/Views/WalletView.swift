@@ -13,6 +13,25 @@ struct WalletView: View {
                         .listRowInsets(EdgeInsets())
                 }
 
+                if let advance = state.outstandingAdvance {
+                    Section("Early payment") {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text(advance.totalDueZMW.kwacha)
+                                    .font(.headline)
+                                    .foregroundStyle(Theme.copper)
+                                Spacer()
+                                Text(advance.status.label)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Text("\(advance.amountZMW.kwacha) advanced on \(advance.gigTitle), plus a \(advance.feeZMW.kwacha) fee.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
                 Section("Payout method") {
                     Picker("Cash out to", selection: $state.payoutProvider) {
                         ForEach(MobileMoneyProvider.allCases) { p in

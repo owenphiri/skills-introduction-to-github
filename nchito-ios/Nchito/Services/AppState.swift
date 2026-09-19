@@ -148,6 +148,76 @@ final class AppState: ObservableObject {
                                    sharing: workRecordSharing)
     }
 
+    // MARK: - Earned wage access (INNOVATION.md §3.2)
+
+    @Published var advances: [WageAdvance] = []
+
+    /// Whatever the worker still owes, if anything. Surfaced plainly so a
+    /// balance never quietly goes negative with no explanation.
+    var outstandingAdvance: WageAdvance? {
+        advances.first { $0.status == .outstanding || $0.status == .recovering }
+    }
+
+    /// Mirrors `advance_eligibility()`. The server re-checks on request, since
+    /// eligibility can change between drawing this screen and tapping confirm.
+    func advanceOffer(for gig: Gig) -> AdvanceOffer {
+        guard appliedGigIDs.contains(gig.id) else {
+            return .ineligible("Advances are only available once a gig is assigned to you.")
+        }
+        guard !advances.contains(where: { $0.gigID == gig.id && $0.status != .writtenOff }) else {
+            return .ineligible("You have already taken an advance on this gig.")
+        }
+
+        // Work must demonstrably have started. The "before" photo carries a
+        // device capture time and location, so this is evidence, not a claim —
+        // and it is why proof-of-work had to exist before this feature could.
+        guard proofStatus(for: gig).before != nil else {
+            return .ineligible("Take your \"before\" photo on this gig first — that is what shows the work has started.")
+        }
+
+        // Standing, read from the Work Record.
+        let summary = workRecordSummary
+        guard summary.totalGigs >= AdvanceTerms.minimumCompletedJobs else {
+            return .ineligible("Complete \(AdvanceTerms.minimumCompletedJobs) jobs through Nchito to unlock early payment.")
+        }
+        guard (summary.onTimeRate ?? 0) >= AdvanceTerms.minimumOnTimeRate else {
+            return .ineligible("Early payment needs most of your recent jobs delivered on time.")
+        }
+
+        // One at a time. Stacking advances across gigs is how a worker ends up
+        // owing more than they are about to earn.
+        guard outstandingAdvance == nil else {
+            return .ineligible("Finish the gig you already took an advance on first.")
+        }
+
+        let cap = AdvanceTerms.maxAdvance(onPayout: gig.workerPayout)
+        guard cap >= AdvanceTerms.minimumAdvance else {
+            return .ineligible("This gig is too small for an early payment.")
+        }
+
+        return AdvanceOffer(isEligible: true, maxAmount: cap,
+                            reason: "You can take up to \(cap.kwacha) now.")
+    }
+
+    /// Credits the full amount requested; the fee comes off at settlement, so
+    /// what lands in the wallet is exactly what was quoted.
+    @discardableResult
+    func takeAdvance(on gig: Gig, amount: Double) -> Bool {
+        let offer = advanceOffer(for: gig)
+        guard offer.isEligible, amount > 0, amount <= offer.maxAmount else { return false }
+
+        let fee = AdvanceTerms.fee(on: amount)
+        advances.insert(WageAdvance(id: UUID(), gigID: gig.id, gigTitle: gig.title,
+                                    amountZMW: amount, feeZMW: fee,
+                                    status: .outstanding, createdAt: .now), at: 0)
+
+        transactions.insert(
+            WalletTransaction(id: UUID(), kind: .wageAdvance, amountZMW: amount,
+                              note: "Early payment on \(gig.title)", date: .now),
+            at: 0)
+        return true
+    }
+
     // MARK: - USSD & WhatsApp access (INNOVATION.md §2.1)
 
     /// Shown wherever the offline channels are mentioned, so the shortcode
