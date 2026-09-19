@@ -14,6 +14,9 @@ price, a health reminder, a fraud warning, a word of encouragement. Delivered
 over **USSD**, **SMS** and **WhatsApp**, paid for with **prepaid credit** drawn
 down K1 a day.
 
+**Live demo: <https://lelo-three.vercel.app>** — including a USSD simulator
+that drives the real menu and billing engine.
+
 > **Status: working reference implementation.** Every external dependency —
 > telco, payment provider, Meta — has a mock adapter, so the whole service runs
 > and is testable with no accounts and no airtime. What stands between this and
@@ -194,6 +197,13 @@ secret as an environment variable; the cron route authenticates with
 Two runtime requirements: Node **22.x or later** (for `node:sqlite`), and
 `NODE_OPTIONS=--experimental-sqlite` on Node 22, where the module is still
 behind a flag.
+
+The deployed project is `lelo` in the `PrimeAxis ICT Trade` Vercel team, linked
+to this repository with root directory `lelo/`. Its **production branch is
+`main`**, so pushes to a feature branch create preview deployments only —
+production was deployed explicitly from `claude/daily-essential-zambia-lh83ed`.
+Merge to `main`, or change the production branch in project settings, to get
+automatic production deploys.
 
 **Demo mode.** `DEMO_MODE=1` runs the whole service on an in-memory database
 that reseeds on every cold start, which is how the public demo runs without a
