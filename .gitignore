@@ -26,6 +26,9 @@
 *.sql
 *.sqlite
 
+# Schema-as-code (not dumps) must stay tracked
+!nchito-ios/supabase/**/*.sql
+
 # OS generated files #
 ######################
 .DS_Store
