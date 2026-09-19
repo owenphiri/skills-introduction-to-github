@@ -6,10 +6,13 @@
  * installed the app opens with no network at all.
  */
 const CACHE = 'nchito-v1';
+// Registered from /app/, so its scope is /app/ and the landing page at the root
+// is never intercepted or cached by it.
 const ASSETS = [
-  '.', 'index.html', 'styles.css', 'data.js', 'app.js', 'manifest.webmanifest',
-  'brand/logo.svg', 'brand/icon.svg',
-  'brand/icon-32.png', 'brand/icon-180.png', 'brand/icon-192.png', 'brand/icon-512.png',
+  './', 'index.html', 'styles.css', 'data.js', 'app.js', 'manifest.webmanifest',
+  '../brand/logo.svg', '../brand/icon.svg',
+  '../brand/icon-32.png', '../brand/icon-180.png',
+  '../brand/icon-192.png', '../brand/icon-512.png',
 ];
 
 self.addEventListener('install', e => {

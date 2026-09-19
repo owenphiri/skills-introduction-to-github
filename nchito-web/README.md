@@ -13,7 +13,7 @@ cd nchito-web
 python3 -m http.server 8000   # or any static server
 ```
 
-**Live:** https://nchito-nu.vercel.app
+**Live:** https://nchito-nu.vercel.app — landing page at `/`, the app at `/app`.
 
 Deployed on Vercel from `nchito-web/` on this branch. Pushing to the branch redeploys it.
 
@@ -23,14 +23,19 @@ No framework, no bundler, no dependencies. The product's own design principle is
 
 ```
 nchito-web/
-├── index.html              # shell
-├── styles.css              # hand-written, ~7KB
-├── data.js                 # the same seed data as the iOS/Android apps
-├── app.js                  # screens, state and actions
-├── sw.js                   # cache-first service worker
-├── manifest.webmanifest    # installability
-└── brand/                  # logo and generated icons
+├── index.html              # landing page
+├── landing.css             # its styles
+├── brand/                  # logo and generated icons, shared by both
+└── app/                    # the PWA
+    ├── index.html          # shell
+    ├── styles.css          # hand-written, ~7KB
+    ├── data.js             # the same seed data as the iOS/Android apps
+    ├── app.js              # screens, state and actions
+    ├── sw.js               # cache-first service worker, scoped to /app/
+    └── manifest.webmanifest
 ```
+
+The service worker is registered from `/app/`, so its scope is `/app/` and the landing page is never intercepted or cached by it. Installing the PWA installs the app, not the marketing site.
 
 ## Brand
 

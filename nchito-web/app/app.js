@@ -577,7 +577,7 @@ function render() {
 
   document.getElementById('bar').innerHTML = d
     ? `<button class="back" onclick="back()">‹ Back</button><h1>${esc(title)}</h1>`
-    : `<img class="logo" src="brand/logo.svg" alt="Nchito"><span class="spacer"></span>
+    : `<img class="logo" src="../brand/logo.svg" alt="Nchito"><span class="spacer"></span>
        <h1 style="font-size:15px;font-weight:600" class="muted">${esc(title)}</h1>`;
 
   let body;
