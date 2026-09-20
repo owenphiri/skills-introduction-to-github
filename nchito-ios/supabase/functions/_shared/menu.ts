@@ -11,6 +11,7 @@
 
 import { Db, Session } from "./db.ts";
 import { categoriesIn, SERVICE_GROUPS } from "./catalog.ts";
+import { LANGUAGES, t } from "./lang.ts";
 
 export const USSD_SCREEN_LIMIT = 182;
 
@@ -20,7 +21,13 @@ export interface Reply {
   done: boolean;
 }
 
-const kwacha = (n: number) => `K${Number(n) % 1 === 0 ? Number(n).toFixed(0) : Number(n).toFixed(2)}`;
+// The sign goes before the K, not after it: "K-300" reads as a currency code
+// nobody has heard of, and a member's net position is often negative.
+const kwacha = (n: number) => {
+  const v = Number(n);
+  const body = Math.abs(v) % 1 === 0 ? Math.abs(v).toFixed(0) : Math.abs(v).toFixed(2);
+  return `${v < 0 ? "-" : ""}K${body}`;
+};
 
 /** Trims to one USSD screen on a word boundary so nothing is cut mid-word. */
 export function clamp(text: string, limit = USSD_SCREEN_LIMIT): string {
@@ -44,11 +51,14 @@ export async function handle(
 ): Promise<{ reply: Reply; session: Session }> {
   const choice = input.trim();
   const data = session.data;
+  // Carried on the session so it survives a screen, and read from the profile
+  // so a returning caller gets the language they chose last time.
+  const lang = data.lang ?? await db.language(phone);
 
   // Any screen: 0 goes back to the main menu, matching how every other
   // Zambian USSD service behaves.
   if (choice === "0" && session.node !== "root") {
-    return { reply: con(mainMenu()), session: { node: "root", data: {} } };
+    return { reply: con(mainMenu(lang)), session: { node: "root", data: {} } };
   }
 
   const profile = await db.profile(phone);
@@ -114,6 +124,39 @@ export async function handle(
       return browse(category.code, category.label.toLowerCase());
     }
 
+    case "language": {
+      const offered = LANGUAGES.filter((l) => l.available);
+      const picked = offered[Number(choice) - 1];
+      if (!picked) {
+        return { reply: con("Invalid choice.\n\n" + languageMenu(lang)), session };
+      }
+      await db.setLanguage(phone, picked.code);
+      return {
+        reply: con(t(picked.code, "word.thanks") + "\n\n" + mainMenu(picked.code)),
+        session: { node: "root", data: { lang: picked.code } },
+      };
+    }
+
+    case "chilimba_pick": {
+      const ids = (data.ids ?? "").split(",").filter(Boolean);
+      const circle = ids[Number(choice) - 1];
+      if (!circle) {
+        return { reply: con("Invalid choice.\nReply with the number, or 0 for menu."), session };
+      }
+      return {
+        reply: con(clamp(
+          `${t(lang, "circle.contribute")}.\n\nEnter your 4-digit Nchito PIN:`)),
+        session: { node: "chilimba_pin", data: { ...data, circle } },
+      };
+    }
+
+    case "chilimba_pin": {
+      // Paying into a circle is money leaving the wallet, so it is gated by the
+      // PIN in the database, which also counts failures and applies the lock-out.
+      const result = await db.chilimbaContribute(phone, data.circle ?? "", choice);
+      return { reply: end(result), session: { node: "root", data: { lang } } };
+    }
+
     case "gig_pick": {
       const ids = (data.ids ?? "").split(",").filter(Boolean);
       const gigId = ids[Number(choice) - 1];
@@ -126,7 +169,7 @@ export async function handle(
 
     case "wallet": {
       if (choice !== "1") {
-        return { reply: con("Invalid choice.\n\n" + mainMenu()), session: { node: "root", data: {} } };
+        return { reply: con("Invalid choice.\n\n" + mainMenu(lang)), session: { node: "root", data: {} } };
       }
       const balance = await db.balance(phone) ?? 0;
       if (balance <= 0) {
@@ -203,7 +246,7 @@ export async function handle(
     }
 
     default:
-      return { reply: con(mainMenu()), session: { node: "root", data: {} } };
+      return { reply: con(mainMenu(lang)), session: { node: "root", data: {} } };
   }
 
   // --- Browsing ------------------------------------------------------------
@@ -341,8 +384,46 @@ export async function handle(
         };
       }
 
+      case "7": {
+        // Reading where you stand is allowed whatever the gate says; paying in
+        // is not, and channel_chilimba_contribute refuses if it is shut.
+        const circles = await db.myChilimbas(phone);
+        if (circles.length === 0) {
+          return {
+            reply: end(clamp(
+              "You are not in a chilimba yet.\nOpen the Nchito app to start one or join with a code.")),
+            session: { node: "root", data: { lang } },
+          };
+        }
+        const lines: string[] = [];
+        const ids: string[] = [];
+        const header = t(lang, "circle.title") + ":";
+        const footer = "\nReply with a number to pay. 0=menu";
+        for (const c of circles) {
+          const state = c.status === "forming"
+            ? "forming"
+            : c.paid_this_round
+              ? `r${c.current_round} paid`
+              : `r${c.current_round} DUE`;
+          // The net position travels to the feature phone too. It is the number
+          // that tells a member whether walking away would cost anyone.
+          const line = `${ids.length + 1}. ${shortTitle(c.name, 18)} ${kwacha(c.contribution)} ` +
+                       `${state}, net ${kwacha(c.net)}`;
+          if ([header, ...lines, line].join("\n").length + footer.length > USSD_SCREEN_LIMIT) break;
+          lines.push(line);
+          ids.push(c.circle_id);
+        }
+        return {
+          reply: con([header, ...lines].join("\n") + footer),
+          session: { node: "chilimba_pick", data: { lang, ids: ids.join(",") } },
+        };
+      }
+
+      case "8":
+        return { reply: con(languageMenu(lang)), session: { node: "language", data: { lang } } };
+
       default:
-        return { reply: con(mainMenu()), session: { node: "root", data: {} } };
+        return { reply: con(mainMenu(lang)), session: { node: "root", data: {} } };
     }
   }
 }
@@ -367,8 +448,27 @@ function freshness(isoDate: string): string {
 
 // --- Screens ---------------------------------------------------------------
 
-export function mainMenu(): string {
-  return "Nchito 🇿🇲\n1. Find gigs\n2. My wallet\n3. Quick tasks\n4. My work record\n5. Get paid early\n6. Find cash near me";
+/**
+ * The main menu, in the caller's language.
+ *
+ * Eight options and a flag have to fit 182 characters in Nyanja and Bemba as
+ * well as English, and Zambian words are longer. `nchito-shared/generate.mjs`
+ * measures this for every offered language and fails the build rather than
+ * letting the last options fall off a screen that cannot scroll.
+ */
+export function mainMenu(lang = "en"): string {
+  const items = ["ussd.gigs", "ussd.wallet", "ussd.tasks", "ussd.record",
+                 "ussd.early", "ussd.cash", "ussd.chilimba", "ussd.language"];
+  return `${t(lang, "ussd.title")} 🇿🇲\n` +
+         items.map((k, i) => `${i + 1}. ${t(lang, k)}`).join("\n");
+}
+
+/** Only the languages that are translated far enough to be worth offering. */
+export function languageMenu(lang = "en"): string {
+  const offered = LANGUAGES.filter((l) => l.available);
+  return `${t(lang, "ussd.pickLang")}\n` +
+         offered.map((l, i) => `${i + 1}. ${l.native}`).join("\n") +
+         `\n0. ${t(lang, "ussd.back")}`;
 }
 
 /**

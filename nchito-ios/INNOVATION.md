@@ -138,7 +138,7 @@ Ruthless order, assuming limited engineering:
 | **2** 🔨 | ~~Work Record (1.2)~~ ✅ · Guarantees (1.3) · Offline-first (2.3) | The moat. Start accumulating the data asset early — it compounds |
 | **3** 🔨 | ~~WhatsApp bot then USSD (2.1)~~ ✅ · Shareable earnings cards (5.2) | Growth phase; WhatsApp first (far cheaper than USSD shortcode licensing) |
 | **4** ✅ | ~~Agent liquidity map (3.1)~~ ✅ · ~~EWA (3.2)~~ ✅ | Retention and the second revenue line, once transaction volume justifies it |
-| **5** | Self-serve B2B console (3.4) · Digital Chilimba (3.3) · Vernacular voice (2.2) | Scale plays that need a real user base behind them |
+| **5** | ~~Digital Chilimba (3.3)~~ ✅ · ~~Vernacular voice (2.2)~~ ✅ · Self-serve B2B console (3.4) | Scale plays that need a real user base behind them |
 
 **The two that matter most:** the *Work Record* (§1.2) is the thing that makes Nchito infrastructure rather than an app, and the *WhatsApp/USSD layer* (§2.1) is the thing that makes it reach everyone rather than the smartphone minority. If only two things get built this year, build those.
 
@@ -229,3 +229,76 @@ This is also the feature people open when they aren't working, which makes it th
 - [Super apps — the future of mobile-first Africa? — DAI Magister](https://www.daimagister.com/resources/super-apps-the-future-of-mobile-first-africa/)
 - [Is Africa Ripe for Super Apps — Finextra](https://www.finextra.com/blogposting/27965/is-africa-ripe-for-super-apps)
 - [Two-sided marketplace cold start and liquidity — Reforge](https://www.reforge.com/blog/omni-bootstrapped-marketplace-liquidity-growth)
+
+
+---
+
+## Vernacular and voice — shipped
+
+§2.2, minus the part that does not exist.
+
+**What was built.** `nchito-shared/languages.json` is a generated source like the
+taxonomy: 67 strings, vernacular category names and a keyword lexicon, in English,
+Nyanja, Bemba, Tonga and Lozi. The interface, the USSD menu and the WhatsApp
+routing all read from it. Someone types *ndalama* to WhatsApp and lands on their
+wallet; someone dials in and gets the menu in Chinyanja.
+
+**What was not built, and why.** §2.2 says "AI transcribes, translates,
+categorises". No browser, phone OS or commodity API transcribes any Zambian
+language. Shipping a dictation button for Nyanja would mean silently dropping
+what somebody said about their own job, which is worse than not offering it.
+
+So the mechanism is the one Zambians already use every day: **record a voice
+note and let the other person listen.** It needs no model, works in any
+language, and removes the literacy barrier in both directions. `0009` stores
+those recordings, leaves `transcript` null rather than inventing text, and makes
+corpus consent explicit, revocable and off by default — a recording of someone's
+voice is not ours to train on because they happened to use the app.
+
+That corpus, with consent, is exactly the Bemba/Nyanja speech data §3.4
+identifies as scarce worldwide and abundant here. The order matters: collect it
+because people chose to speak, then ask; not harvest it and call it a feature.
+
+**Honesty is enforced, not promised.** A missing translation is `null`, never a
+guess, and falls back to English. Tonga and Lozi sit at 31% and are held back
+from the picker by a coverage floor, because a half-English screen reads as
+broken. Nothing is marked reviewed, because no native speaker has seen it, and
+the app says so in that language's own words. `generate.mjs` measures the USSD
+menu in every offered language and fails the build if Nyanja's longer words push
+an option off a screen that cannot scroll.
+
+**Before launch:** a native speaker of each language has to sign the strings off.
+That is a person, not a task, and the `reviewed` flag stays false until one does.
+
+---
+
+## Digital Chilimba — shipped, and switched off
+
+§3.3, behind a gate.
+
+**The gate.** Pooling members' money and paying it back out is plausibly a
+deposit-taking or savings-scheme activity under Zambian financial regulation,
+and the Bank of Zambia decides whether Nchito may do it. `chilimba_enabled()`
+returns false, every entry point checks it, and escrow release works normally
+with it shut — it simply skips the contribution. The failure mode of shipping
+this by accident is not a bug report; it is an unlicensed financial product
+holding other people's money.
+
+**The design is mostly about how chilimbas go wrong.**
+
+| Failure | What the schema does |
+|---|---|
+| The founder always collects first | Turn order is drawn at random from a recorded seed, so anyone can check the draw |
+| Somebody collects a pot that is short | A round does not close until every member has paid, and those outstanding are **named**, not counted |
+| A member collects, then stops paying | `chilimba_position()` makes that a number on screen; leaving while ahead is refused with the exact amount it would cost the others |
+| The circle is more than someone can afford | Joining is capped at 25% of what they have actually earned through Nchito, counting circles they are already in |
+| A payout is quietly emptied by standing orders | Auto-contribution is off by default, takes one circle per settlement, and is skipped if it would leave the member with nothing |
+
+§3.3 calls the social obligation "the strongest lock-in in the product". It is,
+and that is precisely why the exposure is shown rather than relied upon. A
+lock-in built on somebody not realising what leaving would cost is not loyalty.
+
+**Verified, not asserted.** `supabase/test/` applies all twelve migrations to a
+real PostgreSQL cluster and exercises the rules: the gate refuses, the cap
+refuses with real numbers, the draw is not first-come, the round holds at 3 of 4,
+the pot moves at 4 of 4, and the member who has collected cannot walk away.

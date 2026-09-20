@@ -10,6 +10,7 @@
 
 import { Db } from "../_shared/db.ts";
 import { handle, mainMenu } from "../_shared/menu.ts";
+import { route } from "../_shared/lang.ts";
 
 const GRAPH_VERSION = "v21.0";
 
@@ -66,15 +67,30 @@ function normalisePhone(waId: string): string {
  * discipline — someone will reply "balance" rather than "2" — so map the common
  * intents onto the same numbered choices the engine already understands.
  */
+/**
+ * Turns what somebody typed into a menu choice.
+ *
+ * The word list lives in nchito-shared/languages.json and covers Nyanja, Bemba,
+ * Tonga and Lozi as well as English, because "ndalama" is how most of Lusaka
+ * would ask about their money. This is the part of speaking your own language
+ * that needs no speech technology and works today.
+ *
+ * `route` matches longest-first, so "chilimba" cannot be stolen by a shorter
+ * word that happens to sit inside it. The generator refuses to build a lexicon
+ * where that is possible at all.
+ */
+const BUCKET_TO_MENU: Record<string, string> = {
+  gigs: "1", wallet: "2", tasks: "3", record: "4",
+  advance: "5", agents: "6", circle: "7",
+};
+
 function interpret(text: string): string {
-  const t = text.trim().toLowerCase();
-  if (/^\d+$/.test(t)) return t;
-  if (/^(hi|hello|hey|start|menu|muli bwanji|mwabuka)/.test(t)) return "";
-  if (/(gig|work|job|ncito|nchito|find)/.test(t)) return "1";
-  if (/(wallet|balance|money|cash|ndalama)/.test(t)) return "2";
-  if (/(task|survey|quick)/.test(t)) return "3";
-  if (/(record|cv|history)/.test(t)) return "4";
-  return t;   // free text (a name, a town, an amount, a PIN) passes through
+  const raw = text.trim().toLowerCase();
+  if (/^\d+$/.test(raw)) return raw;
+  const bucket = route(raw);
+  if (bucket === "greet" || bucket === "help") return "";   // show the menu
+  if (bucket && BUCKET_TO_MENU[bucket]) return BUCKET_TO_MENU[bucket];
+  return raw;   // free text (a name, a town, an amount, a PIN) passes through
 }
 
 Deno.serve(async (req: Request) => {

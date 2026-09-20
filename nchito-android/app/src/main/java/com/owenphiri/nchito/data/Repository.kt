@@ -35,6 +35,7 @@ interface NchitoRepository {
     suspend fun loadProofPhotos(gigIds: List<UUID>): List<ProofPhoto>
     suspend fun loadAdvances(): List<WageAdvance>
     suspend fun loadAppliedGigIds(): Set<UUID>
+    suspend fun loadChilimbas(): List<ChilimbaCircle>
 
     suspend fun postGig(gig: Gig): Gig
     suspend fun apply(gigId: UUID): String
@@ -46,6 +47,29 @@ interface NchitoRepository {
     suspend fun requestAdvance(gigId: UUID, amount: Double): String
     suspend fun setWorkRecordSharing(isPublic: Boolean, rotate: Boolean): String
     suspend fun setChannelPin(pin: String)
+
+    /**
+     * The chosen interface language, stored on the profile so it follows the
+     * person onto USSD and WhatsApp as well as staying on this device.
+     */
+    suspend fun setLanguage(language: AppLanguage)
+
+    /*
+     * Chilimba. Each of these refuses while chilimba_enabled() is false in the
+     * database: pooling members' money needs authorisation, and the switch is
+     * server-side precisely so no client build can turn it on.
+     *
+     * They are all RPCs rather than table writes, because the rules that make
+     * a rotating savings circle safe — the affordability cap, the random draw,
+     * refusing to close a short round, refusing to let somebody leave while
+     * ahead — live in Postgres and must not be re-implemented here.
+     */
+    suspend fun createChilimba(name: String, contribution: Double,
+                               cadence: ChilimbaCadence, members: Int): String
+    suspend fun joinChilimba(inviteCode: String): String
+    suspend fun contributeToChilimba(circleId: UUID): String
+    suspend fun leaveChilimba(circleId: UUID): String
+    suspend fun setChilimbaAutoContribute(circleId: UUID, on: Boolean)
 }
 
 /** Serves MockData through the same interface, so demo mode exercises the same paths. */
@@ -55,6 +79,8 @@ class MockRepository : NchitoRepository {
     private val transactions = MockData.transactions.toMutableList()
     private val messages = MockData.messages.toMutableList()
     private val proofs = MockData.proofPhotos.toMutableList()
+    private val circles = MockData.chilimbaCircles.toMutableList()
+    private var language: AppLanguage = AppLanguage.ENGLISH
     private val advances = mutableListOf<WageAdvance>()
     private val applied = mutableSetOf<UUID>()
     private var slug = "k7mq2xrp"
@@ -139,6 +165,81 @@ class MockRepository : NchitoRepository {
     }
 
     override suspend fun setChannelPin(pin: String) {}
+
+    override suspend fun setLanguage(language: AppLanguage) { this.language = language }
+
+    override suspend fun loadChilimbas(): List<ChilimbaCircle> = circles
+
+    override suspend fun createChilimba(
+        name: String, contribution: Double, cadence: ChilimbaCadence, members: Int,
+    ): String {
+        circles.add(0, ChilimbaCircle(
+            name = name, contributionZMW = contribution, cadence = cadence,
+            status = ChilimbaStatus.FORMING, memberTarget = members,
+            inviteCode = UUID.randomUUID().toString().take(6).uppercase(),
+            members = listOf(ChilimbaMember(name = "Owen Phiri", isMe = true))))
+        return "Circle created — share the code with the others."
+    }
+
+    override suspend fun joinChilimba(inviteCode: String): String {
+        val index = circles.indexOfFirst { it.inviteCode.equals(inviteCode, ignoreCase = true) }
+        if (index < 0) return "No circle with that code."
+        val circle = circles[index]
+        if (circle.status != ChilimbaStatus.FORMING) {
+            return "That circle has already started. You cannot join part-way through — " +
+                "the turn order is already set."
+        }
+        circles[index] = circle.copy(
+            members = circle.members + ChilimbaMember(name = "Owen Phiri", isMe = true))
+        return "You have joined ${circle.name}."
+    }
+
+    override suspend fun contributeToChilimba(circleId: UUID): String {
+        val index = circles.indexOfFirst { it.id == circleId }
+        if (index < 0) return "That circle is not running."
+        var circle = circles[index]
+        val me = circle.me ?: return "You are not a member of that circle."
+        if (me.hasPaidThisRound) return "You have already paid for round ${circle.currentRound}."
+
+        circle = circle.copy(members = circle.members.map {
+            if (it.isMe) it.copy(hasPaidThisRound = true,
+                                 paidInZMW = it.paidInZMW + circle.contributionZMW) else it
+        })
+
+        // A round closes only when every member has paid — nobody collects a
+        // short pot, on any platform.
+        if (circle.roundIsComplete) {
+            val pot = circle.pot
+            circle = circle.copy(
+                members = circle.members.map {
+                    val paid = if (it.position == circle.currentRound)
+                        it.copy(receivedZMW = it.receivedZMW + pot) else it
+                    paid.copy(hasPaidThisRound = false)
+                },
+                currentRound = circle.currentRound + 1)
+            circles[index] = circle
+            return "Round closed — K${pot.toInt()} paid out."
+        }
+        circles[index] = circle
+        return "K${circle.contributionZMW.toInt()} paid into ${circle.name}."
+    }
+
+    override suspend fun leaveChilimba(circleId: UUID): String {
+        val circle = circles.firstOrNull { it.id == circleId } ?: return "You are not in that circle."
+        val me = circle.me ?: return "You are not in that circle."
+        if (!me.mayLeave) {
+            return "You have received K${me.receivedZMW.toInt()} and paid in " +
+                "K${me.paidInZMW.toInt()}. Leaving now would take K${me.exitCost.toInt()} out " +
+                "of the other members' pockets. Settle the difference first."
+        }
+        circles.remove(circle)
+        return "You have left the circle."
+    }
+
+    override suspend fun setChilimbaAutoContribute(circleId: UUID, on: Boolean) {
+        val index = circles.indexOfFirst { it.id == circleId }
+        if (index >= 0) circles[index] = circles[index].copy(autoContribute = on)
+    }
 }
 
 /**
@@ -383,6 +484,83 @@ class LiveRepository(
         // Hashed with bcrypt server-side, which re-applies the same rules; the
         // PIN itself never touches storage on the device.
         api.rpc("set_channel_pin", buildJsonObject { put("p_pin", pin) }.toString())
+    }
+
+    override suspend fun setLanguage(language: AppLanguage) {
+        // On the profile rather than the device, so the choice follows the
+        // person onto USSD and WhatsApp. Row level security is what stops it
+        // being anyone else's profile.
+        api.update("profiles", "id=eq.$userId",
+                   buildJsonObject { put("language", language.code) }.toString())
+    }
+
+    // --- Chilimba ---------------------------------------------------------
+
+    override suspend fun loadChilimbas(): List<ChilimbaCircle> {
+        val rows = Json.parseToJsonElement(api.rpc("my_chilimbas")).jsonArray
+        return rows.map { row ->
+            val o = row.jsonObject
+            val id = UUID.fromString(o.str("circle_id"))
+            // The member's own standing is a second call on purpose: it is what
+            // the screen is actually about, and deriving it here would mean a
+            // second implementation of rules only Postgres should own.
+            val mine = Json.parseToJsonElement(api.rpc(
+                "chilimba_position",
+                buildJsonObject { put("p_circle", id.toString()) }.toString()))
+                .jsonArray.firstOrNull()?.jsonObject
+
+            ChilimbaCircle(
+                id = id,
+                name = o.str("name"),
+                contributionZMW = o.num("contribution"),
+                cadence = ChilimbaCadence.fromWire(o.str("cadence")) ?: ChilimbaCadence.MONTHLY,
+                status = ChilimbaStatus.valueOf(o.str("status").uppercase()),
+                currentRound = o.num("current_round").toInt(),
+                memberTarget = o.num("member_count").toInt(),
+                inviteCode = o.strOrNull("invite_code"),
+                members = listOfNotNull(mine?.let {
+                    ChilimbaMember(
+                        name = "You",
+                        position = it.numOrNull("turn_position")?.toInt(),
+                        isMe = true,
+                        paidInZMW = it.num("paid_in"),
+                        receivedZMW = it.num("received"))
+                }),
+            )
+        }
+    }
+
+    override suspend fun createChilimba(
+        name: String, contribution: Double, cadence: ChilimbaCadence, members: Int,
+    ): String {
+        val body = buildJsonObject {
+            put("p_name", name); put("p_contribution", contribution)
+            put("p_cadence", cadence.wire); put("p_members", members)
+        }.toString()
+        val row = Json.parseToJsonElement(api.rpc("create_chilimba", body))
+            .jsonArray.firstOrNull()?.jsonObject
+            ?: return "Could not create the circle."
+        return "Circle created. Share the code ${row.str("invite_code")} with the others."
+    }
+
+    override suspend fun joinChilimba(inviteCode: String): String =
+        api.rpc("join_chilimba",
+                buildJsonObject { put("p_invite_code", inviteCode) }.toString()).trim('"')
+
+    override suspend fun contributeToChilimba(circleId: UUID): String =
+        api.rpc("chilimba_contribute",
+                buildJsonObject { put("p_circle", circleId.toString()) }.toString()).trim('"')
+
+    override suspend fun leaveChilimba(circleId: UUID): String =
+        api.rpc("chilimba_leave",
+                buildJsonObject { put("p_circle", circleId.toString()) }.toString()).trim('"')
+
+    override suspend fun setChilimbaAutoContribute(circleId: UUID, on: Boolean) {
+        // The one chilimba field a member may change directly. Everything else
+        // goes through a function; this is a preference, and the policy in 0011
+        // restricts the update to their own membership row.
+        api.update("chilimba_members", "circle_id=eq.$circleId&member_id=eq.$userId",
+                   buildJsonObject { put("auto_contribute", on) }.toString())
     }
 }
 

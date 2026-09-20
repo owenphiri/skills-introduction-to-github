@@ -106,6 +106,28 @@ for (const key of STRING_KEYS) {
   }
 }
 
+// The USSD main menu is built from translated strings, and Nyanja and Bemba
+// words are longer than English ones. A menu that fits in English and spills in
+// Nyanja loses its last options with nothing on screen to say so — the same
+// class of bug the group menu had. Measured per language, for the languages
+// actually offered.
+{
+  const menuKeys = ["ussd.gigs", "ussd.wallet", "ussd.tasks", "ussd.record",
+                    "ussd.early", "ussd.cash", "ussd.chilimba", "ussd.language"];
+  for (const l of LANGS) {
+    const cov = STRING_KEYS.filter(k => L.strings[k][l.code] != null).length / STRING_KEYS.length;
+    if (l.code !== "en" && cov < (L._minimum_coverage ?? 0.45)) continue;   // not offered anyway
+    const str = k => L.strings[k][l.code] ?? L.strings[k].en;
+    const screen = [str("ussd.title") + " \u{1F1FF}\u{1F1F2}"]
+      .concat(menuKeys.map((k, i) => `${i + 1}. ${str(k)}`))
+      .join("\n");
+    if (screen.length > USSD_SCREEN_LIMIT) {
+      fail(`the USSD main menu in ${l.code} is ${screen.length} chars, over ${USSD_SCREEN_LIMIT} — ` +
+           `shorten one of its ussd.* strings or the menu loses its last options silently`);
+    }
+  }
+}
+
 /** A language's share of strings actually translated, English excluded from the question. */
 const coverage = (code) => code === "en" ? 1 :
   STRING_KEYS.filter(k => L.strings[k][code] != null).length / STRING_KEYS.length;

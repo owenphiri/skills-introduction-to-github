@@ -39,6 +39,86 @@ const VIEWPORTS = [
   { name: 'desktop', w: 1680, h: 1000 },
 ];
 
+
+/* Language, voice and Chilimba. The three things here that are easy to get
+   wrong and impossible to see from the DOM alone:
+     · a language that switches the picker but not the navigation,
+     · a claim that a Zambian voice exists when none does,
+     · a round closing while somebody has not paid. */
+async function checkVoiceAndChilimba(page, vp, note) {
+  const langs = await page.evaluate(() => ({
+    offered: LANGUAGES.filter(l => l.available).map(l => l.code),
+    heldBack: LANGUAGES.filter(l => !l.available).map(l => l.code),
+  }));
+  if (!langs.offered.includes('ny') || !langs.offered.includes('bem')) {
+    note(vp.name, 'Nyanja and Bemba should both be offered: ' + langs.offered.join(','));
+  }
+  if (!langs.heldBack.length) note(vp.name, 'no language is held back, so the coverage floor is not working');
+
+  await page.evaluate(() => setLang('ny'));
+  await page.waitForTimeout(250);
+  const ny = await page.evaluate(() => ({
+    title: document.querySelector('#bar h1').textContent.trim(),
+    htmlLang: document.documentElement.lang,
+    nav: Array.from(document.querySelectorAll('nav.tabs button span, aside.rail .nav button span'))
+           .map(s => s.textContent.trim()),
+    zambianVoice: !!voiceFor('ny') || !!voiceFor('bem'),
+  }));
+  if (ny.title === 'Work near you') note(vp.name, 'the app bar title did not translate');
+  if (ny.htmlLang !== 'ny') note(vp.name, `html lang is "${ny.htmlLang}" after switching to Nyanja`);
+  if (!ny.nav.some(x => /Pezani|Chikwama|Manambala/.test(x))) {
+    note(vp.name, 'navigation did not translate: ' + ny.nav.join(','));
+  }
+  // The honesty check. No browser has a Nyanja or Bemba voice; claiming one
+  // would mean reading Nyanja text aloud in an English accent.
+  if (ny.zambianVoice) note(vp.name, 'claims a Zambian speech voice exists — none does');
+  await page.screenshot({ path: `${OUT}/${vp.name}-nyanja.png` });
+
+  await page.evaluate(() => setLang('en'));
+  await page.evaluate(() => go('chilimba'));
+  await page.waitForTimeout(300);
+  const ch = await page.evaluate(() => ({
+    cards: document.querySelectorAll('#main .grid .card').length,
+    gate: document.body.textContent.includes('not switched on'),
+    afford: /Circles\s+are\s+capped\s+at/.test(document.body.textContent),
+  }));
+  if (ch.cards < 2) note(vp.name, `the Chilimba list shows ${ch.cards} circles`);
+  if (!ch.gate) note(vp.name, 'the regulatory gate notice is missing from the Chilimba screen');
+  if (!ch.afford) note(vp.name, 'the affordability cap is never explained');
+
+  await page.click('#main .grid .card');
+  await page.waitForTimeout(350);
+  const cd = await page.evaluate(() => ({
+    members: document.querySelectorAll('#main .turnno').length,
+    standing: document.querySelector('#main').textContent.includes('Where you stand'),
+    named: /Still to contribute/.test(document.querySelector('#main').textContent),
+  }));
+  if (cd.members === 0) note(vp.name, 'the circle lists no members');
+  if (!cd.standing) note(vp.name, '"Where you stand" is missing, and it is the whole safety feature');
+  if (!cd.named) note(vp.name, 'members who still owe this round are not named');
+  await page.screenshot({ path: `${OUT}/${vp.name}-chilimba.png` });
+
+  // A round must not close while somebody has not paid.
+  const before = await page.evaluate(() => state.circles[0].round);
+  await page.evaluate(() => contribute('k1'));
+  await page.waitForTimeout(200);
+  const after = await page.evaluate(() => state.circles[0].round);
+  if (after !== before) note(vp.name, 'the round closed while a member had not paid');
+
+  // Somebody who has collected more than they paid must not be able to walk away.
+  const stillThere = await page.evaluate(() => {
+    const c = state.circles.find(x => x.id === 'k1');
+    const me = c.members.find(m => m.me);
+    me.received = 900; me.paidIn = 200;
+    const n = state.circles.length;
+    leaveCircle('k1');
+    return state.circles.length === n;
+  });
+  if (!stillThere) note(vp.name, 'a member who had collected more than they paid was allowed to leave');
+  await page.evaluate(() => go('gigs'));
+  await page.waitForTimeout(150);
+}
+
 async function shoot(page, path) {
   const h = await page.evaluate(() => document.documentElement.scrollHeight);
   const vp = page.viewportSize();
@@ -231,6 +311,8 @@ for (const vp of VIEWPORTS) {
   if (hd.lineStroke !== COPPER) note(vp.name, `hire sparkline stroke is ${hd.lineStroke}, expected copper`);
   if (hd.barFill !== COPPER) note(vp.name, `hire bar fill is ${hd.barFill}, expected copper`);
   await shoot(page, `${OUT}/${vp.name}-hiredash.png`);
+
+  await checkVoiceAndChilimba(page, vp, note);
 
   if (errors.length) { errors.forEach(e => note(vp.name, 'console: ' + e)); }
   await ctx.close();

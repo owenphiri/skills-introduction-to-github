@@ -19,6 +19,7 @@
 
 const state = {
   mode: 'work',          // 'work' | 'hire'
+  lang: 'en',            // see lang.js — generated from nchito-shared/languages.json
   tab: 'gigs',
   detail: null,          // { type, id } — pushed over the current tab
   group: null,           // selected service family
@@ -34,8 +35,157 @@ const state = {
   posts: JSON.parse(JSON.stringify(MY_POSTS)),
   shareOn: false,
   assistant: { kind: 'gigpost', fields: {}, output: null },
+  circles: JSON.parse(JSON.stringify(CIRCLES)),
+  circleDraft: { name: '', contribution: '200', cadence: 'monthly', members: 5, code: '' },
+  recording: null,       // { id, since } while the microphone is live
+  voiceNotes: {},        // subjectId -> { url, secs } for notes recorded here
+  speaking: false,
   anim: 'fade',
 };
+
+/* ---------------------------------------------------------------------------
+ * Language
+ * ------------------------------------------------------------------------- */
+
+/** Translate. Falls back to English, then to the key — never to a blank. */
+const t = key => (STRINGS[state.lang] || {})[key] || STRINGS.en[key] || key;
+
+/** A category's name in the current language, or its English label. */
+const catName = id => (CATEGORY_NAMES[state.lang] || {})[id] || categoryLabel(id);
+
+const lang = () => LANG_BY_CODE[state.lang] || LANG_BY_CODE.en;
+
+function setLang(code) {
+  const l = LANG_BY_CODE[code];
+  if (!l || !l.available) return;
+  state.lang = code;
+  try { localStorage.setItem('nchito.lang', code); } catch (_) {}
+  document.documentElement.lang = code;
+  state.anim = 'fade';
+  render();
+  if (!l.reviewed && code !== 'en') toast(t('voice.notReviewed'));
+}
+
+try {
+  const saved = localStorage.getItem('nchito.lang');
+  if (saved && LANG_BY_CODE[saved] && LANG_BY_CODE[saved].available) state.lang = saved;
+} catch (_) {}
+
+/* ---------------------------------------------------------------------------
+ * Voice
+ *
+ * Two different things, and conflating them would be a lie:
+ *
+ *   · READING ALOUD uses the browser's own speech synthesis. It has an English
+ *     voice almost everywhere and no Zambian voice anywhere, so the button
+ *     says which language it is about to speak in.
+ *   · A VOICE NOTE is a recording. It needs no speech technology at all, works
+ *     in any language including ones no model has ever heard, and is how
+ *     Zambians already send instructions on WhatsApp. This is the feature that
+ *     actually removes the literacy barrier, in both directions.
+ *
+ * Dictation — speaking and having it typed — is deliberately absent for
+ * Zambian languages, because no browser or phone can do it. Claiming otherwise
+ * would mean silently dropping what somebody said about their own job.
+ * ------------------------------------------------------------------------- */
+
+const canRecord = () => !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia &&
+                           typeof MediaRecorder !== 'undefined');
+const canSpeak = () => typeof speechSynthesis !== 'undefined';
+
+/** Whether a voice exists for a language, which is a different question. */
+function voiceFor(code) {
+  if (!canSpeak()) return null;
+  const tag = (LANG_BY_CODE[code] || {}).tts;
+  if (!tag) return null;
+  const want = tag.split('-')[0];
+  return speechSynthesis.getVoices().find(v => v.lang.toLowerCase().startsWith(want)) || null;
+}
+
+function readAloud(text, code) {
+  const l = code || state.lang;
+  if (!canSpeak()) return toast('This browser cannot read text aloud.');
+  if (state.speaking) { speechSynthesis.cancel(); state.speaking = false; renderMain(); return; }
+  const voice = voiceFor(l);
+  if (!voice && l !== 'en') {
+    // Reading Nyanja text with an English voice produces noise, not speech.
+    return toast(t('voice.noSpeech'));
+  }
+  const u = new SpeechSynthesisUtterance(text);
+  if (voice) { u.voice = voice; u.lang = voice.lang; }
+  u.rate = 0.95;
+  u.onend = () => { state.speaking = false; renderMain(); };
+  state.speaking = true;
+  speechSynthesis.speak(u);
+  renderMain();
+}
+
+let mediaRecorder = null;
+let chunks = [];
+
+async function startRecording(subjectId) {
+  if (!canRecord()) return toast('This browser cannot record audio.');
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    chunks = [];
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.ondataavailable = e => chunks.push(e.data);
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(chunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+      const secs = Math.max(1, Math.round((Date.now() - state.recording.since) / 1000));
+      state.voiceNotes[subjectId] = { url: URL.createObjectURL(blob), secs };
+      state.recording = null;
+      stream.getTracks().forEach(tr => tr.stop());
+      renderMain();
+      toast(`Voice note saved — ${secs}s`);
+    };
+    mediaRecorder.start();
+    state.recording = { id: subjectId, since: Date.now() };
+    renderMain();
+  } catch (_) {
+    // Refusing the microphone is a normal answer, not an error state.
+    toast('Nchito needs permission to use your microphone.');
+  }
+}
+
+function stopRecording() {
+  if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
+}
+
+function playNote(id) {
+  const note = state.voiceNotes[id];
+  if (!note) return;
+  new Audio(note.url).play().catch(() => toast('Could not play that recording.'));
+}
+
+/** The control shown wherever a voice note can replace typing. */
+function voiceRecorder(subjectId, hint) {
+  const live = state.recording && state.recording.id === subjectId;
+  const have = state.voiceNotes[subjectId];
+  if (!canRecord()) {
+    return `<div class="notice grey"><div class="tiny muted">
+      This browser cannot record audio, so a voice note is not available here.
+      On a phone it would be.</div></div>`;
+  }
+  return `
+    <div class="card voicecard">
+      <div class="row">
+        <div class="stack" style="flex:1">
+          <span class="bold small">🎙 ${esc(t('action.record'))}</span>
+          <span class="tiny muted">${esc(hint)}</span>
+        </div>
+        ${live
+          ? `<button class="chip rec" onclick="stopRecording()">■ ${esc(t('action.stop'))}</button>`
+          : `<button class="chip" onclick="startRecording('${subjectId}')">● ${esc(t('action.record'))}</button>`}
+      </div>
+      ${have ? `
+        <div class="row" style="margin-top:10px">
+          <button class="chip" onclick="playNote('${subjectId}')">▶ ${esc(t('action.play'))} · ${have.secs}s</button>
+          <span class="spacer"></span>
+          <span class="tiny muted">Saved on this device only</span>
+        </div>` : ''}
+    </div>`;
+}
 
 const balance = () => state.ledger.reduce((s, t) => s + t.amount, 0);
 const gigById = id => GIGS.find(g => g.id === id);
@@ -66,6 +216,7 @@ const NAV = {
     { id: 'dashboard', label: 'Numbers',   title: 'My numbers',     icon: 'chart' },
     { id: 'chats',     label: 'Chats',     title: 'Chats',          icon: 'chats' },
     { id: 'wallet',    label: 'Wallet',    title: 'Wallet',         icon: 'wallet' },
+    { id: 'chilimba',  label: 'Chilimba',  title: 'My Chilimba',    icon: 'circle' },
     { id: 'assistant', label: 'Office',    title: 'Office Assistant', icon: 'doc' },
     { id: 'profile',   label: 'Profile',   title: 'Profile',        icon: 'profile' },
   ],
@@ -75,6 +226,7 @@ const NAV = {
     { id: 'dashboard', label: 'Numbers',   title: 'Hiring numbers', icon: 'chart' },
     { id: 'chats',     label: 'Chats',     title: 'Chats',          icon: 'chats' },
     { id: 'wallet',    label: 'Wallet',    title: 'Wallet',         icon: 'wallet' },
+    { id: 'chilimba',  label: 'Chilimba',  title: 'My Chilimba',    icon: 'circle' },
     { id: 'assistant', label: 'Office',    title: 'Office Assistant', icon: 'doc' },
     { id: 'profile',   label: 'Profile',   title: 'Profile',        icon: 'profile' },
   ],
@@ -131,6 +283,7 @@ const ICON = {
   chats:  '<path d="M21 12a8 8 0 1 1-3.5-6.6L21 4l-1.4 3.5A7.9 7.9 0 0 1 21 12z"/>',
   wallet: '<path d="M3 7h15a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3H5a2 2 0 0 1-2-2z"/><circle cx="17" cy="13" r="1.4"/>',
   profile:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+  circle: '<circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v4M20.5 12h-4M12 20.5v-4M3.5 12h4"/>',
   chart:  '<path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/>',
   doc:    '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/>',
   plus:   '<path d="M12 5v14M5 12h14"/>',
@@ -350,8 +503,8 @@ function gigCard(g) {
     <div class="card tap ${selected ? 'selected' : ''}" onclick="open_('gig','${g.id}')">
       <div class="row top" style="margin-bottom:7px">
         <div class="row wrap" style="flex:1">
-          <span class="pill">${categoryEmoji(g.category)} ${esc(categoryLabel(g.category))}</span>
-          ${g.urgent ? '<span class="pill red">URGENT</span>' : ''}
+          <span class="pill">${categoryEmoji(g.category)} ${esc(catName(g.category))}</span>
+          ${g.urgent ? `<span class="pill red">${esc(t('word.urgent').toUpperCase())}</span>` : ''}
           ${g.boosted ? '<span class="pill copper">★ Featured</span>' : ''}
         </div>
         <span class="bold green" style="white-space:nowrap">${KWACHA(g.pay)}</span>
@@ -406,7 +559,26 @@ function gigDetail(id) {
     ${applied ? advanceCard(g, payout, proof, adv) : ''}
 
     <h2 class="section">Details</h2>
+    ${g.voice ? `
+      <div class="card voicecard">
+        <div class="row">
+          <div class="stack" style="flex:1">
+            <span class="bold small">🎙 Posted by voice · ${g.voice.secs}s</span>
+            <span class="tiny muted">${esc(g.poster)} spoke this job in
+              ${esc((LANG_BY_CODE[g.voice.lang] || {}).native || g.voice.lang)} rather than typing
+              it. The text below is what it was written up as.</span>
+          </div>
+        </div>
+      </div>` : ''}
     <div class="small" style="line-height:1.55">${esc(g.details)}</div>
+    <div class="row" style="margin-top:9px;gap:8px">
+      <button class="chip" onclick="readAloud(${JSON.stringify(g.title + '. ' + g.details).replace(/"/g, '&quot;')}, 'en')">
+        ${state.speaking ? '■ ' + esc(t('action.stop')) : '🔊 ' + esc(t('action.readAloud'))}
+      </button>
+      ${state.lang !== 'en' && !voiceFor(state.lang)
+        ? `<span class="tiny muted" style="flex:1">Your device has no
+             ${esc(lang().native)} voice, so this reads in English.</span>` : ''}
+    </div>
 
     <h2 class="section">Posted by</h2>
     <div class="card">
@@ -429,9 +601,14 @@ function gigDetail(id) {
       </div>
     </div>
 
+    <h2 class="section">Say why you are right for it</h2>
+    ${voiceRecorder('apply-' + id,
+      'Some people write a better application than they can type. Record one instead — ' +
+      'in any language, including the ones no app can transcribe.')}
+
     <div style="margin-top:14px">
       <button class="primary" ${applied ? 'disabled' : ''} onclick="applyTo('${id}')">
-        ${applied ? 'Application sent ✓' : 'Apply for this gig'}
+        ${applied ? esc(t('action.applied')) + ' ✓' : esc(t('action.apply'))}
       </button>
     </div>
   `;
@@ -692,6 +869,9 @@ function postScreen() {
     <input class="field" id="pt" value="${esc(d.title)}"
            placeholder="e.g. Paint the shop front and fit new signage"
            oninput="POST_DRAFT.title=this.value">
+    ${voiceRecorder('post-draft',
+      'Rather than typing it, say it. Workers hear the recording; Nchito writes the text up ' +
+      'afterwards. No app can transcribe Nyanja or Bemba, so nothing is guessed at.')}
 
     <label class="lbl">Which service?</label>
     <div class="chips">
@@ -1226,6 +1406,266 @@ function assistantScreen() {
       </div>` : ''}`;
 }
 
+
+// ---------- Chilimba ----------
+
+/* A rotating savings circle: everyone pays in each cycle, one member takes the
+ * whole pot, and the turn moves on. Ordinary Zambian financial life
+ * (INNOVATION.md §3.3).
+ *
+ * Almost everything on these screens exists because of how chilimbas go wrong.
+ * A member who has already collected and then stops paying is the entire risk,
+ * so "what you have put in, what you have taken out" is the first number shown
+ * and leaving while ahead is refused with the amount. The people who still owe
+ * this round are named rather than counted, because "two people still to pay"
+ * starts an argument and "Mercy and Joseph still to pay" starts a phone call.
+ */
+
+const CADENCE_DAYS = { weekly: 7, fortnightly: 14, monthly: 30 };
+
+function myPart(c) {
+  const me = c.members.find(m => m.me) || { paidIn: 0, received: 0, position: null };
+  const net = me.paidIn - me.received;
+  return { ...me, net, exitCost: Math.max(me.received - me.paidIn, 0), mayLeave: net >= 0 };
+}
+
+function chilimbaScreen() {
+  return `
+    ${CHILIMBA_ENABLED ? '' : `
+      <div class="notice" style="background:rgba(222,32,16,.09)">
+        <div class="stack">
+          <span class="bold small">⚖️ Preview — not switched on</span>
+          <span class="tiny muted">A chilimba pools members' money and pays it back out, which
+            is plausibly a regulated activity in Zambia. It stays switched off in the database
+            until Nchito holds the authorisation the Bank of Zambia requires. Everything below
+            is sample data.</span>
+        </div>
+      </div>`}
+
+    <div class="grid">
+      ${state.circles.map(c => circleCard(c)).join('')}
+    </div>
+
+    <div class="card">
+      <div class="stack">
+        <span class="bold small">Start a circle</span>
+        <span class="tiny muted">You choose the amount and how often. Nchito draws the turn
+          order at random when it fills — never first-come, because that always puts whoever
+          started it first.</span>
+      </div>
+      <label class="lbl" for="cn">What is it called?</label>
+      <input class="field" id="cn" value="${esc(state.circleDraft.name)}"
+             placeholder="e.g. Soweto Traders" oninput="state.circleDraft.name=this.value">
+      <label class="lbl" for="cc">How much each time? (Kwacha)</label>
+      <input class="field" id="cc" inputmode="decimal" value="${esc(state.circleDraft.contribution)}"
+             oninput="state.circleDraft.contribution=this.value; renderMain()">
+      <label class="lbl">How often?</label>
+      <div class="chips">
+        ${Object.keys(CADENCE_DAYS).map(k => `
+          <button class="chip" aria-pressed="${state.circleDraft.cadence === k}"
+                  onclick="state.circleDraft.cadence='${k}'; renderMain()">${k}</button>`).join('')}
+      </div>
+      <label class="lbl">How many members?</label>
+      <div class="chips">
+        ${[3, 4, 5, 6, 8, 10, 12].map(n => `
+          <button class="chip" aria-pressed="${state.circleDraft.members === n}"
+                  onclick="state.circleDraft.members=${n}; renderMain()">${n}</button>`).join('')}
+      </div>
+      ${affordability()}
+      <div style="margin-top:12px">
+        <button class="primary" onclick="createCircle()">Create the circle</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="stack">
+        <span class="bold small">Join with a code</span>
+        <span class="tiny muted">Someone who has already started a circle can send you its code.</span>
+      </div>
+      <div class="row" style="margin-top:9px;gap:8px">
+        <input class="field" style="flex:1;text-transform:uppercase" placeholder="A7F3C2"
+               value="${esc(state.circleDraft.code)}" oninput="state.circleDraft.code=this.value">
+        <button class="chip" onclick="joinCircle()">Join</button>
+      </div>
+    </div>`;
+}
+
+/* The affordability rule, shown as it is decided rather than only when it
+   refuses. Nobody should discover the cap by being told no. */
+function affordability() {
+  const d = state.circleDraft;
+  const amount = Number(d.contribution) || 0;
+  const per90 = 90 / CADENCE_DAYS[d.cadence];
+  const obligation = amount * per90;
+  const income = sum(EARNINGS_WEEKS.slice(-13));
+  const existing = sum(state.circles
+    .filter(c => c.status !== 'completed')
+    .map(c => c.contribution * (90 / CADENCE_DAYS[c.cadence])));
+  const cap = income * 0.25;
+  const ok = income > 0 && obligation + existing <= cap;
+
+  return `
+    <div class="notice ${ok ? '' : 'copper'}" style="flex-direction:column;gap:6px;margin-top:12px">
+      <div class="row" style="width:100%">
+        <span class="bold small">${ok ? 'Within what you earn' : 'More than Nchito will allow'}</span>
+        <span class="spacer"></span>
+        <span class="bold ${ok ? 'green' : 'copper'}">${KWACHA(obligation + existing)} / 90 days</span>
+      </div>
+      <div class="bar"><i style="width:${Math.min((obligation + existing) / Math.max(cap, 1) * 100, 100).toFixed(0)}%"></i></div>
+      <div class="tiny muted">
+        ${KWACHA(obligation)} for this circle plus ${KWACHA(existing)} you are already committed
+        to, against ${KWACHA(income)} earned through Nchito in the last 90 days. Circles are
+        capped at a quarter of that — ${KWACHA(cap)} — because a missed cycle costs the other
+        members, not just you.
+      </div>
+    </div>`;
+}
+
+function circleCard(c) {
+  const mine = myPart(c);
+  const paid = c.members.filter(m => m.paidThisRound).length;
+  const selected = state.detail && state.detail.type === 'circle' && state.detail.id === c.id;
+  return `
+    <div class="card tap ${selected ? 'selected' : ''}" onclick="open_('circle','${c.id}')">
+      <div class="row top" style="margin-bottom:7px">
+        <div class="row wrap" style="flex:1">
+          <span class="pill">${c.status === 'forming' ? 'Forming' : `${t('circle.round')} ${c.round}`}</span>
+          ${mine.position === c.round && c.status === 'active'
+            ? `<span class="pill copper">${esc(t('circle.yourTurn'))}</span>` : ''}
+        </div>
+        <span class="bold" style="white-space:nowrap">${KWACHA(c.contribution)}</span>
+      </div>
+      <div class="bold" style="font-size:14.5px">${esc(c.name)}</div>
+      <div class="small muted" style="margin-top:5px">
+        ${c.members.length} ${esc(t('circle.members').toLowerCase())} · ${esc(c.cadence)}
+        ${c.status === 'active' ? ` · ${paid}/${c.members.length} paid this round` : ''}
+      </div>
+    </div>`;
+}
+
+function circleDetail(id) {
+  const c = state.circles.find(x => x.id === id);
+  if (!c) return '<div class="empty">That circle is gone.</div>';
+  const mine = myPart(c);
+  const pot = c.contribution * c.members.length;
+  const outstanding = c.members.filter(m => !m.paidThisRound).map(m => m.name);
+  const recipient = c.members.find(m => m.position === c.round);
+
+  if (c.status === 'forming') {
+    return `
+      <div class="hero">
+        <div class="small" style="opacity:.9">${esc(c.name)}</div>
+        <div class="amount">${KWACHA(c.contribution)}</div>
+        <div class="small" style="opacity:.9">every ${esc(c.cadence.replace('ly', ''))} · ${esc(t('circle.members').toLowerCase())} ${c.members.length}/${c.memberTarget}</div>
+      </div>
+      <div class="card">
+        <div class="stack">
+          <span class="bold small">Waiting for ${c.memberTarget - c.members.length} more</span>
+          <span class="tiny muted">When the circle fills, Nchito draws the turn order at random
+            and saves the seed it used, so anyone can check the draw afterwards. Until then
+            nobody knows who goes first — including whoever started it.</span>
+          <div class="row" style="margin-top:8px">
+            <span class="bold green" style="font-family:ui-monospace,monospace">${esc(c.invite || '')}</span>
+            <span class="spacer"></span>
+            <button class="link" onclick="shareInvite('${c.id}')">Share the code</button>
+          </div>
+        </div>
+      </div>
+      ${memberList(c)}`;
+  }
+
+  return `
+    <div class="hero">
+      <div class="small" style="opacity:.9">${esc(c.name)} · ${esc(t('circle.round'))} ${c.round}</div>
+      <div class="amount">${KWACHA(pot)}</div>
+      <div class="small" style="opacity:.9">
+        ${recipient
+          ? (recipient.me
+              ? `This round is yours — ${esc(t('circle.yourTurn'))}`
+              : `This round goes to ${esc(recipient.name)}`)
+          : 'Nobody is due this round — whoever\'s turn it was has left.'}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="bold small" style="margin-bottom:10px">Where you stand</div>
+      <div class="stat-row">
+        <div><div class="v">${KWACHA(mine.paidIn)}</div><div class="l">${esc(t('circle.paidIn'))}</div></div>
+        <div><div class="v">${KWACHA(mine.received)}</div><div class="l">${esc(t('circle.received'))}</div></div>
+        <div><div class="v ${mine.net >= 0 ? 'green' : 'red'}">${KWACHA(mine.net)}</div><div class="l">Net</div></div>
+      </div>
+      <div class="tiny muted" style="margin-top:10px">
+        ${mine.mayLeave
+          ? `You have put in more than you have taken out, so you could leave without anyone
+             losing money. Your turn is number ${mine.position} of ${c.members.length}.`
+          : `You have collected ${KWACHA(mine.received)} and paid in ${KWACHA(mine.paidIn)}.
+             Leaving now would take ${KWACHA(mine.exitCost)} out of the other members' pockets,
+             so Nchito will not let you until it is settled.`}
+      </div>
+    </div>
+
+    ${outstanding.length ? `
+      <div class="notice copper">
+        <div class="stack">
+          <span class="bold small">${esc(t('circle.waiting'))}: ${esc(outstanding.join(', '))}</span>
+          <span class="tiny muted">Nobody collects the pot until everyone has paid. Named rather
+            than counted, because a number starts an argument and a name starts a phone call.</span>
+        </div>
+      </div>`
+    : `<div class="notice">
+        <div class="tiny muted">Everyone has paid this round. The pot goes to
+          ${esc(recipient ? (recipient.me ? 'you' : recipient.name) : 'nobody')}.</div>
+      </div>`}
+
+    ${mine.paidThisRound
+      ? `<div class="notice"><div class="tiny green bold">✓ You have paid ${KWACHA(c.contribution)} for round ${c.round}.</div></div>`
+      : `<button class="primary" onclick="contribute('${c.id}')">
+           ${esc(t('circle.contribute'))} ${KWACHA(c.contribution)}
+         </button>`}
+
+    <div class="card" style="margin-top:12px">
+      <div class="row">
+        <div class="stack" style="flex:1">
+          <span class="bold small">Pay automatically from my gigs</span>
+          <span class="tiny muted">Takes your contribution out of the next gig that settles —
+            but only if it leaves you with something. Off unless you turn it on.</span>
+        </div>
+        <button class="chip" aria-pressed="${c.autoContribute}"
+                onclick="toggleAuto('${c.id}')">${c.autoContribute ? 'On' : 'Off'}</button>
+      </div>
+    </div>
+
+    ${memberList(c)}
+
+    <div style="margin-top:12px">
+      <button class="primary ghost" onclick="leaveCircle('${c.id}')">Leave this circle</button>
+    </div>`;
+}
+
+function memberList(c) {
+  const order = c.status === 'forming'
+    ? c.members
+    : c.members.slice().sort((a, b) => a.position - b.position);
+  return `
+    <h2 class="section">${esc(t('circle.members'))}</h2>
+    ${order.map(m => `
+      <div class="card" style="padding:11px 14px">
+        <div class="row">
+          <span class="turnno">${c.status === 'forming' ? '·' : m.position}</span>
+          <div class="stack" style="flex:1">
+            <span class="bold small">${esc(m.name)}${m.me ? ' <span class="tiny green">(you)</span>' : ''}</span>
+            <span class="tiny muted">${esc(t('circle.paidIn'))} ${KWACHA(m.paidIn)}${
+              m.received ? ` · ${esc(t('circle.received'))} ${KWACHA(m.received)}` : ''}</span>
+          </div>
+          ${c.status === 'active'
+            ? (m.paidThisRound
+                ? '<span class="pill">Paid ✓</span>'
+                : '<span class="pill copper">Not yet</span>')
+            : ''}
+        </div>
+      </div>`).join('')}`;
+}
+
 // ---------- Screens: profile & record ----------
 
 function profileScreen() {
@@ -1252,6 +1692,28 @@ function profileScreen() {
         <button aria-pressed="${state.mode === 'work'}" onclick="setMode('work')">I'm looking for work</button>
         <button aria-pressed="${state.mode === 'hire'}" onclick="setMode('hire')">I'm hiring</button>
       </div>
+    </div>
+
+    <div class="card">
+      <div class="stack">
+        <span class="bold small">🗣 ${esc(t('word.language'))}</span>
+        <span class="tiny muted">Nchito speaks the language, not just English. Anything not yet
+          translated stays in English rather than being guessed at.</span>
+      </div>
+      <div class="chips" style="margin-top:10px">
+        ${LANGUAGES.filter(l => l.available).map(l => `
+          <button class="chip" aria-pressed="${state.lang === l.code}"
+                  onclick="setLang('${l.code}')">${esc(l.native)}</button>`).join('')}
+      </div>
+      ${LANGUAGES.some(l => !l.available) ? `
+        <div class="tiny muted" style="margin-top:6px">
+          Coming soon: ${LANGUAGES.filter(l => !l.available).map(l => esc(l.native)).join(', ')} —
+          only part-translated so far, and a half-English screen reads as broken.
+        </div>` : ''}
+      ${!lang().reviewed && state.lang !== 'en' ? `
+        <div class="notice copper" style="margin-top:10px">
+          <div class="tiny">${esc(t('voice.notReviewed'))}</div>
+        </div>` : ''}
     </div>
 
     ${extra.length ? `
@@ -1547,11 +2009,122 @@ function shareOut() {
   else { navigator.clipboard?.writeText(text); toast('Copied — paste it into WhatsApp'); }
 }
 
+
+// ---------- Chilimba actions ----------
+
+function contribute(id) {
+  const c = state.circles.find(x => x.id === id);
+  const me = c.members.find(m => m.me);
+  if (me.paidThisRound) return toast(`You have already paid for round ${c.round}.`);
+  if (balance() < c.contribution) {
+    return toast(`You need ${KWACHA(c.contribution)} and you have ${KWACHA(balance())}.`);
+  }
+  me.paidThisRound = true;
+  me.paidIn += c.contribution;
+  state.ledger.unshift({ kind: 'Chilimba', amount: -c.contribution,
+                         note: `${c.name} — round ${c.round}` });
+
+  // A round only closes when every member has paid. Nobody collects a short pot.
+  if (c.members.every(m => m.paidThisRound)) {
+    const pot = c.contribution * c.members.length;
+    const recipient = c.members.find(m => m.position === c.round);
+    if (recipient) {
+      recipient.received += pot;
+      if (recipient.me) {
+        state.ledger.unshift({ kind: 'Chilimba', amount: pot,
+                               note: `${c.name} — your turn (round ${c.round})` });
+      }
+    }
+    c.round += 1;
+    c.members.forEach(m => { m.paidThisRound = false; });
+    renderMain();
+    return toast(recipient
+      ? `Round closed — ${KWACHA(pot)} to ${recipient.me ? 'you' : recipient.name}`
+      : 'Round closed');
+  }
+  renderMain();
+  toast(`${KWACHA(c.contribution)} paid into ${c.name}`);
+}
+
+function toggleAuto(id) {
+  const c = state.circles.find(x => x.id === id);
+  c.autoContribute = !c.autoContribute;
+  renderMain();
+  toast(c.autoContribute
+    ? 'Your contribution will come out of the next gig that settles'
+    : 'Automatic payment off — you will pay by hand');
+}
+
+function leaveCircle(id) {
+  const c = state.circles.find(x => x.id === id);
+  const mine = myPart(c);
+  if (!mine.mayLeave) {
+    return toast(`You have received ${KWACHA(mine.received)} and paid in ${KWACHA(mine.paidIn)}. ` +
+                 `Settle ${KWACHA(mine.exitCost)} first.`);
+  }
+  state.circles = state.circles.filter(x => x.id !== id);
+  state.detail = null;
+  render();
+  toast('You have left the circle.');
+}
+
+function createCircle() {
+  const d = state.circleDraft;
+  if (!d.name.trim()) return toast('Give the circle a name');
+  const amount = Number(d.contribution);
+  if (!amount || amount < 20) return toast('The smallest contribution is K20');
+  state.circles.unshift({
+    id: 'k' + Date.now().toString(36),
+    name: d.name.trim(), contribution: amount, cadence: d.cadence,
+    status: 'forming', round: 0, memberTarget: d.members, autoContribute: false,
+    invite: Math.random().toString(36).slice(2, 8).toUpperCase(),
+    members: [{ name: USER.name, position: null, paidThisRound: false, received: 0, paidIn: 0, me: true }],
+  });
+  d.name = '';
+  renderMain();
+  toast('Circle created — share the code with the others');
+}
+
+function joinCircle() {
+  const code = state.circleDraft.code.trim().toUpperCase();
+  if (!code) return toast('Enter the code you were sent');
+  const c = state.circles.find(x => x.invite === code);
+  if (!c) return toast('No circle with that code.');
+  if (c.members.some(m => m.me)) return toast('You are already in this circle.');
+  c.members.push({ name: USER.name, position: null, paidThisRound: false, received: 0, paidIn: 0, me: true });
+  state.circleDraft.code = '';
+  renderMain();
+  toast(`You have joined ${c.name}`);
+}
+
+function shareInvite(id) {
+  const c = state.circles.find(x => x.id === id);
+  const text = `Join my Nchito chilimba "${c.name}" — ${KWACHA(c.contribution)} ${c.cadence}. Code: ${c.invite}`;
+  if (navigator.share) navigator.share({ text }).catch(() => {});
+  else { navigator.clipboard?.writeText(text); toast('Invite copied'); }
+}
+
 // ---------- Render ----------
+
+
+/* Navigation text in the chosen language, falling back to the English label
+   the item was defined with. */
+const NAV_KEYS = {
+  gigs: 'nav.findWork', tasks: 'nav.tasks', dashboard: 'nav.numbers', chats: 'nav.chats',
+  wallet: 'nav.wallet', assistant: 'nav.office', profile: 'nav.profile',
+  post: 'nav.hire', myposts: 'nav.myJobs', chilimba: 'nav.circle',
+};
+const TITLE_KEYS = {
+  gigs: 'title.workNearYou', tasks: 'title.quickTasks', dashboard: 'title.myNumbers',
+  wallet: 'title.wallet', post: 'title.hireSomeone', myposts: 'title.jobsIPosted',
+  chilimba: 'title.chilimba',
+};
+const navLabel = n => NAV_KEYS[n.id] ? t(NAV_KEYS[n.id]) : n.label;
+const navTitle = n => TITLE_KEYS[n.id] ? t(TITLE_KEYS[n.id]) : n.title;
 
 function detailTitle(d) {
   return ({ gig: 'Gig details', chat: 'Chat', agents: 'Find cash near you',
-            record: 'Work Record', post: 'Job details' })[d.type] || '';
+            record: 'Work Record', post: 'Job details', circle: 'Chilimba' })[d.type] || '';
 }
 
 /* The screen behind a detail view. On a wide screen it stays on-screen beside
@@ -1564,6 +2137,7 @@ function tabBody() {
     case 'wallet':    return walletScreen();
     case 'dashboard': return dashboardScreen();
     case 'assistant': return assistantScreen();
+    case 'chilimba':  return chilimbaScreen();
     case 'profile':   return profileScreen();
     case 'post':      return postScreen();
     case 'myposts':   return myPostsScreen();
@@ -1577,6 +2151,7 @@ function detailBody(d) {
     case 'chat':   return chatThread(d.id);
     case 'agents': return agentsScreen();
     case 'record': return recordScreen();
+    case 'circle': return circleDetail(d.id);
     case 'post':   return postDetail(d.id);
     default:       return '';
   }
@@ -1584,7 +2159,7 @@ function detailBody(d) {
 
 /* Whether the list stays visible beside the detail. Only lists benefit —
    opening a Work Record next to a gig feed would just be two things at once. */
-const SPLITTABLE = { gig: 'gigs', chat: 'chats', post: 'myposts' };
+const SPLITTABLE = { gig: 'gigs', chat: 'chats', post: 'myposts', circle: 'chilimba' };
 
 function renderMain() {
   const d = state.detail;
@@ -1622,7 +2197,7 @@ function render() {
   const d = state.detail;
   const item = navItem(state.tab);
   const split = d && isWide() && SPLITTABLE[d.type] === state.tab;
-  const title = d && !split ? detailTitle(d) : item.title;
+  const title = d && !split ? detailTitle(d) : navTitle(item);
 
   document.getElementById('bar').innerHTML = (d && !split)
     ? `<button class="back" onclick="back()">‹ Back</button><h1>${esc(title)}</h1>`
@@ -1642,7 +2217,7 @@ function render() {
     <div class="nav">
       ${navItems().map(n => `
         <button onclick="go('${n.id}')" ${state.tab === n.id ? 'aria-current="page"' : ''}>
-          ${icon(n.icon)}<span>${esc(n.label)}</span>
+          ${icon(n.icon)}<span>${esc(navLabel(n))}</span>
         </button>`).join('')}
     </div>
     <div class="railfoot">
@@ -1650,6 +2225,11 @@ function render() {
         <div class="stack">
           <span class="bold tiny">${esc(USER.name)}</span>
           <span class="tiny muted">${esc(USER.city)} · ★ ${USER.rating.toFixed(1)}</span>
+          <div class="row" style="gap:5px;margin-top:5px;flex-wrap:wrap">
+            ${LANGUAGES.filter(l => l.available).map(l => `
+              <button class="langpick" aria-pressed="${state.lang === l.code}"
+                      onclick="setLang('${l.code}')">${esc(l.code.toUpperCase())}</button>`).join('')}
+          </div>
         </div>
       </div>
     </div>`;
@@ -1659,11 +2239,11 @@ function render() {
   document.getElementById('tabs').innerHTML = phone.map(n => `
     <button data-tab="${n.id}" onclick="go('${n.id}')"
             ${state.tab === n.id && !d ? 'aria-current="page"' : ''}>
-      ${icon(n.icon)}<span>${esc(n.label)}</span>
+      ${icon(n.icon)}<span>${esc(navLabel(n))}</span>
     </button>`).join('') + `
     <button data-tab="profile" onclick="go('profile')"
             ${state.tab === 'profile' && !d ? 'aria-current="page"' : ''}>
-      ${icon('profile')}<span>Profile</span>
+      ${icon('profile')}<span>${esc(t('nav.profile'))}</span>
     </button>`;
 
   renderMain();

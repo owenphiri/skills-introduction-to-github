@@ -24,6 +24,17 @@ export interface MicroTask {
   minutes: number;
 }
 
+export interface ChilimbaSummary {
+  circle_id: string;
+  name: string;
+  contribution: number;
+  status: string;
+  current_round: number;
+  my_position: number | null;
+  paid_this_round: boolean;
+  net: number;
+}
+
 export interface Profile {
   id: string;
   phone: string;
@@ -105,6 +116,34 @@ export class Db {
       p_phone: phone, p_category: category, p_limit: limit, p_offset: offset,
     });
     return (data ?? []) as Gig[];
+  }
+
+
+  // --- language ---------------------------------------------------------
+
+  /** The caller's chosen language, English until they pick one. */
+  async language(phone: string): Promise<string> {
+    const { data } = await this.client.rpc("channel_language", { p_phone: phone });
+    return (data as string) ?? "en";
+  }
+
+  async setLanguage(phone: string, language: string): Promise<void> {
+    await this.client.rpc("channel_set_language", { p_phone: phone, p_language: language });
+  }
+
+  // --- chilimba ---------------------------------------------------------
+
+  async myChilimbas(phone: string): Promise<ChilimbaSummary[]> {
+    const { data } = await this.client.rpc("channel_my_chilimbas", { p_phone: phone });
+    return (data ?? []) as ChilimbaSummary[];
+  }
+
+  async chilimbaContribute(phone: string, circleId: string, pin: string): Promise<string> {
+    const { data, error } = await this.client.rpc("channel_chilimba_contribute", {
+      p_phone: phone, p_circle: circleId, p_pin: pin,
+    });
+    if (error) return "Something went wrong. Please try again.";
+    return data as string;
   }
 
   async apply(phone: string, gigId: string): Promise<string> {

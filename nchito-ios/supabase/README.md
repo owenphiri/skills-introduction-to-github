@@ -56,3 +56,51 @@ The wallet ledger tracks *entitlements*. Actual kwacha moves through a licensed 
 - **Cash-out:** worker requests → Edge Function calls aggregator disbursement → insert negative `cash_out` transaction on success.
 
 Never call aggregator APIs from the app with secret keys; keep them in Edge Function secrets.
+
+
+---
+
+## Running the migrations for real
+
+Until `test/` existed, none of this SQL had ever been executed — it was verified
+by reading. The first run found two migrations that could not have been applied
+to any database at all: `0006`'s `city_centre()` selected three columns while
+declaring two, and `0009` referenced a column that does not exist. Neither is
+the kind of thing careful reading catches.
+
+```bash
+sudo apt-get install -y postgresql-16
+nchito-ios/supabase/test/run.sh          # fresh cluster, all migrations, then the tests
+nchito-ios/supabase/test/crosscheck.sh   # every RPC the clients call exists
+```
+
+`run.sh` stands up a throwaway cluster with enough of a Supabase shim to be
+honest — `auth.uid()`, the roles, `storage.buckets` — and applies each migration
+in its own transaction, which is also how they must be applied for real: `0007`
+and `0010` create enum values that `0008` and `0011` then use, and Postgres
+forbids that inside a single transaction.
+
+`crosscheck.sh` reads the function and table names out of that database and
+compares them against what the Swift, Kotlin and Edge Function code calls.
+Nothing but the SQL and the web app can be compiled in CI, so without this a
+renamed function would go unnoticed until somebody opened Xcode.
+
+## Switching the Chilimba on
+
+It is off. `chilimba_enabled()` returns false until:
+
+```sql
+alter database postgres set app.chilimba_enabled = 'true';
+```
+
+Do not run that until Nchito holds whatever authorisation the Bank of Zambia
+requires for pooling and redistributing members' money. Everything else in the
+product works with it off, including escrow release, which simply skips the
+contribution step.
+
+## The voice bucket
+
+Create a **private** bucket named `voice` alongside `proofs`, served through
+signed URLs only. A public bucket would make every recording of somebody's voice
+enumerable by anyone who guessed a path. Keep its size limit in step with the
+three-minute cap in `voice_notes.duration_secs`.

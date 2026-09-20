@@ -53,6 +53,18 @@ actor NchitoAPI {
                        prefer: "return=representation")
     }
 
+    /// Updates rows in place. Used only for fields a user is allowed to change
+    /// on their own row — their language, their chilimba auto-contribute
+    /// setting — where row level security is the whole rule and there is no
+    /// function's worth of logic to enforce.
+    @discardableResult
+    func update<T: Decodable>(_ table: String, query: String, body: Encodable,
+                              as: T.Type = T.self) async throws -> T {
+        try await send(path: "/rest/v1/\(table)?\(query)", method: "PATCH",
+                       body: try JSONEncoder.nchito.encode(AnyEncodable(body)),
+                       prefer: "return=representation")
+    }
+
     /// Calls a Postgres function. Most of Nchito's writes go through these
     /// rather than direct table writes, because the rules (commission tiers,
     /// proof gates, PIN checks) live in the functions.

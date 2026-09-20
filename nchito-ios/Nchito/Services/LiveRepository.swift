@@ -353,6 +353,149 @@ actor LiveRepository: NchitoRepository {
         let _: EmptyResponse = try await api.rpc("set_channel_pin", args: ["p_pin": pin])
     }
 
+    func setLanguage(_ language: AppLanguage) async throws {
+        // Written to the profile rather than kept on the device, so the choice
+        // follows the person onto USSD and WhatsApp as well. Row level security
+        // is what stops it being anyone else's profile.
+        struct LanguagePatch: Encodable { let language: String }
+        let _: [ProfileRow] = try await api.update(
+            "profiles",
+            query: "id=eq.\(userID.uuidString.lowercased())",
+            body: LanguagePatch(language: language.rawValue))
+    }
+
+    // MARK: - Chilimba
+    //
+    // Every one of these is an RPC rather than a table write, because the rules
+    // that make a rotating savings circle safe — the affordability cap, the
+    // random draw, refusing to close a short round, refusing to let somebody
+    // leave while ahead — live in Postgres and must not be re-implemented, or
+    // skippable, on a client.
+    //
+    // They all refuse while chilimba_enabled() is false, and that switch is
+    // server-side precisely so no client build can turn it on.
+
+    func loadChilimbas() async throws -> [ChilimbaCircle] {
+        let rows: [ChilimbaRow] = try await api.rpc("my_chilimbas")
+        return try await withThrowingTaskGroup(of: ChilimbaCircle.self) { group in
+            for row in rows {
+                group.addTask { try await self.circle(from: row) }
+            }
+            var out: [ChilimbaCircle] = []
+            for try await circle in group { out.append(circle) }
+            return out
+        }
+    }
+
+    func createChilimba(name: String, contribution: Double,
+                        cadence: ChilimbaCircle.Cadence, members: Int) async throws -> String {
+        struct Created: Decodable { let circle_id: UUID; let invite_code: String }
+        let rows: [Created] = try await api.rpc("create_chilimba", args: [
+            "p_name": name, "p_contribution": contribution,
+            "p_cadence": cadence.rawValue, "p_members": members,
+        ])
+        guard let row = rows.first else { return "Could not create the circle." }
+        return "Circle created. Share the code \(row.invite_code) with the others."
+    }
+
+    func joinChilimba(inviteCode: String) async throws -> String {
+        try await api.rpc("join_chilimba", args: ["p_invite_code": inviteCode])
+    }
+
+    func contributeToChilimba(circleID: UUID) async throws -> String {
+        try await api.rpc("chilimba_contribute", args: ["p_circle": circleID.uuidString])
+    }
+
+    func leaveChilimba(circleID: UUID) async throws -> String {
+        try await api.rpc("chilimba_leave", args: ["p_circle": circleID.uuidString])
+    }
+
+    func setChilimbaAutoContribute(circleID: UUID, on: Bool) async throws {
+        // The one chilimba field a member may change directly. Everything else
+        // goes through a function; this is a preference, and the policy in 0011
+        // already restricts the update to their own membership row.
+        struct AutoPatch: Encodable { let auto_contribute: Bool }
+        let _: [AutoContributeRow] = try await api.update(
+            "chilimba_members",
+            query: "circle_id=eq.\(circleID.uuidString.lowercased())"
+                 + "&member_id=eq.\(userID.uuidString.lowercased())",
+            body: AutoPatch(auto_contribute: on))
+    }
+
+    private struct AutoContributeRow: Decodable { let auto_contribute: Bool }
+
+
+    // MARK: - Chilimba mapping
+
+    private struct ChilimbaRow: Decodable {
+        let circle_id: UUID
+        let name: String
+        let contribution: Double
+        let cadence: String
+        let status: String
+        let current_round: Int
+        let member_count: Int
+        let my_position: Int?
+        let invite_code: String?
+    }
+
+    private struct ChilimbaStateRow: Decodable {
+        let round: Int
+        let pot: Double
+        let recipient_id: UUID?
+        let recipient_name: String?
+        let paid_count: Int
+        let member_count: Int
+        let outstanding: [String]
+    }
+
+    private struct ChilimbaPositionRow: Decodable {
+        let paid_in: Double
+        let received: Double
+        let net: Double
+        let turn_position: Int?
+        let rounds_left: Int
+        let exit_cost: Double
+        let may_leave: Bool
+    }
+
+    /// Two extra round trips per circle, on purpose: the member's own position
+    /// and the round state are what the screens are actually about, and
+    /// deriving either on the client would mean a second implementation of
+    /// rules that only Postgres should own.
+    private func circle(from row: ChilimbaRow) async throws -> ChilimbaCircle {
+        async let stateRows: [ChilimbaStateRow] = api.rpc(
+            "chilimba_round_state", args: ["p_circle": row.circle_id.uuidString])
+        async let positionRows: [ChilimbaPositionRow] = api.rpc(
+            "chilimba_position", args: ["p_circle": row.circle_id.uuidString])
+
+        let state = try await stateRows.first
+        let mine = try await positionRows.first
+        let outstanding = Set(state?.outstanding ?? [])
+
+        // The server returns the names still to pay and the caller's own
+        // standing; it does not return every member's ledger, so the list is
+        // built from what is actually known rather than padded with zeroes.
+        var members: [ChilimbaMember] = (state?.outstanding ?? []).map { name in
+            ChilimbaMember(id: UUID(), name: name, position: nil, isActive: true,
+                           isMe: false, hasPaidThisRound: false,
+                           paidInZMW: 0, receivedZMW: 0)
+        }
+        if let mine {
+            members.append(ChilimbaMember(
+                id: UUID(), name: "You", position: mine.turn_position, isActive: true,
+                isMe: true, hasPaidThisRound: !outstanding.contains("You"),
+                paidInZMW: mine.paid_in, receivedZMW: mine.received))
+        }
+
+        return ChilimbaCircle(
+            id: row.circle_id, name: row.name, contributionZMW: row.contribution,
+            cadence: ChilimbaCircle.Cadence(rawValue: row.cadence) ?? .monthly,
+            status: ChilimbaCircle.Status(rawValue: row.status) ?? .forming,
+            currentRound: row.current_round, memberTarget: row.member_count,
+            inviteCode: row.invite_code, members: members, autoContribute: false)
+    }
+
     // MARK: - Mapping
 
     private func gig(from row: GigRow) -> Gig {

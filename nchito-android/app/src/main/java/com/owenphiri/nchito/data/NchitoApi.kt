@@ -45,6 +45,15 @@ class NchitoApi {
         request("/rest/v1/$table", "POST", body, prefer = "return=representation")
 
     /**
+     * Updates rows in place. Used only for fields a user may change on their
+     * own row — their language, their chilimba auto-contribute setting — where
+     * row level security is the whole rule and there is no function's worth of
+     * logic to enforce.
+     */
+    suspend fun update(table: String, query: String, body: String): String =
+        request("/rest/v1/$table?$query", "PATCH", body, prefer = "return=representation")
+
+    /**
      * Calls a Postgres function. Most writes go through these rather than
      * direct table writes, because the rules — commission tiering, proof gates,
      * PIN checks — live in the functions and must not be skippable by a client.

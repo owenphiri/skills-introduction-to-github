@@ -393,3 +393,38 @@ extension MockDataService {
         ]
     }()
 }
+
+extension MockDataService {
+
+    /// Two circles: one running, one still filling up. The running one puts the
+    /// signed-in user behind — they have paid in and not yet collected — which
+    /// is the state where the screens have something honest to say.
+    static let chilimbaCircles: [ChilimbaCircle] = {
+        let names = ["Naomi C.", "Owen Phiri", "Joseph K.", "Mercy L."]
+        let active = ChilimbaCircle(
+            id: UUID(), name: "Soweto Traders", contributionZMW: 200, cadence: .monthly,
+            status: .active, currentRound: 2, memberTarget: 4, inviteCode: nil,
+            members: names.enumerated().map { index, name in
+                ChilimbaMember(
+                    id: UUID(), name: name, position: index + 1, isActive: true,
+                    isMe: name == "Owen Phiri",
+                    hasPaidThisRound: index % 2 == 0,
+                    paidInZMW: index % 2 == 0 ? 400 : 200,
+                    receivedZMW: index == 0 ? 800 : 0)
+            },
+            autoContribute: true)
+
+        let forming = ChilimbaCircle(
+            id: UUID(), name: "Kabwata Ladies", contributionZMW: 500, cadence: .monthly,
+            status: .forming, currentRound: 0, memberTarget: 6, inviteCode: "A7F3C2",
+            members: ["Chileshe N.", "Owen Phiri", "Agnes Z."].map { name in
+                ChilimbaMember(
+                    id: UUID(), name: name, position: nil, isActive: true,
+                    isMe: name == "Owen Phiri", hasPaidThisRound: false,
+                    paidInZMW: 0, receivedZMW: 0)
+            },
+            autoContribute: false)
+
+        return [active, forming]
+    }()
+}

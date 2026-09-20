@@ -6,7 +6,10 @@
  * The service catalogue itself is NOT here — it lives in catalog.js, generated
  * from nchito-shared/taxonomy.json so all five surfaces cannot drift.
  */
-const KWACHA = n => 'K' + (Math.abs(n) % 1 === 0 ? n.toFixed(0) : n.toFixed(2));
+/* The sign goes before the K, not after it: "K-300" reads as a currency code
+   nobody has heard of, and a Chilimba net position is often negative. */
+const KWACHA = n => (n < 0 ? '-' : '') +
+  'K' + (Math.abs(n) % 1 === 0 ? Math.abs(n).toFixed(0) : Math.abs(n).toFixed(2));
 
 // Commission falls as a poster and worker build history (INNOVATION.md §1.1),
 // so going off-platform stops being worth the saving.
@@ -46,7 +49,10 @@ const GIGS = [
   { id: 'g6', title: 'Weed and prepare 2 vegetable beds',
     details: 'Backyard garden in Chelstone needs weeding and two beds prepared for rape and tomato planting. Tools provided.',
     category: 'farm', pay: 180, city: 'Lusaka', area: 'Chelstone',
-    poster: 'Agnes Z.', rating: 4.6, ago: '8 hours', urgent: false, boosted: false, applicants: 4, together: 0 },
+    poster: 'Agnes Z.', rating: 4.6, ago: '8 hours', urgent: false, boosted: false, applicants: 4, together: 0,
+    // Posted by speaking, not typing. The description is what a Nchito
+    // volunteer typed up afterwards; the recording is what Agnes actually said.
+    voice: { secs: 31, lang: 'ny' } },
   { id: 'g7', title: 'Box braids for 2 clients at home',
     details: 'Mobile hairdresser needed in Parklands, Kitwe for box braids, 2 clients. Extensions already bought. Portfolio photos required.',
     category: 'salon', pay: 450, city: 'Kitwe', area: 'Parklands',
@@ -83,7 +89,8 @@ const GIGS = [
   { id: 'g15', title: 'Two loaders to offload a 10-tonne maize truck',
     details: 'Offloading 50kg bags from a truck into a store in Makeni. Roughly four hours of work. Water and lunch provided. Paid same day.',
     category: 'loading', pay: 320, city: 'Lusaka', area: 'Makeni',
-    poster: 'Musa Traders', rating: 4.3, ago: '2 hours', urgent: true, boosted: false, applicants: 6, together: 0 },
+    poster: 'Musa Traders', rating: 4.3, ago: '2 hours', urgent: true, boosted: false, applicants: 6, together: 0,
+    voice: { secs: 18, lang: 'bem' } },
   { id: 'g16', title: 'Barber for a weekend at a Kitwe shop',
     details: 'Cover a barbershop in Chimwemwe on Saturday and Sunday. Clippers and chair provided. Paid per head plus a guaranteed minimum.',
     category: 'barbering', pay: 600, city: 'Kitwe', area: 'Chimwemwe',
@@ -291,6 +298,41 @@ const WORK_RECORD = [
  * and a chart that pretends otherwise is a chart that lies. */
 const EARNINGS_WEEKS = [210, 0, 480, 325, 150, 720, 400, 0, 655, 890, 540, 1010];
 const SPEND_WEEKS    = [0, 300, 0, 260, 560, 260, 0, 1800, 260, 300, 1500, 560];
+
+/* ---------------------------------------------------------------------------
+ * Chilimba (INNOVATION.md §3.3). A rotating savings circle: everyone pays in
+ * each cycle, and one member takes the whole pot, by turn.
+ *
+ * `enabled` mirrors chilimba_enabled() in the database, which is false until
+ * Nchito holds whatever authorisation pooling members' money requires. The
+ * demo shows the feature and says so, rather than quietly implying it is live.
+ * ------------------------------------------------------------------------- */
+const CHILIMBA_ENABLED = false;
+
+const CIRCLES = [
+  {
+    id: 'k1', name: 'Soweto Traders', contribution: 200, cadence: 'monthly',
+    status: 'active', round: 2, invite: null,
+    members: [
+      { name: 'Naomi C.',   position: 1, paidThisRound: true,  received: 800, paidIn: 400, me: false },
+      { name: 'Owen Phiri', position: 2, paidThisRound: false, received: 0,   paidIn: 200, me: true  },
+      { name: 'Joseph K.',  position: 3, paidThisRound: true,  received: 0,   paidIn: 400, me: false },
+      { name: 'Mercy L.',   position: 4, paidThisRound: false, received: 0,   paidIn: 200, me: false },
+    ],
+    autoContribute: true,
+  },
+  {
+    id: 'k2', name: 'Kabwata Ladies', contribution: 500, cadence: 'monthly',
+    status: 'forming', round: 0, invite: 'A7F3C2',
+    members: [
+      { name: 'Chileshe N.', position: null, paidThisRound: false, received: 0, paidIn: 0, me: false },
+      { name: 'Owen Phiri',  position: null, paidThisRound: false, received: 0, paidIn: 0, me: true  },
+      { name: 'Agnes Z.',    position: null, paidThisRound: false, received: 0, paidIn: 0, me: false },
+    ],
+    memberTarget: 6,
+    autoContribute: false,
+  },
+];
 
 const USER = {
   name: 'Owen Phiri', phone: '+260 97 000 0000', city: 'Lusaka',

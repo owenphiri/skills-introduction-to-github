@@ -306,3 +306,44 @@ object MockData {
                    latitude = -15.3875, longitude = 28.3228),
     )
 }
+
+/**
+ * Two circles: one running, one still filling up. The running one leaves the
+ * signed-in user behind — paid in, not yet collected — which is the state where
+ * the screens have something honest to say.
+ */
+val MockData.chilimbaCircles: List<ChilimbaCircle>
+    get() = listOf(
+        ChilimbaCircle(
+            name = "Soweto Traders",
+            contributionZMW = 200.0,
+            cadence = ChilimbaCadence.MONTHLY,
+            status = ChilimbaStatus.ACTIVE,
+            currentRound = 2,
+            memberTarget = 4,
+            autoContribute = true,
+            members = listOf("Naomi C.", "Owen Phiri", "Joseph K.", "Mercy L.")
+                .mapIndexed { index, name ->
+                    ChilimbaMember(
+                        name = name,
+                        position = index + 1,
+                        isMe = name == "Owen Phiri",
+                        hasPaidThisRound = index % 2 == 0,
+                        paidInZMW = if (index % 2 == 0) 400.0 else 200.0,
+                        receivedZMW = if (index == 0) 800.0 else 0.0,
+                    )
+                },
+        ),
+        ChilimbaCircle(
+            name = "Kabwata Ladies",
+            contributionZMW = 500.0,
+            cadence = ChilimbaCadence.MONTHLY,
+            status = ChilimbaStatus.FORMING,
+            currentRound = 0,
+            memberTarget = 6,
+            inviteCode = "A7F3C2",
+            members = listOf("Chileshe N.", "Owen Phiri", "Agnes Z.").map { name ->
+                ChilimbaMember(name = name, isMe = name == "Owen Phiri")
+            },
+        ),
+    )

@@ -5,11 +5,11 @@
  * should survive losing signal. Everything is precached on install; once
  * installed the app opens with no network at all.
  */
-const CACHE = 'nchito-v2';
+const CACHE = 'nchito-v3';
 // Registered from /app/, so its scope is /app/ and the landing page at the root
 // is never intercepted or cached by it.
 const ASSETS = [
-  './', 'index.html', 'styles.css', 'catalog.js', 'data.js', 'app.js', 'manifest.webmanifest',
+  './', 'index.html', 'styles.css', 'catalog.js', 'lang.js', 'data.js', 'app.js', 'manifest.webmanifest',
   '../brand/logo.svg', '../brand/icon.svg',
   '../brand/icon-32.png', '../brand/icon-180.png',
   '../brand/icon-192.png', '../brand/icon-512.png',

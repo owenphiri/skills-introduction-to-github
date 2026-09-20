@@ -338,6 +338,29 @@ main > *:nth-child(9)  { animation-delay: 208ms; }
 main > *:nth-child(n+10) { animation-delay: 230ms; }
 
 /* ============================================================
+   Voice and Chilimba
+   ============================================================ */
+
+.voicecard { border: 1.5px dashed var(--line); box-shadow: none; }
+.chip.rec { background: var(--red); color: #fff; border-color: var(--red); animation: pulse 1.1s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .55; } }
+
+/* The turn number is the whole point of a chilimba, so it gets to be a shape
+   rather than a line of text. */
+.turnno {
+  flex: 0 0 auto; width: 26px; height: 26px; border-radius: 50%;
+  background: rgba(14,122,24,.12); color: var(--green);
+  display: grid; place-items: center; font-size: 12px; font-weight: 800;
+}
+
+.langpick {
+  border: 1px solid var(--line); background: var(--card); color: var(--muted);
+  border-radius: 7px; padding: 2px 7px; font-size: 10.5px; font-weight: 700;
+  cursor: pointer; font-family: inherit;
+}
+.langpick[aria-pressed="true"] { background: var(--green); color: #fff; border-color: var(--green); }
+
+/* ============================================================
    Misc
    ============================================================ */
 

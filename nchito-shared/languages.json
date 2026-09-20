@@ -118,6 +118,18 @@
     "circle.received":    { "en": "Received", "ny": "Zomwe mwalandira", "bem": "Ifyo mwapokelela", "toi": null, "loz": null },
     "circle.waiting":     { "en": "Still to contribute", "ny": "Sanaperekebe", "bem": "Tabalapeela", "toi": null, "loz": null },
 
+    "ussd.title":     { "en": "Nchito", "ny": "Nchito", "bem": "Nchito", "toi": null, "loz": null },
+    "ussd.gigs":      { "en": "Find gigs", "ny": "Pezani ntchito", "bem": "Fwayeni incito", "toi": null, "loz": null },
+    "ussd.wallet":    { "en": "My wallet", "ny": "Chikwama changa", "bem": "Icikwama candi", "toi": null, "loz": null },
+    "ussd.tasks":     { "en": "Quick tasks", "ny": "Ntchito zochepa", "bem": "Incito inono", "toi": null, "loz": null },
+    "ussd.record":    { "en": "Work record", "ny": "Mbiri ya ntchito", "bem": "Umbiri wa ncito", "toi": null, "loz": null },
+    "ussd.early":     { "en": "Get paid early", "ny": "Ndalama msanga", "bem": "Indalama bwangu", "toi": null, "loz": null },
+    "ussd.cash":      { "en": "Cash near me", "ny": "Ndalama pafupi", "bem": "Indalama mupepi", "toi": null, "loz": null },
+    "ussd.chilimba":  { "en": "My chilimba", "ny": "Chilimba changa", "bem": "Icilimba candi", "toi": null, "loz": null },
+    "ussd.language":  { "en": "Language", "ny": "Chinenero", "bem": "Ululimi", "toi": "Mwaambo", "loz": "Puo" },
+    "ussd.pickLang":  { "en": "Choose your language:", "ny": "Sankhani chinenero chanu:", "bem": "Saleni ululimi lwenu:", "toi": null, "loz": null },
+    "ussd.back":      { "en": "Back", "ny": "Bwererani", "bem": "Bwelelenimo", "toi": "Joka", "loz": "Kuta" },
+
     "voice.notReviewed":  { "en": "This translation has not yet been checked by a native speaker. Anything that looks wrong probably is — please tell us.", "ny": "Kumasulira uku sikunawunikidwe ndi mwiniwake wa chinenerochi. Ngati chinachake sichili bwino, tidziwitseni.", "bem": "Uku ukupilibula tabalakubebeta kuli abene ba lulimi. Nga cimo tacili bwino, tubebeni.", "toi": null, "loz": null },
     "voice.noSpeech":     { "en": "Your phone cannot listen in this language yet, so type or send a voice note instead.", "ny": "Foni yanu sikhoza kumvetsera chinenero ichi. Lembani kapena tumizani mawu anu.", "bem": "Ifoni yenu tailomfwa ulu lulimi. Lembeni nangula tumeni akwasa kenu.", "toi": null, "loz": null }
   },
