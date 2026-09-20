@@ -1,0 +1,78 @@
+{
+  "_comment": [
+    "The single source of truth for Nchito's service taxonomy.",
+    "",
+    "Five surfaces have to agree on these codes: the Postgres gig_category enum,",
+    "the Swift and Kotlin apps, the web PWA, and the USSD/WhatsApp menu. Before",
+    "this file they agreed by hand, which is a promise nobody can keep across 39",
+    "categories. Now `node nchito-shared/generate.mjs` writes the mirrors and",
+    "`--check` fails the build if any of them has drifted.",
+    "",
+    "`code` is what Postgres stores and must never change once shipped — a gig",
+    "row written last month still carries it. `label` is display text and is free",
+    "to be reworded. `short` is the USSD label and must survive a 182-character",
+    "screen shared with five other lines, so keep it under 16 characters."
+  ],
+  "groups": [
+    { "code": "trades",    "label": "Building & Trades", "short": "Building",   "emoji": "🧱", "blurb": "The people who build and fix the physical thing." },
+    { "code": "home",      "label": "Home & Care", "short": "Home & care",         "emoji": "🏡", "blurb": "Work inside someone's home, and the people in it." },
+    { "code": "food",      "label": "Food & Hospitality", "short": "Food & events",  "emoji": "🍲", "blurb": "Cooking, serving and feeding a room." },
+    { "code": "logistics", "label": "Transport & Errands", "short": "Transport", "emoji": "🛵", "blurb": "Moving things and people across town." },
+    { "code": "style",     "label": "Style & Lifestyle", "short": "Hair & style",   "emoji": "✂️", "blurb": "Hair, clothes, skin and looking after yourself." },
+    { "code": "creative",  "label": "Creative & Media", "short": "Design/media",    "emoji": "🎨", "blurb": "Design, sound, pictures and the web." },
+    { "code": "learning",  "label": "Learning & Guidance", "short": "Teaching", "emoji": "📚", "blurb": "Teaching, coaching and counsel." },
+    { "code": "office",    "label": "Office & Admin", "short": "Office work",      "emoji": "🗂️", "blurb": "The paperwork behind a small business." }
+  ],
+  "categories": [
+    { "code": "bricklaying",   "group": "trades",    "label": "Bricklaying & Masonry", "short": "Bricklaying",  "sf": "building.2.fill",                  "emoji": "🧱" },
+    { "code": "carpentry",     "group": "trades",    "label": "Carpentry & Joinery",   "short": "Carpentry",    "sf": "hammer.fill",                      "emoji": "🪚" },
+    { "code": "painting",      "group": "trades",    "label": "Painting & Decorating", "short": "Painting",     "sf": "paintbrush.fill",                  "emoji": "🖌️" },
+    { "code": "welding",       "group": "trades",    "label": "Welding & Metalwork",   "short": "Welding",      "sf": "flame.fill",                       "emoji": "🔥" },
+    { "code": "plumbing",      "group": "trades",    "label": "Plumbing",              "short": "Plumbing",     "sf": "drop.fill",                        "emoji": "🚰" },
+    { "code": "electrical",    "group": "trades",    "label": "Electrical Services",   "short": "Electrical",   "sf": "bolt.fill",                        "emoji": "⚡" },
+    { "code": "repairs",       "group": "trades",    "label": "Repairs & Technical",   "short": "Repairs",      "sf": "wrench.and.screwdriver.fill",      "emoji": "🔧" },
+
+    { "code": "home_services", "group": "home",      "label": "Home Services",         "short": "Home help",    "sf": "house.fill",                       "emoji": "🏠" },
+    { "code": "cleaning",      "group": "home",      "label": "Cleaning",              "short": "Cleaning",     "sf": "sparkles",                         "emoji": "🧹" },
+    { "code": "laundry",       "group": "home",      "label": "Washing & Ironing",     "short": "Washing",      "sf": "washer.fill",                      "emoji": "👕" },
+    { "code": "security",      "group": "home",      "label": "Security & Guarding",   "short": "Security",     "sf": "shield.lefthalf.filled",           "emoji": "🛡️" },
+    { "code": "childcare",     "group": "home",      "label": "Childcare & Nannies",   "short": "Childcare",    "sf": "figure.and.child.holdinghands",    "emoji": "👶" },
+    { "code": "farm",          "group": "home",      "label": "Farm & Garden",         "short": "Farm/garden",  "sf": "leaf.fill",                        "emoji": "🌱" },
+
+    { "code": "catering",      "group": "food",      "label": "Catering",              "short": "Catering",     "sf": "fork.knife",                       "emoji": "🍽️" },
+    { "code": "chef",          "group": "food",      "label": "Chefs & Cooks",         "short": "Chef/cook",    "sf": "frying.pan.fill",                  "emoji": "👨‍🍳" },
+    { "code": "restaurant",    "group": "food",      "label": "Restaurant & Bar Work", "short": "Restaurant",   "sf": "takeoutbag.and.cup.and.straw.fill","emoji": "🍽️" },
+    { "code": "events",        "group": "food",      "label": "Events & Functions",    "short": "Events",       "sf": "party.popper.fill",                "emoji": "🎉" },
+
+    { "code": "delivery",      "group": "logistics", "label": "Delivery & Errands",    "short": "Delivery",     "sf": "bicycle",                          "emoji": "🛵" },
+    { "code": "messenger",     "group": "logistics", "label": "Messengers",            "short": "Messenger",    "sf": "envelope.fill",                    "emoji": "✉️" },
+    { "code": "loading",       "group": "logistics", "label": "Loading & Moving",      "short": "Loading",      "sf": "shippingbox.fill",                 "emoji": "📦" },
+    { "code": "driving",       "group": "logistics", "label": "Driving",               "short": "Driving",      "sf": "car.fill",                         "emoji": "🚗" },
+
+    { "code": "beauty",        "group": "style",     "label": "Beauty & Grooming",     "short": "Beauty",       "sf": "scissors",                         "emoji": "💅" },
+    { "code": "barbering",     "group": "style",     "label": "Barbershops",           "short": "Barbering",    "sf": "comb.fill",                        "emoji": "💈" },
+    { "code": "salon",         "group": "style",     "label": "Salon & Hair",          "short": "Salon",        "sf": "hands.sparkles.fill",              "emoji": "💇‍♀️" },
+    { "code": "cosmetics",     "group": "style",     "label": "Cosmetics & Make-up",   "short": "Cosmetics",    "sf": "paintpalette.fill",                "emoji": "💄" },
+    { "code": "tailoring",     "group": "style",     "label": "Sewing & Tailoring",    "short": "Sewing",       "sf": "tshirt.fill",                      "emoji": "🧵" },
+    { "code": "lifestyle",     "group": "style",     "label": "Lifestyle & Wellness",  "short": "Lifestyle",    "sf": "figure.mind.and.body",             "emoji": "🧘" },
+
+    { "code": "digital",       "group": "creative",  "label": "Digital & Design",      "short": "Design",       "sf": "laptopcomputer",                   "emoji": "💻" },
+    { "code": "web_design",    "group": "creative",  "label": "Web Design & Dev",      "short": "Web design",   "sf": "globe",                            "emoji": "🌐" },
+    { "code": "music",         "group": "creative",  "label": "Music & Sound",         "short": "Music",        "sf": "music.note",                       "emoji": "🎵" },
+    { "code": "photography",   "group": "creative",  "label": "Photo & Video",         "short": "Photo/video",  "sf": "camera.fill",                      "emoji": "📷" },
+
+    { "code": "tutoring",      "group": "learning",  "label": "Tutoring & Lessons",    "short": "Tutoring",     "sf": "book.fill",                        "emoji": "📖" },
+    { "code": "teaching",      "group": "learning",  "label": "Teaching Services",     "short": "Teaching",     "sf": "graduationcap.fill",               "emoji": "🎓" },
+    { "code": "coaching",      "group": "learning",  "label": "Coaching & Training",   "short": "Coaching",     "sf": "figure.run",                       "emoji": "🏃" },
+    { "code": "counselling",   "group": "learning",  "label": "Counselling",           "short": "Counselling",  "sf": "heart.text.square.fill",           "emoji": "🫂" },
+    { "code": "ministry",      "group": "learning",  "label": "Preaching & Ministry",  "short": "Ministry",     "sf": "book.closed.fill",                 "emoji": "🙏" },
+
+    { "code": "office_admin",  "group": "office",    "label": "Office & Admin Support","short": "Office admin", "sf": "tray.full.fill",                   "emoji": "🗂️" },
+    { "code": "bookkeeping",   "group": "office",    "label": "Bookkeeping & Accounts","short": "Bookkeeping",  "sf": "doc.text.fill",                    "emoji": "📒" },
+    { "code": "translation",   "group": "office",    "label": "Translation & Typing",  "short": "Translation",  "sf": "character.bubble.fill",            "emoji": "🗣️" }
+  ],
+  "_shipped_in_0001": [
+    "delivery", "home_services", "tutoring", "digital",
+    "events", "farm", "beauty", "repairs"
+  ]
+}

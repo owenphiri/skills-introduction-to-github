@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Nchito">
+  <title>Nchito</title>
+  <!--
+    An "N" whose right stem carries on above the letter's top line, the part
+    above turning copper. Read quickly it is a monogram; read again it is a
+    rising bar — earnings going up — and the copper is Zambia's own metal
+    against the flag's green. Square joins keep the strokes meeting cleanly at
+    favicon size, where a rounded corner just reads as a chip in the letter.
+  -->
+  <rect width="64" height="64" rx="15" fill="#0E7A18"/>
+  <!-- the rise: one continuous stem, copper above the line -->
+  <rect x="40" y="10" width="9" height="13" fill="#F08A1D"/>
+  <!-- the N, as one figure -->
+  <rect x="15" y="21" width="9" height="30" fill="#FFFFFF"/>
+  <path d="M15 21 L24 21 L49 51 L40 51 Z" fill="#FFFFFF"/>
+  <rect x="40" y="21" width="9" height="30" fill="#FFFFFF"/>
+</svg>
