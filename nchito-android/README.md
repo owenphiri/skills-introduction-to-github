@@ -7,7 +7,7 @@ Jetpack Compose port of the [Nchito iOS app](../nchito-ios/) — same product sp
 ## What's included
 
 - **Phone-OTP sign-in** (demo mode: any Zambian number, code `123456`; goes live by filling in `data/SupabaseConfig.kt`)
-- **Gig feed** with search, category chips, featured/urgent badges, and gig detail with escrow explainer
+- **Gig feed** across **39 services in 8 families** — pick a family, then the service — with search, featured/urgent badges, and gig detail with escrow explainer
 - **Post a gig** bottom sheet with the K25 boost upsell
 - **Quick Tasks** micro-earning feed with wallet-credited rewards
 - **Wallet** with balance card, provider picker (MTN MoMo / Airtel Money / Zamtel Kwacha) and cash-out sheet
@@ -30,6 +30,12 @@ From the command line (with Gradle 8.7+ installed): `gradle :app:assembleDebug`.
 The app picks its backend at runtime from `data/SupabaseConfig.kt`: empty means `MockRepository` over the seed data and OTP `123456`; filled in means `LiveRepository` over Supabase with real phone OTP. Both sit behind the same `NchitoRepository` interface, so demo mode exercises the identical code paths rather than being a separate branch that rots.
 
 Going live needs the same four steps as iOS — see [that README](../nchito-ios/README.md#going-live).
+
+## The service catalogue
+
+`data/ServiceCatalog.kt` is **generated**. Edit [`../nchito-shared/taxonomy.json`](../nchito-shared/)
+and run `node nchito-shared/generate.mjs`, which rewrites the matching catalogues for iOS, the
+web PWA and the USSD/WhatsApp Edge Functions in the same pass. `--check` fails if any has drifted.
 
 ## Architecture
 
