@@ -1,0 +1,175 @@
+{
+  "_comment": [
+    "Nchito's language layer. The same pattern as taxonomy.json: one source,",
+    "generated into every surface.",
+    "",
+    "HONESTY RULES BAKED INTO THIS FILE",
+    "",
+    "1. A missing translation is `null`, never a guess. The generator falls back",
+    "   to English, and every surface shows English rather than something that",
+    "   might be wrong. A mistranslated 'cash out' costs someone real money.",
+    "",
+    "2. `reviewed: false` on a language means NO NATIVE SPEAKER HAS CHECKED IT.",
+    "   These were written from working knowledge, and Zambian usage varies by",
+    "   town and by generation. The app says so to the user, in that language's",
+    "   own screen, until someone signs it off. Do not flip the flag without a",
+    "   real review — it is the only thing standing between a user and a",
+    "   confidently wrong instruction about their money.",
+    "",
+    "3. Coverage is measured, not assumed. `node nchito-shared/generate.mjs`",
+    "   prints per-language coverage, and a language below the floor is not",
+    "   offered in the picker at all — a half-translated interface reads as",
+    "   broken, and broken is worse than English.",
+    "",
+    "4. Where real Zambian speech uses the English loanword — 'plumbing',",
+    "   'electrical', 'delivery' — the translation is deliberately null. That",
+    "   is not laziness; inventing a word nobody says is worse than the word",
+    "   everybody says."
+  ],
+
+  "languages": [
+    {
+      "code": "en", "name": "English", "native": "English",
+      "reviewed": true, "asr": "en-ZA", "tts": "en-ZA",
+      "note": "The fallback for every other language."
+    },
+    {
+      "code": "ny", "name": "Nyanja", "native": "Chinyanja",
+      "reviewed": false, "asr": null, "tts": null,
+      "note": "Lusaka's lingua franca. No browser or phone OS ships speech recognition or a voice for it."
+    },
+    {
+      "code": "bem", "name": "Bemba", "native": "Ichibemba",
+      "reviewed": false, "asr": null, "tts": null,
+      "note": "The Copperbelt and much of the north. No speech support anywhere off the shelf."
+    },
+    {
+      "code": "toi", "name": "Tonga", "native": "Chitonga",
+      "reviewed": false, "asr": null, "tts": null,
+      "note": "Southern Province. Core navigation only so far."
+    },
+    {
+      "code": "loz", "name": "Lozi", "native": "Silozi",
+      "reviewed": false, "asr": null, "tts": null,
+      "note": "Western Province. Core navigation only so far."
+    }
+  ],
+
+  "_minimum_coverage": 0.45,
+
+  "strings": {
+    "app.tagline":        { "en": "Find work. Get paid.", "ny": "Pezani ntchito. Landirani ndalama.", "bem": "Fwayeni incito. Poleni indalama.", "toi": "Jana mulimo. Tambula mali.", "loz": "Fumana musebezi. Amuhela mali." },
+    "nav.findWork":       { "en": "Find work", "ny": "Pezani ntchito", "bem": "Fwayeni incito", "toi": "Jana mulimo", "loz": "Fumana musebezi" },
+    "nav.tasks":          { "en": "Tasks", "ny": "Ntchito zazing'ono", "bem": "Incito inono", "toi": null, "loz": null },
+    "nav.numbers":        { "en": "Numbers", "ny": "Manambala", "bem": "Inambala", "toi": null, "loz": null },
+    "nav.chats":          { "en": "Chats", "ny": "Mauthenga", "bem": "Amashiwi", "toi": null, "loz": null },
+    "nav.wallet":         { "en": "Wallet", "ny": "Chikwama", "bem": "Icikwama", "toi": null, "loz": null },
+    "nav.office":         { "en": "Office", "ny": "Ofesi", "bem": "Ofeshi", "toi": null, "loz": null },
+    "nav.profile":        { "en": "Profile", "ny": "Za ine", "bem": "Pali ine", "toi": null, "loz": null },
+    "nav.hire":           { "en": "Hire", "ny": "Lembani munthu", "bem": "Lembeni umuntu", "toi": null, "loz": null },
+    "nav.myJobs":         { "en": "My jobs", "ny": "Ntchito zanga", "bem": "Incito shandi", "toi": null, "loz": null },
+    "nav.circle":         { "en": "Chilimba", "ny": "Chilimba", "bem": "Icilimba", "toi": "Chilimba", "loz": "Chilimba" },
+
+    "title.workNearYou":  { "en": "Work near you", "ny": "Ntchito pafupi nanu", "bem": "Incito mupepi nenu", "toi": "Mulimo afwiifwi", "loz": "Musebezi bukaufi" },
+    "title.wallet":       { "en": "Wallet", "ny": "Chikwama changa", "bem": "Icikwama candi", "toi": null, "loz": null },
+    "title.myNumbers":    { "en": "My numbers", "ny": "Manambala anga", "bem": "Inambala shandi", "toi": null, "loz": null },
+    "title.quickTasks":   { "en": "Quick Tasks", "ny": "Ntchito zofulumira", "bem": "Incito sha bwangu", "toi": null, "loz": null },
+    "title.hireSomeone":  { "en": "Hire someone", "ny": "Lembani wogwira ntchito", "bem": "Lembeni uwabomba", "toi": null, "loz": null },
+    "title.jobsIPosted":  { "en": "Jobs I posted", "ny": "Ntchito zomwe ndalemba", "bem": "Incito nalemba", "toi": null, "loz": null },
+    "title.chilimba":     { "en": "My Chilimba", "ny": "Chilimba changa", "bem": "Icilimba candi", "toi": null, "loz": null },
+
+    "money.balance":      { "en": "Available balance", "ny": "Ndalama zomwe muli nazo", "bem": "Indalama mwakwata", "toi": "Mali ngomujisi", "loz": "Mali eo munani ona" },
+    "money.cashOut":      { "en": "Cash out", "ny": "Tulutsani ndalama", "bem": "Fumyeni indalama", "toi": "Gwisya mali", "loz": "Zwisa mali" },
+    "money.getPaidEarly": { "en": "Get paid early", "ny": "Landirani ndalama msanga", "bem": "Poleni indalama bwangu", "toi": null, "loz": null },
+    "money.inEscrow":     { "en": "Held safely", "ny": "Zasungidwa bwino", "bem": "Shasungwa bwino", "toi": null, "loz": null },
+    "money.youReceive":   { "en": "You receive", "ny": "Mudzalandira", "bem": "Mukapokelela", "toi": null, "loz": null },
+    "money.fee":          { "en": "Our fee", "ny": "Malipiro athu", "bem": "Indalama shesu", "toi": null, "loz": null },
+    "money.cashNearMe":   { "en": "Find cash near me", "ny": "Pezani ndalama pafupi", "bem": "Fwayeni indalama mupepi", "toi": null, "loz": null },
+
+    "action.apply":       { "en": "Apply", "ny": "Funsani ntchito", "bem": "Lombeni incito", "toi": "Kumbila mulimo", "loz": "Kupa musebezi" },
+    "action.applied":     { "en": "Application sent", "ny": "Pempho latumizidwa", "bem": "Icilomba nacitumwa", "toi": null, "loz": null },
+    "action.message":     { "en": "Message", "ny": "Tumizani uthenga", "bem": "Tumeni ishiwi", "toi": null, "loz": null },
+    "action.send":        { "en": "Send", "ny": "Tumizani", "bem": "Tumeni", "toi": "Tuma", "loz": "Luma" },
+    "action.back":        { "en": "Back", "ny": "Bwererani", "bem": "Bwelelenimo", "toi": "Joka", "loz": "Kuta" },
+    "action.search":      { "en": "Search", "ny": "Sakani", "bem": "Fwayeni", "toi": "Yandaula", "loz": "Bata" },
+    "action.postJob":     { "en": "Post job", "ny": "Lembani ntchito", "bem": "Lembeni incito", "toi": null, "loz": null },
+    "action.record":      { "en": "Record a voice note", "ny": "Nenani ndi mawu anu", "bem": "Landeni no kwasa kwenu", "toi": null, "loz": null },
+    "action.stop":        { "en": "Stop", "ny": "Imani", "bem": "Imeni", "toi": null, "loz": null },
+    "action.play":        { "en": "Play", "ny": "Mvetserani", "bem": "Umfweni", "toi": null, "loz": null },
+    "action.readAloud":   { "en": "Read this aloud", "ny": "Werengani mokweza", "bem": "Belengeni mu kwasa", "toi": null, "loz": null },
+
+    "word.yes":           { "en": "Yes", "ny": "Inde", "bem": "Ee", "toi": "Inzya", "loz": "Eni" },
+    "word.no":            { "en": "No", "ny": "Ayi", "bem": "Awe", "toi": "Pe", "loz": "Awa" },
+    "word.thanks":        { "en": "Thank you", "ny": "Zikomo", "bem": "Natotela", "toi": "Twalumba", "loz": "Nitumezi" },
+    "word.welcome":       { "en": "Welcome", "ny": "Takulandirani", "bem": "Mwaiseni", "toi": "Mwabonwa", "loz": "Mu amuhelwe" },
+    "word.today":         { "en": "Today", "ny": "Lero", "bem": "Lelo", "toi": "Sunu", "loz": "Kacenu" },
+    "word.language":      { "en": "Language", "ny": "Chinenero", "bem": "Ululimi", "toi": "Mwaambo", "loz": "Puo" },
+    "word.name":          { "en": "Name", "ny": "Dzina", "bem": "Ishina", "toi": "Zina", "loz": "Libizo" },
+    "word.town":          { "en": "Town", "ny": "Tauni", "bem": "Itauni", "toi": null, "loz": null },
+    "word.near":          { "en": "Near you", "ny": "Pafupi nanu", "bem": "Mupepi nenu", "toi": "Afwiifwi", "loz": "Bukaufi" },
+    "word.urgent":        { "en": "Urgent", "ny": "Mwachangu", "bem": "Bwangu bwangu", "toi": null, "loz": null },
+
+    "circle.title":       { "en": "Chilimba", "ny": "Chilimba", "bem": "Icilimba", "toi": "Chilimba", "loz": "Chilimba" },
+    "circle.yourTurn":    { "en": "Your turn", "ny": "Nthawi yanu", "bem": "Inshita yenu", "toi": null, "loz": null },
+    "circle.members":     { "en": "Members", "ny": "Mamembala", "bem": "Abamembala", "toi": null, "loz": null },
+    "circle.round":       { "en": "Round", "ny": "Kuzungulira", "bem": "Ukushinguluka", "toi": null, "loz": null },
+    "circle.contribute":  { "en": "Contribute", "ny": "Perekani", "bem": "Peeleni", "toi": null, "loz": null },
+    "circle.paidIn":      { "en": "Paid in", "ny": "Zomwe mwapereka", "bem": "Ifyo mwapeela", "toi": null, "loz": null },
+    "circle.received":    { "en": "Received", "ny": "Zomwe mwalandira", "bem": "Ifyo mwapokelela", "toi": null, "loz": null },
+    "circle.waiting":     { "en": "Still to contribute", "ny": "Sanaperekebe", "bem": "Tabalapeela", "toi": null, "loz": null },
+
+    "voice.notReviewed":  { "en": "This translation has not yet been checked by a native speaker. Anything that looks wrong probably is — please tell us.", "ny": "Kumasulira uku sikunawunikidwe ndi mwiniwake wa chinenerochi. Ngati chinachake sichili bwino, tidziwitseni.", "bem": "Uku ukupilibula tabalakubebeta kuli abene ba lulimi. Nga cimo tacili bwino, tubebeni.", "toi": null, "loz": null },
+    "voice.noSpeech":     { "en": "Your phone cannot listen in this language yet, so type or send a voice note instead.", "ny": "Foni yanu sikhoza kumvetsera chinenero ichi. Lembani kapena tumizani mawu anu.", "bem": "Ifoni yenu tailomfwa ulu lulimi. Lembeni nangula tumeni akwasa kenu.", "toi": null, "loz": null }
+  },
+
+  "categories": {
+    "_comment": "Only where real Zambian speech uses a vernacular word. 'Plumbing' and 'electrical' are English in actual use, so they are null on purpose.",
+    "bricklaying":  { "ny": "Kumanga ndi njerwa", "bem": "Ukukuula", "toi": null, "loz": null },
+    "carpentry":    { "ny": "Ukalipentala", "bem": "Ubukalipentala", "toi": null, "loz": null },
+    "painting":     { "ny": "Kupenta", "bem": "Ukupenta", "toi": null, "loz": null },
+    "cleaning":     { "ny": "Kuyeretsa", "bem": "Ukusangulula", "toi": null, "loz": null },
+    "laundry":      { "ny": "Kuchapa ndi kusita", "bem": "Ukucapa", "toi": null, "loz": null },
+    "childcare":    { "ny": "Kusunga ana", "bem": "Ukusunga abana", "toi": null, "loz": null },
+    "security":     { "ny": "Kulondera", "bem": "Ukulinda", "toi": null, "loz": null },
+    "farm":         { "ny": "Ulimi ndi munda", "bem": "Ubulimi", "toi": "Bulimi", "loz": "Bulimi" },
+    "chef":         { "ny": "Kuphika", "bem": "Ukwipika", "toi": null, "loz": null },
+    "catering":     { "ny": "Kuphikira anthu", "bem": "Ukwipikila abantu", "toi": null, "loz": null },
+    "delivery":     { "ny": "Kutumiza katundu", "bem": "Ukutwala ifintu", "toi": null, "loz": null },
+    "loading":      { "ny": "Kusenza katundu", "bem": "Ukusenda ifintu", "toi": null, "loz": null },
+    "driving":      { "ny": "Kuyendetsa galimoto", "bem": "Ukwendesha imotoka", "toi": null, "loz": null },
+    "tailoring":    { "ny": "Kusoka zovala", "bem": "Ukushona ifyakufwala", "toi": null, "loz": null },
+    "salon":        { "ny": "Kuluka tsitsi", "bem": "Ukuluka umushishi", "toi": null, "loz": null },
+    "barbering":    { "ny": "Kumeta", "bem": "Ukubeya", "toi": null, "loz": null },
+    "tutoring":     { "ny": "Kuphunzitsa", "bem": "Ukusambilisha", "toi": null, "loz": null },
+    "teaching":     { "ny": "Uphunzitsi", "bem": "Ubukafundisha", "toi": null, "loz": null },
+    "ministry":     { "ny": "Kulalikira", "bem": "Ukushimikila", "toi": null, "loz": null },
+    "counselling":  { "ny": "Kulangiza", "bem": "Ukufunda", "toi": null, "loz": null },
+    "music":        { "ny": "Nyimbo", "bem": "Inyimbo", "toi": null, "loz": null },
+    "photography":  { "ny": "Kujambula", "bem": "Ukukopa", "toi": null, "loz": null },
+    "messenger":    { "ny": "Kunyamula mauthenga", "bem": "Ukutwala amashiwi", "toi": null, "loz": null },
+    "home_services":{ "ny": "Ntchito zapakhomo", "bem": "Incito sha pang'anda", "toi": null, "loz": null }
+  },
+
+  "lexicon": {
+    "_comment": [
+      "Words a person actually types to WhatsApp, mapped to a menu action.",
+      "This is the part of 'vernacular' that needs no speech technology at all",
+      "and works today: someone types 'ndalama' and lands on their wallet.",
+      "Spelling varies wildly in practice, so variants are listed rather than",
+      "normalised — matching is substring, case-insensitive, longest-wins.",
+      "",
+      "Because matching is by substring, a term that is contained in a term",
+      "from another bucket silently steals it. The generator fails on that, so",
+      "short words like 'hi' are out: 'hi' lives inside 'chilimba'."
+    ],
+    "gigs":    ["ntchito", "incito", "ncito", "nchito", "mulimo", "musebezi", "gig", "job", "work", "basa"],
+    "wallet":  ["ndalama", "indalama", "chikwama", "icikwama", "wallet", "balance", "cash", "money", "kobili", "mali"],
+    "tasks":   ["survey", "quick task", "tasks"],
+    "record":  ["mbiri", "umbiri", "record", "history"],
+    "advance": ["msanga", "bwangu", "early", "advance"],
+    "agents":  ["ejenti", "agent", "float"],
+    "circle":  ["chilimba", "icilimba", "cilimba", "circle", "kusunga", "ukusunga", "saving"],
+    "greet":   ["muli bwanji", "muli shani", "mwabuka", "mwashibukeni", "mwapoleni", "hello", "hey", "start", "menu"],
+    "help":    ["thandizo", "thandiza", "ubwafwilisho", "help"]
+  }
+}

@@ -275,7 +275,11 @@ end $$;
 -- Rough centres, so a USSD user gets something useful without GPS.
 create or replace function public.city_centre(p_city text)
 returns table (lat numeric, lon numeric) language sql immutable as $$
-  select * from (values
+  -- `select *` here returns the city name too, which is one column more than
+  -- this function declares. Postgres only notices when the function is
+  -- created, which is why this never showed up until the migrations were
+  -- actually run against a database.
+  select c.lat, c.lon from (values
     ('lusaka',      -15.3875::numeric, 28.3228::numeric),
     ('kitwe',       -12.8024::numeric, 28.2132::numeric),
     ('ndola',       -12.9587::numeric, 28.6366::numeric),
