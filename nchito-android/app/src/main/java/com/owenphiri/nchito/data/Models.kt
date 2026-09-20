@@ -11,16 +11,10 @@ enum class MobileMoneyProvider(val label: String) {
     ZAMTEL_KWACHA("Zamtel Kwacha"),
 }
 
-enum class GigCategory(val label: String) {
-    DELIVERY("Delivery & Errands"),
-    HOME_SERVICES("Home Services"),
-    TUTORING("Tutoring & Lessons"),
-    DIGITAL("Digital & Design"),
-    EVENTS("Events & Catering"),
-    FARM("Farm & Garden"),
-    BEAUTY("Beauty & Care"),
-    REPAIRS("Repairs & Technical"),
-}
+// GigCategory and ServiceGroup are generated into ServiceCatalog.kt from
+// nchito-shared/taxonomy.json, which is also what seeds the Postgres enum and
+// the iOS and web catalogues. Thirty-nine categories written out five times
+// by hand is a promise nobody keeps.
 
 data class Gig(
     val id: UUID = UUID.randomUUID(),

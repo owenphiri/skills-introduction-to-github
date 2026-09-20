@@ -15,20 +15,12 @@ import java.util.TimeZone
  * crosses the wire is mapped explicitly here.
  */
 
-val GigCategory.wireValue: String
-    get() = when (this) {
-        GigCategory.DELIVERY -> "delivery"
-        GigCategory.HOME_SERVICES -> "home_services"
-        GigCategory.TUTORING -> "tutoring"
-        GigCategory.DIGITAL -> "digital"
-        GigCategory.EVENTS -> "events"
-        GigCategory.FARM -> "farm"
-        GigCategory.BEAUTY -> "beauty"
-        GigCategory.REPAIRS -> "repairs"
-    }
+// GigCategory carries its own wire value (generated in ServiceCatalog.kt).
+// These two aliases keep it addressable through the same names as every
+// other enum here, so call sites do not have to know which is which.
+val GigCategory.wireValue: String get() = wire
 
-fun gigCategoryFromWire(wire: String): GigCategory? =
-    GigCategory.entries.firstOrNull { it.wireValue == wire }
+fun gigCategoryFromWire(wire: String): GigCategory? = GigCategory.fromWire(wire)
 
 val GigStatus.wireValue: String
     get() = when (this) {

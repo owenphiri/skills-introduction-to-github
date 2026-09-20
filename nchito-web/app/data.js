@@ -1,20 +1,12 @@
 /*
  * The same seed data the iOS and Android apps run on, so the three platforms
- * demo identically. Kept as plain data with no build step: the whole point of
- * this being vanilla is that it loads fast on a Zambian mobile connection.
+ * demo identically. Plain data, no build step: the whole point of this being
+ * vanilla is that it loads fast on a Zambian mobile connection.
+ *
+ * The service catalogue itself is NOT here — it lives in catalog.js, generated
+ * from nchito-shared/taxonomy.json so all five surfaces cannot drift.
  */
 const KWACHA = n => 'K' + (n % 1 === 0 ? n.toFixed(0) : n.toFixed(2));
-
-const CATEGORIES = [
-  { id: 'delivery', label: 'Delivery & Errands' },
-  { id: 'home_services', label: 'Home Services' },
-  { id: 'tutoring', label: 'Tutoring & Lessons' },
-  { id: 'digital', label: 'Digital & Design' },
-  { id: 'events', label: 'Events & Catering' },
-  { id: 'farm', label: 'Farm & Garden' },
-  { id: 'beauty', label: 'Beauty & Care' },
-  { id: 'repairs', label: 'Repairs & Technical' },
-];
 
 // Commission falls as a poster and worker build history (INNOVATION.md §1.1),
 // so going off-platform stops being worth the saving.

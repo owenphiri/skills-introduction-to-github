@@ -32,11 +32,18 @@ struct PostGigView: View {
                     TextField("Describe the job, timing and requirements…",
                               text: $details, axis: .vertical)
                         .lineLimit(4...8)
+                    // Sectioned by family: a flat list of thirty-nine services
+                    // is a wheel nobody can find "Bricklaying" in.
                     Picker("Category", selection: $category) {
-                        ForEach(GigCategory.allCases) { cat in
-                            Label(cat.rawValue, systemImage: cat.icon).tag(cat)
+                        ForEach(ServiceGroup.allCases) { group in
+                            Section(group.label) {
+                                ForEach(group.categories) { cat in
+                                    Label(cat.rawValue, systemImage: cat.icon).tag(cat)
+                                }
+                            }
                         }
                     }
+                    .pickerStyle(.navigationLink)
                 }
 
                 Section("Pay & location") {

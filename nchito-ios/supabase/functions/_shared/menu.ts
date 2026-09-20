@@ -10,6 +10,7 @@
 // reverse is not true.
 
 import { Db, Session } from "./db.ts";
+import { categoriesIn, SERVICE_GROUPS } from "./catalog.ts";
 
 export const USSD_SCREEN_LIMIT = 182;
 
@@ -18,18 +19,6 @@ export interface Reply {
   /** Ends a USSD session. WhatsApp just stops expecting a numbered answer. */
   done: boolean;
 }
-
-/** Categories offered by number, matching the gig_category enum. */
-const CATEGORIES: Array<[string, string]> = [
-  ["delivery", "Delivery"],
-  ["home_services", "Home services"],
-  ["tutoring", "Tutoring"],
-  ["digital", "Digital & design"],
-  ["events", "Events"],
-  ["farm", "Farm & garden"],
-  ["beauty", "Beauty"],
-  ["repairs", "Repairs"],
-];
 
 const kwacha = (n: number) => `K${Number(n) % 1 === 0 ? Number(n).toFixed(0) : Number(n).toFixed(2)}`;
 
@@ -99,30 +88,30 @@ export async function handle(
     case "root":
       return routeMain(choice, session);
 
-    case "gig_category": {
-      const index = Number(choice) - 1;
-      const category = CATEGORIES[index];
-      if (!category) {
-        return { reply: con("Invalid choice.\n\n" + categoryMenu()), session };
+    case "gig_group": {
+      // "9" is the escape hatch for someone who just wants to see whatever is
+      // going, which after adding 39 categories is most people.
+      if (choice === "9") {
+        return browse(null, "gigs");
       }
-      const gigs = await db.browseGigs(phone, category[0]);
-      if (gigs.length === 0) {
-        return {
-          reply: end(`No open ${category[1].toLowerCase()} gigs near you right now.\nDial back later — new gigs are posted daily.`),
-          session: { node: "root", data: {} },
-        };
+      const group = SERVICE_GROUPS[Number(choice) - 1];
+      if (!group) {
+        return { reply: con("Invalid choice.\n\n" + groupMenu()), session };
       }
-      const screen = gigList(gigs);
-      // Only the gigs that fit are selectable — otherwise "3" could apply to a
-      // gig that never appeared on screen.
-      const shownCount = Number(screen.match(/Reply 1-(\d+)/)?.[1] ?? gigs.length);
       return {
-        reply: con(screen),
-        session: {
-          node: "gig_pick",
-          data: { ids: gigs.slice(0, shownCount).map((g) => g.id).join(",") },
-        },
+        reply: con(categoryMenu(group.code)),
+        session: { node: "gig_category", data: { group: group.code } },
       };
+    }
+
+    case "gig_category": {
+      const options = categoriesIn(data.group ?? "");
+      const index = Number(choice) - 1;
+      const category = options[index];
+      if (!category) {
+        return { reply: con("Invalid choice.\n\n" + categoryMenu(data.group ?? "")), session };
+      }
+      return browse(category.code, category.label.toLowerCase());
     }
 
     case "gig_pick": {
@@ -217,12 +206,42 @@ export async function handle(
       return { reply: con(mainMenu()), session: { node: "root", data: {} } };
   }
 
+  // --- Browsing ------------------------------------------------------------
+
+  /**
+   * Lists open gigs and arms the apply step. Shared by the category path and
+   * by "anything near me", so the two cannot drift in what a number means.
+   */
+  async function browse(
+    category: string | null,
+    what: string,
+  ): Promise<{ reply: Reply; session: Session }> {
+    const gigs = await db.browseGigs(phone, category);
+    if (gigs.length === 0) {
+      return {
+        reply: end(clamp(`No open ${what} near you right now.\nDial back later — new gigs are posted daily.`)),
+        session: { node: "root", data: {} },
+      };
+    }
+    const screen = gigList(gigs);
+    // Only the gigs that fit are selectable — otherwise "3" could apply to a
+    // gig that never appeared on screen.
+    const shownCount = Number(screen.match(/Reply 1-(\d+)/)?.[1] ?? gigs.length);
+    return {
+      reply: con(screen),
+      session: {
+        node: "gig_pick",
+        data: { ids: gigs.slice(0, shownCount).map((g) => g.id).join(",") },
+      },
+    };
+  }
+
   // --- Main menu routing ---------------------------------------------------
 
   async function routeMain(c: string, s: Session): Promise<{ reply: Reply; session: Session }> {
     switch (c) {
       case "1":
-        return { reply: con(categoryMenu()), session: { node: "gig_category", data: {} } };
+        return { reply: con(groupMenu()), session: { node: "gig_group", data: {} } };
 
       case "2": {
         const balance = await db.balance(phone) ?? 0;
@@ -352,10 +371,39 @@ export function mainMenu(): string {
   return "Nchito 🇿🇲\n1. Find gigs\n2. My wallet\n3. Quick tasks\n4. My work record\n5. Get paid early\n6. Find cash near me";
 }
 
-function categoryMenu(): string {
-  return "What kind of work?\n" +
-    CATEGORIES.map(([, label], i) => `${i + 1}. ${label}`).join("\n") +
-    "\n0. Back";
+/**
+ * Eight families, not thirty-nine categories.
+ *
+ * A USSD screen is 182 characters with no scrolling, so a flat list of every
+ * service would take six screens that a user cannot page through. Grouping
+ * costs one extra keypress and makes the whole catalogue reachable — and "9"
+ * skips the taxonomy entirely for the many people who just want to see what
+ * is going.
+ */
+function groupMenu(): string {
+  const header = "What kind of work?";
+  const footer = "\n9. Anything near me\n0. Back";
+  const lines: string[] = [];
+  for (const [i, g] of SERVICE_GROUPS.entries()) {
+    const line = `${i + 1}. ${g.short}`;
+    if ([header, ...lines, line].join("\n").length + footer.length > USSD_SCREEN_LIMIT) break;
+    lines.push(line);
+  }
+  return [header, ...lines].join("\n") + footer;
+}
+
+/** The services inside one family, using the short labels sized for USSD. */
+function categoryMenu(group: string): string {
+  const options = categoriesIn(group);
+  const header = `${SERVICE_GROUPS.find((g) => g.code === group)?.label ?? "Work"}:`;
+  const footer = "\n0. Back";
+  const lines: string[] = [];
+  for (const [i, c] of options.entries()) {
+    const line = `${i + 1}. ${c.short}`;
+    if ([header, ...lines, line].join("\n").length + footer.length > USSD_SCREEN_LIMIT) break;
+    lines.push(line);
+  }
+  return [header, ...lines].join("\n") + footer;
 }
 
 /**

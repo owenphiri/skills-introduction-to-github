@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import com.owenphiri.nchito.data.AppViewModel
 import com.owenphiri.nchito.data.Gig
 import com.owenphiri.nchito.data.GigCategory
+import com.owenphiri.nchito.data.ServiceGroup
 import com.owenphiri.nchito.data.kwacha
 import com.owenphiri.nchito.ui.NchitoColors
 
@@ -47,6 +48,7 @@ import com.owenphiri.nchito.ui.NchitoColors
 @Composable
 fun HomeScreen(vm: AppViewModel, onOpenGig: (String) -> Unit) {
     var search by remember { mutableStateOf("") }
+    var selectedGroup by remember { mutableStateOf<ServiceGroup?>(null) }
     var selectedCategory by remember { mutableStateOf<GigCategory?>(null) }
     var showPostSheet by remember { mutableStateOf(false) }
 
@@ -107,16 +109,39 @@ fun HomeScreen(vm: AppViewModel, onOpenGig: (String) -> Unit) {
                     singleLine = true,
                 )
             }
+            // Two levels, because thirty-nine chips in one row is not a filter
+            // but a horizontal scroll nobody reaches the end of. Pick a family
+            // first; its services appear underneath.
             item {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(GigCategory.entries) { cat ->
+                    items(ServiceGroup.entries) { group ->
                         FilterChip(
-                            selected = selectedCategory == cat,
+                            selected = selectedGroup == group,
                             onClick = {
-                                selectedCategory = if (selectedCategory == cat) null else cat
+                                selectedGroup = if (selectedGroup == group) null else group
+                                // A category from the family we just left would
+                                // empty the feed with no visible cause.
+                                if (selectedCategory?.group != selectedGroup) {
+                                    selectedCategory = null
+                                }
                             },
-                            label = { Text(cat.label) },
+                            label = { Text("${group.emoji} ${group.label}") },
                         )
+                    }
+                }
+            }
+            selectedGroup?.let { group ->
+                item {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(group.categories) { cat ->
+                            FilterChip(
+                                selected = selectedCategory == cat,
+                                onClick = {
+                                    selectedCategory = if (selectedCategory == cat) null else cat
+                                },
+                                label = { Text(cat.label) },
+                            )
+                        }
                     }
                 }
             }

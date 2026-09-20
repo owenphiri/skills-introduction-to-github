@@ -21,20 +21,10 @@ extension WireRepresentable {
     }
 }
 
-extension GigCategory: WireRepresentable {
-    var wireValue: String {
-        switch self {
-        case .delivery:     return "delivery"
-        case .homeServices: return "home_services"
-        case .tutoring:     return "tutoring"
-        case .digital:      return "digital"
-        case .events:       return "events"
-        case .farm:         return "farm"
-        case .beauty:       return "beauty"
-        case .repairs:      return "repairs"
-        }
-    }
-}
+// GigCategory's wireValue lives in the generated ServiceCatalog.swift. It
+// still conforms here so it takes part in the same round-trip test as the
+// hand-written enums below.
+extension GigCategory: WireRepresentable {}
 
 extension GigStatus: WireRepresentable {
     static var allCases: [GigStatus] { [.open, .assigned, .completed, .paid] }

@@ -49,31 +49,10 @@ struct UserProfile: Identifiable, Codable {
 
 // MARK: - Gigs
 
-enum GigCategory: String, Codable, CaseIterable, Identifiable {
-    case delivery = "Delivery & Errands"
-    case homeServices = "Home Services"
-    case tutoring = "Tutoring & Lessons"
-    case digital = "Digital & Design"
-    case events = "Events & Catering"
-    case farm = "Farm & Garden"
-    case beauty = "Beauty & Care"
-    case repairs = "Repairs & Technical"
-
-    var id: String { rawValue }
-
-    var icon: String {
-        switch self {
-        case .delivery: return "bicycle"
-        case .homeServices: return "house.fill"
-        case .tutoring: return "book.fill"
-        case .digital: return "laptopcomputer"
-        case .events: return "party.popper.fill"
-        case .farm: return "leaf.fill"
-        case .beauty: return "scissors"
-        case .repairs: return "wrench.and.screwdriver.fill"
-        }
-    }
-}
+// GigCategory and ServiceGroup are generated into ServiceCatalog.swift from
+// nchito-shared/taxonomy.json, which is also what seeds the Postgres enum and
+// the Android and web catalogues. Thirty-nine categories written out five
+// times by hand is a promise nobody keeps.
 
 enum GigStatus: String, Codable {
     case open = "Open"

@@ -3,6 +3,7 @@ import SwiftUI
 struct HomeView: View {
     @EnvironmentObject private var state: AppState
     @State private var search = ""
+    @State private var selectedGroup: ServiceGroup?
     @State private var selectedCategory: GigCategory?
     @State private var selectedCity = "All Cities"
     @State private var showPostGig = false
@@ -82,25 +83,62 @@ struct HomeView: View {
         }
     }
 
+    /// Two levels, because thirty-nine chips in one row is not a filter — it is
+    /// a horizontal scroll nobody reaches the end of. Pick a family first; the
+    /// services inside it appear underneath, and the feed narrows at each step.
     private var categoryRow: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(GigCategory.allCases) { cat in
-                    let isSelected = selectedCategory == cat
-                    Button {
-                        selectedCategory = isSelected ? nil : cat
-                    } label: {
-                        Label(cat.rawValue, systemImage: cat.icon)
-                            .font(.caption.weight(.medium))
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(isSelected ? Theme.green : Theme.card,
-                                        in: Capsule())
-                            .foregroundStyle(isSelected ? .white : Theme.ink)
+        VStack(alignment: .leading, spacing: 8) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(ServiceGroup.allCases) { group in
+                        chip("\(group.emoji) \(group.label)",
+                             selected: selectedGroup == group) {
+                            if selectedGroup == group {
+                                selectedGroup = nil
+                            } else {
+                                selectedGroup = group
+                            }
+                            // A category from the family we just left would
+                            // filter the feed to nothing with no visible cause.
+                            if let cat = selectedCategory, cat.group != selectedGroup {
+                                selectedCategory = nil
+                            }
+                        }
                     }
                 }
+                .padding(.vertical, 4)
             }
-            .padding(.vertical, 4)
+
+            if let group = selectedGroup {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(group.categories) { cat in
+                            chip(cat.rawValue, selected: selectedCategory == cat,
+                                 icon: cat.icon) {
+                                selectedCategory = selectedCategory == cat ? nil : cat
+                            }
+                        }
+                    }
+                    .padding(.bottom, 4)
+                }
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .animation(.snappy(duration: 0.22), value: selectedGroup)
+    }
+
+    @ViewBuilder
+    private func chip(_ title: String, selected: Bool, icon: String? = nil,
+                      action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Group {
+                if let icon { Label(title, systemImage: icon) } else { Text(title) }
+            }
+            .font(.caption.weight(.medium))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(selected ? Theme.green : Theme.card, in: Capsule())
+            .foregroundStyle(selected ? .white : Theme.ink)
         }
     }
 }

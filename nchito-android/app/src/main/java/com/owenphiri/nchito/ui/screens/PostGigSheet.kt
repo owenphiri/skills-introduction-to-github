@@ -36,6 +36,7 @@ import com.owenphiri.nchito.data.AppViewModel
 import com.owenphiri.nchito.data.Gig
 import com.owenphiri.nchito.data.GigCategory
 import com.owenphiri.nchito.data.PriceBand
+import com.owenphiri.nchito.data.ServiceGroup
 import com.owenphiri.nchito.data.kwacha
 import com.owenphiri.nchito.ui.NchitoColors
 
@@ -70,8 +71,20 @@ fun PostGigSheet(vm: AppViewModel, onDismiss: () -> Unit) {
                 label = { Text("Describe the job, timing and requirements") },
                 minLines = 3, modifier = Modifier.fillMaxWidth())
 
+            // Family first, then the service. Posting is where getting the
+            // category right matters most: it is what the price band and every
+            // future search are computed from.
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(GigCategory.entries) { cat ->
+                items(ServiceGroup.entries) { group ->
+                    FilterChip(
+                        selected = category.group == group,
+                        onClick = { category = group.categories.first() },
+                        label = { Text("${group.emoji} ${group.label}") },
+                    )
+                }
+            }
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(category.group.categories) { cat ->
                     FilterChip(selected = category == cat, onClick = { category = cat },
                                label = { Text(cat.label) })
                 }
