@@ -1,0 +1,411 @@
+// PrimeAxis Poultry Cloud — database schema (PostgreSQL)
+// `npx prisma migrate dev` to apply; see docs/database.md for the walkthrough.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Identity & tenancy ──────────────────────────────────────────────────────
+
+enum Role {
+  OWNER
+  MANAGER
+  WORKER
+  ADMIN // platform staff, not farm-scoped
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String
+  fullName      String
+  phone         String?
+  isPlatformAdmin Boolean @default(false)
+  createdAt     DateTime  @default(now())
+  memberships   FarmMember[]
+  refreshTokens RefreshToken[]
+  auditLogs     AuditLog[]
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Farm {
+  id           String   @id @default(cuid())
+  name         String
+  // Location for mapping + Waze deep links
+  latitude     Float?
+  longitude    Float?
+  address      String?
+  country      String   @default("ZM")
+  currency     String   @default("ZMW")
+  timezone     String   @default("Africa/Lusaka")
+  createdAt    DateTime @default(now())
+
+  members      FarmMember[]
+  houses       House[]
+  flocks       Flock[]
+  inventory    InventoryItem[]
+  suppliers    Supplier[]
+  purchaseOrders PurchaseOrder[]
+  alerts       Alert[]
+  expenses     Expense[]
+  sales        Sale[]
+  subscription Subscription?
+  auditLogs    AuditLog[]
+}
+
+model FarmMember {
+  id      String @id @default(cuid())
+  farmId  String
+  userId  String
+  role    Role
+  farm    Farm   @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([farmId, userId])
+  @@index([userId])
+}
+
+// ── Production: houses, flocks, daily records ───────────────────────────────
+
+enum FlockType {
+  BROILER
+  LAYER
+  BREEDER
+}
+
+enum FlockStatus {
+  ACTIVE
+  SOLD
+  DEPLETED
+  ARCHIVED
+}
+
+model House {
+  id        String  @id @default(cuid())
+  farmId    String
+  farm      Farm    @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  name      String
+  capacity  Int
+  // Environment targets used by AlertsService
+  tempMinC  Float   @default(18)
+  tempMaxC  Float   @default(30)
+  humidityMaxPct Float @default(75)
+  flocks    Flock[]
+  sensorReadings SensorReading[]
+
+  @@index([farmId])
+}
+
+model Flock {
+  id            String      @id @default(cuid())
+  farmId        String
+  farm          Farm        @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  houseId       String
+  house         House       @relation(fields: [houseId], references: [id])
+  name          String      // e.g. "Batch 2026-07 Ross 308"
+  type          FlockType
+  breed         String
+  birdsPlaced   Int
+  placedAt      DateTime
+  dayOldWeightG Float       @default(42)
+  status        FlockStatus @default(ACTIVE)
+  costPerChick  Decimal     @default(0) @db.Decimal(12, 2)
+  records       DailyRecord[]
+  vaccinations  Vaccination[]
+  stockMovements StockMovement[]
+
+  @@index([farmId, status])
+}
+
+model DailyRecord {
+  id             String   @id @default(cuid())
+  flockId        String
+  flock          Flock    @relation(fields: [flockId], references: [id], onDelete: Cascade)
+  date           DateTime @db.Date
+  mortality      Int      @default(0)
+  culls          Int      @default(0)
+  feedKg         Float    @default(0)
+  waterL         Float    @default(0)
+  avgWeightG     Float?   // broilers: sample weight
+  eggsCollected  Int      @default(0) // layers
+  eggsBroken     Int      @default(0)
+  notes          String?
+  recordedById   String?  // User.id — kept loose for imports
+  createdAt      DateTime @default(now())
+
+  @@unique([flockId, date]) // one row per flock per day; upsert on entry
+  @@index([flockId, date])
+}
+
+model SensorReading {
+  id        String   @id @default(cuid())
+  houseId   String
+  house     House    @relation(fields: [houseId], references: [id], onDelete: Cascade)
+  at        DateTime @default(now())
+  tempC     Float?
+  humidityPct Float?
+  source    String   @default("manual") // manual | iot
+
+  @@index([houseId, at(sort: Desc)])
+}
+
+model Vaccination {
+  id        String    @id @default(cuid())
+  flockId   String
+  flock     Flock     @relation(fields: [flockId], references: [id], onDelete: Cascade)
+  vaccine   String
+  dueDate   DateTime  @db.Date
+  givenAt   DateTime?
+  method    String?   // water, spray, injection…
+  notes     String?
+
+  @@index([flockId, dueDate])
+}
+
+// ── Inventory, suppliers, purchase orders ───────────────────────────────────
+
+enum InventoryCategory {
+  FEED
+  VACCINE
+  MEDICATION
+  EQUIPMENT
+  PACKAGING
+  OTHER
+}
+
+model InventoryItem {
+  id           String            @id @default(cuid())
+  farmId       String
+  farm         Farm              @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  name         String
+  category     InventoryCategory
+  unit         String            // kg, bag(50kg), dose, unit…
+  quantity     Float             @default(0)
+  reorderLevel Float             @default(0) // low-stock alert threshold
+  unitCost     Decimal           @default(0) @db.Decimal(12, 2)
+  expiryDate   DateTime?
+  movements    StockMovement[]
+  orderLines   PurchaseOrderLine[]
+
+  @@index([farmId, category])
+}
+
+enum MovementType {
+  PURCHASE
+  USAGE
+  ADJUSTMENT
+  TRANSFER
+}
+
+model StockMovement {
+  id       String        @id @default(cuid())
+  itemId   String
+  item     InventoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  flockId  String?       // usage attributed to a flock/house for costing
+  flock    Flock?        @relation(fields: [flockId], references: [id])
+  type     MovementType
+  quantity Float         // signed: purchases +, usage −
+  note     String?
+  at       DateTime      @default(now())
+
+  @@index([itemId, at])
+  @@index([flockId])
+}
+
+model Supplier {
+  id      String @id @default(cuid())
+  farmId  String
+  farm    Farm   @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  name    String
+  phone   String?
+  email   String?
+  latitude  Float?  // enables Waze directions to supplier
+  longitude Float?
+  orders  PurchaseOrder[]
+
+  @@index([farmId])
+}
+
+enum POStatus {
+  DRAFT
+  ORDERED
+  RECEIVED
+  CANCELLED
+}
+
+model PurchaseOrder {
+  id         String    @id @default(cuid())
+  farmId     String
+  farm       Farm      @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  supplierId String
+  supplier   Supplier  @relation(fields: [supplierId], references: [id])
+  status     POStatus  @default(DRAFT)
+  orderedAt  DateTime?
+  receivedAt DateTime?
+  lines      PurchaseOrderLine[]
+
+  @@index([farmId, status])
+}
+
+model PurchaseOrderLine {
+  id       String        @id @default(cuid())
+  orderId  String
+  order    PurchaseOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  itemId   String
+  item     InventoryItem @relation(fields: [itemId], references: [id])
+  quantity Float
+  unitCost Decimal       @db.Decimal(12, 2)
+}
+
+// ── Finance ─────────────────────────────────────────────────────────────────
+
+model Expense {
+  id       String   @id @default(cuid())
+  farmId   String
+  farm     Farm     @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  flockId  String?  // allocate to a batch for per-batch profitability
+  category String   // feed, labour, utilities, meds, transport…
+  amount   Decimal  @db.Decimal(12, 2)
+  date     DateTime @db.Date
+  note     String?
+
+  @@index([farmId, date])
+}
+
+model Sale {
+  id       String   @id @default(cuid())
+  farmId   String
+  farm     Farm     @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  flockId  String?
+  product  String   // live-bird, dressed, eggs(tray), manure…
+  quantity Float
+  unitPrice Decimal @db.Decimal(12, 2)
+  date     DateTime @db.Date
+  buyer    String?
+
+  @@index([farmId, date])
+}
+
+// ── Alerts ──────────────────────────────────────────────────────────────────
+
+enum AlertSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+enum AlertKind {
+  MORTALITY_SPIKE
+  LOW_STOCK
+  TEMPERATURE
+  HUMIDITY
+  WATER_FEED_RATIO
+  VACCINATION_DUE
+  PRODUCTION_DROP
+  PAYMENT
+}
+
+model Alert {
+  id        String        @id @default(cuid())
+  farmId    String
+  farm      Farm          @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  kind      AlertKind
+  severity  AlertSeverity
+  message   String
+  entityId  String?       // flock/house/item the alert refers to
+  readAt    DateTime?
+  createdAt DateTime      @default(now())
+
+  @@index([farmId, createdAt(sort: Desc)])
+}
+
+// ── Billing ─────────────────────────────────────────────────────────────────
+
+enum Plan {
+  FREE
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  TRIALING
+}
+
+enum PaymentGatewayKind {
+  STRIPE
+  PAYPAL
+  CRYPTO
+  MOBILE_MONEY
+}
+
+model Subscription {
+  id                String             @id @default(cuid())
+  farmId            String             @unique
+  farm              Farm               @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  plan              Plan               @default(FREE)
+  status            SubscriptionStatus @default(ACTIVE)
+  gateway           PaymentGatewayKind?
+  // Gateway references — only the ones for the active gateway are set
+  stripeCustomerId      String?
+  stripeSubscriptionId  String?
+  paypalSubscriptionId  String?
+  currentPeriodEnd  DateTime?
+  payments          Payment[]
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+model Payment {
+  id             String             @id @default(cuid())
+  subscriptionId String
+  subscription   Subscription       @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  gateway        PaymentGatewayKind
+  externalId     String             @unique // Stripe event/invoice, PayPal capture, Coinbase charge code
+  amount         Decimal            @db.Decimal(12, 2)
+  currency       String
+  status         PaymentStatus
+  createdAt      DateTime           @default(now())
+}
+
+// ── Audit ───────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  farmId    String?
+  farm      Farm?    @relation(fields: [farmId], references: [id], onDelete: SetNull)
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String   // e.g. "POST /farms/:id/flocks"
+  entity    String?
+  entityId  String?
+  summary   String?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([farmId, createdAt(sort: Desc)])
+}

@@ -1,0 +1,89 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens (deliverable 7). Components reference roles, never hex —
+ * rebrand or retheme by editing this block only.
+ * Chart series colors are a colorblind-validated palette (fixed slot order);
+ * status colors are reserved for state and never reused as series.
+ */
+:root {
+  --background: #f9f9f7;
+  --surface: #ffffff;
+  --surface-2: #f3f3ef;
+  --border: #e1e0d9;
+  --foreground: #0b0b0b;
+  --muted-foreground: #52514e;
+  --faint-foreground: #898781;
+
+  --primary: #d97706;            /* amber-600 — the brand hue */
+  --primary-foreground: #ffffff;
+  --accent: #166534;             /* deep green — agriculture accent */
+
+  --status-good: #0ca30c;
+  --status-warning: #b45309;     /* readable on light surface */
+  --status-critical: #d03b3b;
+
+  --chart-1: #2a78d6;  /* blue   */
+  --chart-2: #1baf7a;  /* aqua   */
+  --chart-3: #eda100;  /* yellow */
+  --chart-4: #008300;  /* green  */
+  --chart-grid: #e1e0d9;
+  --chart-axis: #898781;
+
+  --radius: 0.75rem;
+}
+
+.dark {
+  --background: #0d0d0d;
+  --surface: #1a1a19;
+  --surface-2: #232322;
+  --border: #2c2c2a;
+  --foreground: #ffffff;
+  --muted-foreground: #c3c2b7;
+  --faint-foreground: #898781;
+
+  --primary: #f59e0b;
+  --primary-foreground: #1a1206;
+  --accent: #4ade80;
+
+  --status-good: #0ca30c;
+  --status-warning: #fab219;
+  --status-critical: #e66767;
+
+  --chart-1: #3987e5;
+  --chart-2: #199e70;
+  --chart-3: #c98500;
+  --chart-4: #008300;
+  --chart-grid: #2c2c2a;
+  --chart-axis: #898781;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-foreground: var(--foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-faint-foreground: var(--faint-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-good: var(--status-good);
+  --color-warning: var(--status-warning);
+  --color-critical: var(--status-critical);
+  --radius-card: var(--radius);
+}
+
+html {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Numeric tables and axis ticks align; hero figures stay proportional. */
+.tabular { font-variant-numeric: tabular-nums; }
+
+/* Comfortable touch targets everywhere (mobile-first). */
+button, a, input, select { min-height: 2.5rem; }
