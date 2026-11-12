@@ -244,6 +244,15 @@ body {
 }
 .vx-billing-note { margin: 12px 0 0; font-size: 13px; color: var(--vx-text-dim); }
 
+/* four-way billing-period selector (Monthly / 3 months / 6 months / Annual) */
+.vx-billing-toggle--multi { flex-wrap: wrap; justify-content: center; max-width: 100%; }
+.vx-billing-toggle--multi button { padding: 10px 16px; }
+.vx-billing-toggle--multi .vx-save-pill { padding: 2px 6px; }
+@media (max-width: 560px) {
+  .vx-billing-toggle--multi { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
+  .vx-billing-toggle--multi button { justify-content: center; }
+}
+
 /* compact trust bar + annual nudge under the billing toggle */
 .vx-pricing-trust {
   display: inline-flex; flex-wrap: wrap; align-items: center;

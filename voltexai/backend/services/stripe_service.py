@@ -9,13 +9,17 @@ import logging
 import stripe
 
 from ..config import settings
+from . import pricing_service
 
 logger = logging.getLogger(__name__)
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
 
-# plan -> {interval -> Stripe recurring price id}
+# plan -> {interval -> Stripe recurring price id}. Only the monthly & annual
+# cadences have pre-created Price IDs; the 3- and 6-month cadences are billed
+# with inline recurring price_data (interval="month", interval_count=3/6), so
+# no extra Stripe Price objects need to be provisioned.
 PLAN_TO_PRICE_ID = {
     "starter": {"month": settings.STRIPE_PRICE_STARTER,
                 "year": settings.STRIPE_PRICE_STARTER_ANNUAL},
@@ -27,29 +31,57 @@ PLAN_TO_PRICE_ID = {
               "year": settings.STRIPE_PRICE_ELITE_ANNUAL},
 }
 
+# How each billing period maps onto a Stripe recurring cadence.
+_STRIPE_RECURRING = {
+    "month": ("month", 1),
+    "quarter": ("month", 3),
+    "semiannual": ("month", 6),
+    "year": ("year", 1),
+}
+
+
+def _line_item_for(plan: str, interval: str) -> dict:
+    """Return the Stripe line_item for this plan+period.
+
+    month/year use a pre-created Price ID when one is configured; everything
+    else (and month/year without a configured Price ID) falls back to inline
+    recurring price_data derived from pricing_service, so the catalog stays the
+    single source of truth and 3-/6-month cadences need no new Stripe objects."""
+    price_id = PLAN_TO_PRICE_ID.get(plan, {}).get(interval)
+    if price_id:
+        return {"price": price_id, "quantity": 1}
+    rec_interval, rec_count = _STRIPE_RECURRING[interval]
+    total_cents = int(round(pricing_service.period_price_usd(plan, interval) * 100))
+    return {
+        "quantity": 1,
+        "price_data": {
+            "currency": "usd",
+            "unit_amount": total_cents,
+            "recurring": {"interval": rec_interval, "interval_count": rec_count},
+            "product_data": {"name": f"VoltexAI · {plan.title()} ({interval})"},
+        },
+    }
+
 
 def create_checkout_session(user_email: str, user_id: int, plan: str,
                             interval: str = "month",
                             discount_usd: float = 0.0, vxc_redeem: int = 0) -> dict:
-    """Create a Stripe Checkout Session for a subscription plan (monthly or annual).
-    A Voltex Coin credit is applied to the FIRST invoice via a one-time coupon
-    (`amount_off`, duration='once'); `vxc_redeem` coins are burned on webhook
-    success (stamped into metadata)."""
+    """Create a Stripe Checkout Session for a subscription plan on any of the
+    four billing periods (month / quarter / semiannual / year). A Voltex Coin
+    credit is applied to the FIRST invoice via a one-time coupon (`amount_off`,
+    duration='once'); `vxc_redeem` coins are burned on webhook success (stamped
+    into metadata)."""
     if plan not in PLAN_TO_PRICE_ID:
         raise ValueError(f"Unknown plan: {plan}")
-    if interval not in ("month", "year"):
+    if interval not in pricing_service.VALID_INTERVALS:
         raise ValueError(f"Unknown interval: {interval}")
-    price_id = PLAN_TO_PRICE_ID[plan][interval]
-    if not price_id:
-        suffix = "_ANNUAL" if interval == "year" else ""
-        raise ValueError(f"STRIPE_PRICE_{plan.upper()}{suffix} not configured")
 
     meta = {"user_id": str(user_id), "plan": plan, "interval": interval,
             "vxc_redeem": str(int(vxc_redeem))}
     kwargs = dict(
         mode="subscription",
         customer_email=user_email,
-        line_items=[{"price": price_id, "quantity": 1}],
+        line_items=[_line_item_for(plan, interval)],
         success_url=f"{settings.FRONTEND_URL}/account?checkout=success&session_id={{CHECKOUT_SESSION_ID}}",
         cancel_url=f"{settings.FRONTEND_URL}/pricing?checkout=cancelled",
         client_reference_id=str(user_id),

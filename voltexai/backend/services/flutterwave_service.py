@@ -44,12 +44,13 @@ async def create_payment_link(user_id: int, email: str, full_name: str | None,
                               phone: str | None = None,
                               interval: str = "month",
                               discount_usd: float = 0.0, vxc_redeem: int = 0) -> dict:
-    """Create a hosted Flutterwave payment page for a subscription plan.
-    interval='year' charges the discounted annual price. A Voltex Coin credit
-    (`discount_usd`) reduces the charge; `vxc_redeem` coins burn on success."""
+    """Create a hosted Flutterwave payment page for a subscription plan on any
+    of the four billing periods (month / quarter / semiannual / year), each
+    charged at its discounted period total. A Voltex Coin credit (`discount_usd`)
+    reduces the charge; `vxc_redeem` coins burn on success."""
     if plan not in PLAN_USD:
         raise ValueError(f"Unknown plan: {plan}")
-    if interval not in ("month", "year"):
+    if interval not in pricing_service.VALID_INTERVALS:
         raise ValueError(f"Unknown interval: {interval}")
     if not settings.FLW_SECRET_KEY:
         raise RuntimeError("FLW_SECRET_KEY not configured")
@@ -72,7 +73,7 @@ async def create_payment_link(user_id: int, email: str, full_name: str | None,
         },
         "customizations": {
             "title": "VoltexAI Subscription",
-            "description": f"VoltexAI {plan.title()} plan - {'annual' if interval == 'year' else 'monthly'}",
+            "description": f"VoltexAI {plan.title()} plan - {pricing_service.PERIOD_LABEL.get(interval, 'Monthly')}",
             "logo": f"{settings.BASE_URL}/static/voltexai-logo.png",
         },
         "meta": {"user_id": user_id, "plan": plan, "interval": interval,
