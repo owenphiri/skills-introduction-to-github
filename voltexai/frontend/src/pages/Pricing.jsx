@@ -11,8 +11,10 @@ import { useI18n } from "../i18n";
 const PRICING_FAQ = [
   { q: "Is there really a free plan?",
     a: "Yes — Free is free forever. You get 10 AI Copilot calls a day, delayed market prices, community access and live-session replays, with no card required to start." },
-  { q: "What's the difference between monthly and annual billing?",
-    a: "Same features either way. Annual gives you 2 months free (about 17% off): you pay for 10 months up front and get the full year. You can switch between monthly and annual with the toggle above." },
+  { q: "What billing periods can I choose from?",
+    a: "Four, with the same features on each — the longer you commit, the more you save off the monthly rate: Monthly (pay as you go), 3 months (save 5%), 6 months (save 10%) and Annual (2 months free, about 17% off). Pick any of them with the selector above; the price updates instantly." },
+  { q: "Why would I pay for a longer period?",
+    a: "Purely to lock in a lower effective monthly rate — a 6-month plan is the same product as monthly, just 10% cheaper per month, and annual is ~17% cheaper. There's no obligation to renew, and you can cancel before the next period. Longer periods are a discount for committing, not a performance promise." },
   { q: "Can I upgrade or downgrade later?",
     a: "Anytime. Upgrades unlock the new tier's products immediately; downgrades take effect at the end of your current billing period, so you keep what you paid for until then." },
   { q: "How do I pay?",
@@ -77,6 +79,19 @@ export default function Pricing() {
     const n = v >= 100 ? Math.round(v) : Math.round(v * 100) / 100;
     return `${cc.symbol}${n.toLocaleString()}`;
   };
+
+  // Billing periods for the selector. Prefer the catalog from the API; fall
+  // back to the known four so the UI still renders before /plans resolves.
+  const PERIODS = billing?.periods?.length ? billing.periods : [
+    { interval: "month", label: "Monthly", discount_pct: 0, months: 1 },
+    { interval: "quarter", label: "3 months", discount_pct: 5, months: 3 },
+    { interval: "semiannual", label: "6 months", discount_pct: 10, months: 6 },
+    { interval: "year", label: "Annual", discount_pct: 17, months: 12 },
+  ];
+  const activePeriod = PERIODS.find((o) => o.interval === interval) || PERIODS[0];
+  // Per-plan figures for the selected period (usd_total / usd_monthly_equiv /
+  // savings_usd / discount_pct), computed server-side in pricing_service.
+  const planPeriod = (p) => (p.periods || []).find((o) => o.interval === interval) || null;
 
   async function startCheckout(plan, provider) {
     setError(""); setBusy(`${plan}-${provider}`);
@@ -148,25 +163,26 @@ export default function Pricing() {
           </p>
         )}
 
-        <div className="vx-billing-toggle" role="group" aria-label="Billing period">
-          <button
-            className={!annual ? "active" : ""}
-            onClick={() => setInterval("month")}
-          >
-            {t("price.monthly")}
-          </button>
-          <button
-            className={annual ? "active" : ""}
-            onClick={() => setInterval("year")}
-          >
-            {t("price.annual")}
-            {billing?.discount_pct ? (
-              <span className="vx-save-pill">{t("price.save")} {billing.discount_pct}%</span>
-            ) : null}
-          </button>
+        <div className="vx-billing-toggle vx-billing-toggle--multi" role="group" aria-label="Billing period">
+          {PERIODS.map((opt) => (
+            <button
+              key={opt.interval}
+              className={interval === opt.interval ? "active" : ""}
+              onClick={() => setInterval(opt.interval)}
+            >
+              {opt.label}
+              {opt.discount_pct > 0 && (
+                <span className="vx-save-pill">−{opt.discount_pct}%</span>
+              )}
+            </button>
+          ))}
         </div>
-        {annual && billing?.label && (
-          <p className="vx-billing-note">Billed yearly — {billing.label}. Cancel anytime.</p>
+        {activePeriod?.months > 1 && (
+          <p className="vx-billing-note">
+            {interval === "year" && billing?.label
+              ? `Billed yearly — ${billing.label}. Cancel anytime.`
+              : `Billed every ${activePeriod.months} months — save ${activePeriod.discount_pct}% vs monthly. Cancel anytime.`}
+          </p>
         )}
 
         <div className="vx-pricing-trust">
@@ -204,9 +220,14 @@ export default function Pricing() {
               {(() => {
                 // all figures convert from the plan's USD base into the selected currency
                 const fmt = (usd) => money(usd);
-                const perMonthUsd = annual ? p.usd_annual_monthly : p.usd;
-                const yearTotalUsd = p.usd_annual;
-                const savedUsd = p.annual_savings_usd;
+                const pp = planPeriod(p);
+                const months = pp?.months || 1;
+                // headline is always the per-month equivalent; the period total
+                // and savings sit beneath it
+                const perMonthUsd = pp ? pp.usd_monthly_equiv : p.usd;
+                const periodTotalUsd = pp ? pp.usd_total : p.usd;
+                const savedUsd = pp ? pp.savings_usd : 0;
+                const periodLabel = pp?.label || activePeriod?.label || "";
                 return (
                   <div className="vx-plan-price-wrap">
                     <div className="vx-plan-price">
@@ -215,20 +236,19 @@ export default function Pricing() {
                       </span>
                       {isPaid && <span className="vx-price-period">/month</span>}
                     </div>
-                    {isPaid && annual && (
+                    {isPaid && months > 1 && (
                       <p className="vx-price-annual">
-                        {fmt(yearTotalUsd)} billed yearly
+                        {fmt(periodTotalUsd)} billed {periodLabel.toLowerCase()}
                         {savedUsd > 0 && <span className="vx-price-saved"> · save {fmt(savedUsd)}</span>}
                       </p>
                     )}
-                    {isPaid && !annual && p.annual_discount_pct > 0 && (
+                    {isPaid && months === 1 && p.annual_discount_pct > 0 && (
                       <button className="vx-price-switch" onClick={() => setInterval("year")}>
                         Save {p.annual_discount_pct}% with annual
                       </button>
                     )}
                     {isPaid && coins > 0 && (() => {
-                      const usd = annual ? p.usd_annual : p.usd;
-                      const off = coinDiscount(usd, coins);
+                      const off = coinDiscount(periodTotalUsd, coins);
                       return off > 0 ? (
                         <p className="vx-coin-save">🪙 −${off} with VXC on your first payment</p>
                       ) : null;
@@ -304,8 +324,9 @@ export default function Pricing() {
         <div>
           <h2>Financial freedom — bridging the gap.</h2>
           <p>
-            Start free today, upgrade the moment you're ready. Every paid plan is
-            month-to-month or annual (save 17%), and you can cancel anytime.
+            Start free today, upgrade the moment you're ready. Pay monthly, or
+            commit for 3 months (−5%), 6 months (−10%) or a year (−17%) to lock
+            in a lower rate. Cancel anytime.
           </p>
         </div>
         <div className="vx-pricing-cta-actions">

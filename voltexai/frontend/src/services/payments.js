@@ -2,10 +2,11 @@
 import { api } from "./api";
 
 export const paymentsService = {
-  // Returns { billing: { months_free, discount_pct, label }, plans: [...] }
+  // Returns { billing: { months_free, discount_pct, label, periods }, periods, plans: [...] }
   listPlans: () => api.get("/api/payments/plans"),
 
-  // Stripe (international cards / USD). interval: "month" | "year"
+  // Stripe (international cards / USD).
+  // interval: "month" | "quarter" | "semiannual" | "year"
   stripeCheckout: (plan, interval = "month") =>
     api.post("/api/payments/stripe/checkout", { plan, interval }),
 

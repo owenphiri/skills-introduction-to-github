@@ -95,19 +95,18 @@ def _emit_store_receipt(db: Session, *, user_id: int, provider: str, reference: 
 
 def _emit_plan_receipt(db: Session, *, user_id: int, provider: str, reference: str,
                        plan: str, interval: str, amount: float, currency: str) -> None:
-    cycle = "annual" if interval == "year" else "monthly"
+    cycle = pricing_service.PERIOD_LABEL.get(interval, "Monthly")
     label = f"{plan.title()} Plan — {cycle} subscription"
     _emit_receipt(db, user_id=user_id, provider=provider, reference=reference,
                   item_label=label, item_detail="VoltexAI membership",
                   amount=amount, currency=currency)
-    usd = (pricing_service.annual_usd(plan) if interval == "year"
-           else pricing_service.monthly_usd(plan))
+    usd = pricing_service.period_price_usd(plan, interval)
     _award_cashback(db, user_id, float(usd or 0), reference or "plan")
 
 
 # ---------- schemas ----------
 _PLAN_RE = "^(starter|trader|pro|elite)$"
-_INTERVAL_RE = "^(month|year)$"
+_INTERVAL_RE = "^(month|quarter|semiannual|year)$"
 
 
 class CheckoutIn(BaseModel):
@@ -157,9 +156,14 @@ _TIERS = [
 
 @router.get("/plans")
 def list_plans():
-    """5-tier product ladder with monthly + annual pricing. Each tier unlocks
-    everything below it plus its own products, so the feature list on each card
-    is what's NEW at that tier. Annual billing bakes in the months-free discount."""
+    """5-tier product ladder priced across four billing periods (monthly,
+    3-month, 6-month and annual), each with an escalating loyalty discount off
+    the monthly rate. Each tier unlocks everything below it plus its own
+    products, so the feature list on each card is what's NEW at that tier.
+
+    Every card carries `periods`: a ready-to-render breakdown of each period's
+    total, per-month equivalent, savings and discount — so the UI can offer a
+    month / 3-month / 6-month / annual selector without doing any price math."""
     b = pricing_service.billing_summary()
     out = []
     for pid, name, tagline, rate_attr, features in _TIERS:
@@ -173,10 +177,12 @@ def list_plans():
             "usd_annual_monthly": round(usd_year / 12, 2) if usd_year else 0,
             "annual_savings_usd": pricing_service.annual_savings_usd(pid),
             "annual_discount_pct": b["discount_pct"] if usd else 0,
+            # full 4-period breakdown for the billing-period selector
+            "periods": pricing_service.periods_catalog(pid),
             "ai_calls_per_day": getattr(settings, rate_attr),
             "features": features,
         })
-    return {"billing": b, "plans": out}
+    return {"billing": b, "periods": pricing_service.periods_catalog(), "plans": out}
 
 
 # ---------- create checkout ----------
