@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>SafeGirl EduTrack</title>
+  <meta name="description" content="Protecting Girls, Promoting Education, Building Futures — KGS support, internships, parastatal jobs & GBV help." />
+  <meta name="theme-color" content="#0f4c35" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="assets/icon-192.png" />
+  <link rel="apple-touch-icon" href="assets/icon-192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="SafeGirl" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- quick-exit bar (safety): leaves the app fast -->
+  <a class="quick-exit" data-action="quick-exit" href="https://www.google.com" title="Quickly leave this page">✕ Quick exit</a>
+
+  <header class="appbar">
+    <button class="menu-btn" data-action="toggle-nav" aria-label="Menu">☰</button>
+    <div class="brand"><span class="logo">🎓</span> SafeGirl <b>EduTrack</b></div>
+    <button id="installBtn" class="install-btn hidden" data-action="install">⬇ Install</button>
+  </header>
+
+  <nav id="nav" class="nav">
+    <a data-action="nav" data-view="home" class="active">🏠 Home</a>
+    <a data-action="nav" data-view="stories">🌟 KGS Success Stories</a>
+    <a data-action="nav" data-view="internships">🎒 Internships</a>
+    <a data-action="nav" data-view="jobs">💼 Jobs (Parastatal)</a>
+    <a data-action="nav" data-view="gbv">🛡️ GBV Support</a>
+    <a data-action="nav" data-view="awareness">📣 Awareness</a>
+    <a data-action="nav" data-view="about">ℹ️ About</a>
+  </nav>
+
+  <main id="view"></main>
+
+  <footer class="foot">
+    <span id="netStatus" class="net">● online</span>
+    SafeGirl EduTrack · Keeping Girls in School (KGS) · Republic of Zambia
+  </footer>
+
+  <div class="scrim" id="scrim" data-action="toggle-nav"></div>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
