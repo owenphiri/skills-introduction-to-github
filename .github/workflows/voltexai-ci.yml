@@ -129,3 +129,26 @@ jobs:
           VITE_API_URL: ${{ vars.VITE_API_URL }}
       - name: Deploy to Netlify
         run: netlify deploy --prod --dir=dist --site=${{ secrets.NETLIFY_SITE_ID }} --auth=${{ secrets.NETLIFY_AUTH_TOKEN }}
+
+  deploy-render:
+    name: Deploy backend to Render (production)
+    runs-on: ubuntu-latest
+    needs: [backend]
+    # The native GitHub->Render auto-deploy webhook stopped firing, so merges to
+    # main no longer deploy the backend on their own. This job triggers the Render
+    # deploy via its Deploy Hook instead, so every push to main ships the backend.
+    #
+    # To enable: set repo variable ENABLE_RENDER_DEPLOY=true and add the secret
+    # RENDER_DEPLOY_HOOK_URL (Render dashboard -> voltexai-api -> Settings ->
+    # Deploy Hook -> copy URL). Until then this job is a no-op.
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.ENABLE_RENDER_DEPLOY == 'true'
+    steps:
+      - name: Trigger Render deploy hook
+        run: |
+          if [ -z "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" ]; then
+            echo "::notice::RENDER_DEPLOY_HOOK_URL secret not set — skipping. Add it under Settings -> Secrets and variables -> Actions (URL from Render -> voltexai-api -> Settings -> Deploy Hook)."
+            exit 0
+          fi
+          echo "Triggering Render deploy for voltexai-api…"
+          curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+          echo "::notice::Render deploy triggered."
